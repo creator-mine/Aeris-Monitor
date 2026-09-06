@@ -1,6 +1,9 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:local_notifier/local_notifier.dart';
 import 'app.dart';
 import 'core/config/app_config.dart';
 import 'core/api/signaling_api.dart';
@@ -19,6 +22,11 @@ void main() async {
 
   await Hive.initFlutter();
   Hive.registerAdapter(FirmwareVersionAdapter());
+
+  if (!kIsWeb &&
+      (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    await LocalNotifier.setup(appName: 'IoT Modular System');
+  }
 
   final settingsProvider = SettingsProvider();
   final firmwareProvider = FirmwareProvider();

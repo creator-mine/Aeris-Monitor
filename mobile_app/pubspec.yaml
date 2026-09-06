@@ -41,6 +41,7 @@ dependencies:
   path: ^1.8.0
   image_picker: ^1.0.4
   url_launcher: ^6.3.2
+  local_notifier: ^0.1.6
 
 dev_dependencies:
   flutter_test:

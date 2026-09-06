@@ -7,6 +7,7 @@ import '../../../core/api/mqtt_client.dart';
 import '../../../core/config/connection_mode.dart';
 import '../../../models/device.dart';
 import '../../../models/sensor_data.dart';
+import '../../alerts/services/alert_notifier.dart';
 
 class DashboardProvider extends ChangeNotifier {
   final SignalingApi _signalingApi;
@@ -204,6 +205,8 @@ class DashboardProvider extends ChangeNotifier {
 
   void updateSensorData(SensorData data) {
     _latestSensorData[data.sensorType] = data;
+    _lastUpdate = DateTime.now();
+    AlertNotifier.maybeNotify(data);
     notifyListeners();
   }
 
