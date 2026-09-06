@@ -136,6 +136,21 @@
     .btn-ghost { background: var(--card); color: var(--text); border: 1px solid var(--border); }
     .btn-ghost:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
 
+    .live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+    .live-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 18px;
+      transition: border-color 0.25s, opacity 0.25s;
+    }
+    .live-card.stale { opacity: 0.45; }
+    .live-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .live-dev { font-size: 12px; font-weight: 600; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+    .live-ic { font-size: 18px; }
+    .live-val { font-size: 28px; font-weight: 800; margin-top: 8px; letter-spacing: -0.5px; }
+    .live-val .u { font-size: 15px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+    .live-name { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .live-tick { font-size: 12px; color: var(--muted); margin-top: 6px; font-family: 'JetBrains Mono', monospace; opacity: 0.8; }
+
     /* hero diagram */
     .diagram {
       background: var(--card); border: 1px solid var(--border);
@@ -384,6 +399,18 @@
         <div class="stat"><div class="num">5</div><div class="lab" data-i18n="statMetrics">типов метрик</div></div>
         <div class="stat"><div class="num">100%</div><div class="lab" data-i18n="statVps">на Raspberry·VPS штатно</div></div>
       </div>
+    </div>
+  </section>
+
+  <!-- LIVE -->
+  <section class="section live" id="live" hidden>
+    <div class="container">
+      <div class="section-head">
+        <div class="tag">Live</div>
+        <h2 data-i18n="liveTitle">Датчики в реальном времени</h2>
+        <p class="live-status" id="liveStatus">…</p>
+      </div>
+      <div class="live-grid" id="liveGrid"></div>
     </div>
   </section>
 
@@ -849,6 +876,7 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
         statDevices: 'устройств онлайн', statUptime: 'аптайм сервера', statMetrics: 'типов метрик', statVps: 'на Raspberry·VPS штатно',
         tagSensors: 'Метрики', tagArch: 'Стек', tagFeatures: 'Возможности', tagBuild: 'Инструкция',
         sensorsTitle: 'Что измеряет система', archTitle: 'Архитектура', featuresTitle: 'Почему это удобно', buildTitle: 'Сборка и подключение',
+        liveTitle: 'Датчики в реальном времени',
         unitDay: 'дн'
       },
       en: {
@@ -861,6 +889,7 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
         statDevices: 'devices online', statUptime: 'server uptime', statMetrics: 'metric types', statVps: 'home-lab / VPS ready',
         tagSensors: 'Metrics', tagArch: 'Stack', tagFeatures: 'Features', tagBuild: 'Guide',
         sensorsTitle: 'What the system measures', archTitle: 'Architecture', featuresTitle: 'Why it is convenient', buildTitle: 'Assembly & wiring',
+        liveTitle: 'Sensors in real time',
         unitDay: 'd'
       }
     };
@@ -926,6 +955,133 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
     }
     checkStatus();
     setInterval(checkStatus, 30000);
+
+    /* ---- Live sensor panel (wss 9002, read-only web user) ---- */
+    const LIVE_ENABLED = true;
+    const METRIC_META = {
+      temperature: { ic: '🌡️', ru: 'Температура', en: 'Temperature' },
+      humidity: { ic: '💧', ru: 'Влажность', en: 'Humidity' },
+      pressure: { ic: '🎈', ru: 'Давление', en: 'Pressure' },
+      gas_resistance: { ic: '🌫️', ru: 'Качество воздуха', en: 'Air quality' },
+      illuminance: { ic: '🔆', ru: 'Освещённость', en: 'Illuminance' }
+    };
+    const LIVE_STALE_MS = 120000;
+
+    function liveMeta(key) {
+      return METRIC_META[key] || { ic: '📟', ru: key, en: key };
+    }
+
+    function liveCardId(deviceId, key) {
+      return deviceId + '_' + key;
+    }
+
+    function renderLive(deviceId, key, value, unit, ts) {
+      const grid = document.getElementById('liveGrid');
+      const id = liveCardId(deviceId, key);
+      const meta = liveMeta(key);
+      let card = document.getElementById('card-' + id);
+      if (!card) {
+        card = document.createElement('div');
+        card.className = 'live-card';
+        card.id = 'card-' + id;
+        card.setAttribute('data-live-id', id);
+        card.setAttribute('data-live-ts', String(ts));
+        card.innerHTML =
+          '<div class="live-top"><span class="live-dev"></span><span class="live-ic"></span></div>' +
+          '<div class="live-val"><span class="v"></span><span class="u"></span></div>' +
+          '<div class="live-name"></div>' +
+          '<div class="live-tick"></div>';
+        grid.appendChild(card);
+      }
+      card.querySelector('.live-dev').textContent = deviceId;
+      card.querySelector('.live-ic').textContent = meta.ic;
+      card.querySelector('.v').textContent = (Math.round(value * 100) / 100).toString().replace('.', ',');
+      card.querySelector('.u').textContent = unit;
+      card.querySelector('.live-name').textContent = meta[lang];
+      card.setAttribute('data-live-ts', String(ts));
+      card.classList.remove('stale');
+      updateLiveTick(card, ts);
+    }
+
+    function updateLiveTick(card, ts) {
+      const d = new Date(ts);
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      card.querySelector('.live-tick').textContent = hh + ':' + mm + ':' + ss;
+    }
+
+    function sweepLive() {
+      const now = Date.now();
+      document.querySelectorAll('.live-card').forEach((card) => {
+        const ts = Number(card.getAttribute('data-live-ts'));
+        if (now - ts > LIVE_STALE_MS) card.classList.add('stale');
+        else updateLiveTick(card, ts);
+      });
+    }
+
+    if (LIVE_ENABLED) {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/mqtt@5.5.4/dist/mqtt.min.js';
+      script.onload = initLive;
+      script.onerror = () => {
+        document.getElementById('liveStatus').textContent = 'mqtt.js: ' + (lang === 'en' ? 'load failed' : 'не загрузился');
+      };
+      document.head.appendChild(script);
+    }
+
+    function initLive() {
+      if (typeof mqtt === 'undefined') return;
+      const liveSection = document.getElementById('live');
+      const st = document.getElementById('liveStatus');
+      liveSection.hidden = false;
+
+      const client = mqtt.connect('wss://spe4naz.online:9002', {
+        username: 'web',
+        password: 'web_public_readonly',
+        clientId: 'web_panel_' + Math.random().toString(16).slice(2, 8),
+        clean: true,
+        keepalive: 30,
+        reconnectPeriod: 4000
+      });
+
+      client.on('connect', () => {
+        client.subscribe('iot/+/sensors/#', { qos: 0 });
+        st.textContent = lang === 'en'
+          ? 'Streaming via MQTT over WebSocket'
+          : 'Поток данных: MQTT через WebSocket (wss 9002)';
+        st.style.color = 'var(--accent-2)';
+      });
+      client.on('reconnect', () => {
+        st.textContent = lang === 'en' ? 'reconnecting…' : 'переподключение…';
+        st.style.color = 'var(--warning)';
+      });
+      client.on('offline', () => {
+        st.textContent = lang === 'en' ? 'offline' : 'нет соединения';
+        st.style.color = 'var(--warning)';
+      });
+      client.on('error', () => {
+        st.textContent = 'MQTT error';
+        st.style.color = 'var(--warning)';
+      });
+
+      client.on('message', (topic, payload) => {
+        const parts = topic.split('/');
+        if (parts.length !== 4 || parts[0] !== 'iot' || parts[2] !== 'sensors') return;
+        const deviceId = parts[1];
+        const key = parts[3];
+        let data;
+        try {
+          data = JSON.parse(payload.toString());
+        } catch (e) {
+          return;
+        }
+        const ts = Number(data.timestamp || Date.now());
+        renderLive(deviceId, key, Number(data.value), String(data.unit || ''), ts);
+      });
+
+      setInterval(sweepLive, 5000);
+    }
   </script>
 </body>
 </html>
