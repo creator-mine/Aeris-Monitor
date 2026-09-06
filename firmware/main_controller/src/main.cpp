@@ -61,7 +61,10 @@ bool wifiConnectSta(const char* ssid, const char* password) {
 
 // Try connecting: first stored NVS credentials, then the static fallback.
 // Returns true on success.
-bool wifiTryConnect() {
+// clearOnFail should only be true at boot: wiping stored credentials on a
+// transient runtime failure (router reboot, AP power-up delay) would strand
+// the device offline with no way to re-provision over the air.
+bool wifiTryConnect(bool clearOnFail = false) {
     char ssid[64] = "";
     char password[64] = "";
 
@@ -69,7 +72,7 @@ bool wifiTryConnect() {
         Serial.println("[WiFi] Using stored credentials");
         if (wifiConnectSta(ssid, password)) return true;
         Serial.println("[WiFi] Stored credentials failed");
-        WifiConfig::clear();
+        if (clearOnFail) WifiConfig::clear();
     }
 
     if (strlen(WIFI_SSID) > 0) {
@@ -84,7 +87,7 @@ bool wifiTryConnect() {
 // connection (timeout, saved-but-failed, etc.) it reboots so the device
 // stays in a setup loop until usable Wi-Fi credentials are provided.
 void wifiConnect() {
-    if (wifiTryConnect()) return;
+    if (wifiTryConnect(true)) return;
 
 #if PROVISION_ENABLED
     Serial.println("[WiFi] No connection, starting config mode");
@@ -169,6 +172,11 @@ void mqttPublishStatus() {
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
+    if (length > 512) {
+        Serial.printf("[MQTT] Oversized message (%u bytes) dropped\n", length);
+        return;
+    }
+
     String msg;
     for (unsigned int i = 0; i < length; i++) {
         msg += (char)payload[i];
@@ -284,6 +292,7 @@ void uartProcessRegister(uint8_t moduleId, uint8_t* payload, uint8_t len) {
 
     uint8_t nameLen = payload[idx++];
     if (idx + nameLen > len) return;
+    if (nameLen > 31) return;  // reject oversized names (buffer is 32 bytes)
     memcpy(mod->name, payload + idx, nameLen);
     mod->name[nameLen] = '\0';
     idx += nameLen;
@@ -295,12 +304,14 @@ void uartProcessRegister(uint8_t moduleId, uint8_t* payload, uint8_t len) {
         if (idx + 1 > len) return;
         uint8_t keyLen = payload[idx++];
         if (idx + keyLen + 1 > len) return;
+        if (keyLen > 23) return;  // metricKeys[m] is 24 bytes
         memcpy(mod->metricKeys[m], payload + idx, keyLen);
         mod->metricKeys[m][keyLen] = '\0';
         idx += keyLen;
 
         uint8_t unitLen = payload[idx++];
         if (idx + unitLen > len) return;
+        if (unitLen > 7) return;  // metricUnits[m] is 8 bytes
         memcpy(mod->metricUnits[m], payload + idx, unitLen);
         mod->metricUnits[m][unitLen] = '\0';
         idx += unitLen;
@@ -598,6 +609,7 @@ void loop() {
     wifiUpdate();
     mqttUpdate();
     uartUpdate();
+    ntpEnsureSynced();
 
     WebServer::instance().update();
     SensorRegistry::instance().checkLiveness();

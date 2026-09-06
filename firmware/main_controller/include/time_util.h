@@ -5,6 +5,7 @@
 #include <time.h>
 
 void ntpInit();
+void ntpEnsureSynced();
 uint64_t epochMillis();
 bool timeSynced();
 

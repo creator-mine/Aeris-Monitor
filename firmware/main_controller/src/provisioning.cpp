@@ -143,6 +143,11 @@ void handleSaveCollect(AsyncWebServerRequest* request, uint8_t* data, size_t len
 }  // namespace
 
 bool startAndWait() {
+    // Reset per-session state: g_keepLoop may still be false / g_savedSsid set
+    // from an earlier provisioning session in the same boot (wifi_reconfigure).
+    g_keepLoop = true;
+    g_savedSsid = "";
+
     WiFi.mode(WIFI_AP_STA);  // allow STA coexisting with AP
 
     WiFi.softAP(apName().c_str(),

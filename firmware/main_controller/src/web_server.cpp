@@ -84,11 +84,12 @@ void WebServer::setupWebSocket() {
         } else if (type == WS_EVT_DATA) {
             AwsFrameInfo* info = (AwsFrameInfo*)arg;
             if (info->opcode == WS_TEXT) {
+                if (len > 2048) return;  // drop oversized frames (heap guard)
                 String msg;
                 msg.reserve(len);
                 for (size_t i = 0; i < len; i++) msg += (char)data[i];
 
-                StaticJsonDocument<512> doc;
+                JsonDocument doc;
                 if (deserializeJson(doc, msg)) return;
 
                 const char* type = doc["type"];
@@ -201,54 +202,103 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
         if (request->hasParam("limit")) limit = (uint16_t)request->getParam("limit")->value().toInt();
     }
 
-    String path = "/data_" + String(DEVICE_ID) + ".csv";
-    if (SD.cardType() == CARD_NONE || !SD.exists(path)) {
-        return "{\"points\":[]}";
-    }
-
-    File f = SD.open(path, FILE_READ);
-    if (!f) return "{\"points\":[]}";
-
-    // Parse CSV: timestamp,key,value,unit — keep matching points in a ring buffer
+    // Parse CSV: timestamp,key,value,unit — keep matching points in a ring buffer.
     struct Point {
         uint64_t ts;
         float value;
     };
-    static Point points[1024];
+    static Point points[1024];  // 20KB — keep off the task stack (BSS)
     uint16_t count = 0, start = 0;
 
-    while (f.available()) {
-        String line = f.readStringUntil('\n');
-        line.trim();
-        if (line.isEmpty()) continue;
+    // Collect log files: legacy flat file (pre-NTP-sync) + daily-rotated files.
+    struct LogFile {
+        char name[40];
+        time_t mtime;
+    };
+    LogFile files[16];
+    int fileCount = 0;
 
-        int c1 = line.indexOf(',');
-        if (c1 < 0) continue;
-        int c2 = line.indexOf(',', c1 + 1);
-        if (c2 < 0) continue;
-        int c3 = line.indexOf(',', c2 + 1);
-        if (c3 < 0) c3 = line.length();
+    if (SD.cardType() != CARD_NONE) {
+        String legacy = String("/data_") + DEVICE_ID + ".csv";
+        if (SD.exists(legacy)) {
+            File lf = SD.open(legacy, FILE_READ);
+            if (lf) {
+                snprintf(files[fileCount].name, sizeof(files[fileCount].name), "%s", legacy.c_str());
+                files[fileCount].mtime = lf.getLastWrite();
+                fileCount++;
+                lf.close();
+            }
+        }
 
-        String tsStr = line.substring(0, c1);
-        String key = line.substring(c1 + 1, c2);
-        String valStr = line.substring(c2 + 1, c3);
+        String prefix = String("data_") + DEVICE_ID + "_";
+        File root = SD.open("/");
+        File df = root.openNextFile();
+        while (df && fileCount < 16) {
+            String name = String(df.name());
+            if (name.startsWith(prefix) && name.endsWith(".csv")) {
+                snprintf(files[fileCount].name, sizeof(files[fileCount].name), "%s", name.c_str());
+                files[fileCount].mtime = df.getLastWrite();
+                fileCount++;
+            }
+            df.close();
+            df = root.openNextFile();
+        }
+        root.close();
 
-        if (!filterType.isEmpty() && key != filterType) continue;
-
-        uint64_t ts = strtoull(tsStr.c_str(), nullptr, 10);
-        if (ts < since) continue;
-
-        if (count < 1024) {
-            points[count].ts = ts;
-            points[count].value = valStr.toFloat();
-            count++;
-        } else {
-            points[start % 1024].ts = ts;
-            points[start % 1024].value = valStr.toFloat();
-            start++;
+        // sort ascending by mtime (oldest first)
+        for (int i = 0; i < fileCount - 1; i++) {
+            for (int j = i + 1; j < fileCount; j++) {
+                if (files[j].mtime < files[i].mtime) {
+                    LogFile t = files[i];
+                    files[i] = files[j];
+                    files[j] = t;
+                }
+            }
         }
     }
-    f.close();
+
+    // Bound total scan time on slow SD cards; 4096 parsed lines is plenty for charts.
+    const uint32_t MAX_SCAN = 4096;
+    uint32_t scanned = 0;
+
+    for (int fi = 0; fi < fileCount && scanned < MAX_SCAN; fi++) {
+        String path = (files[fi].name[0] == '/') ? String(files[fi].name) : String("/") + files[fi].name;
+        File f = SD.open(path, FILE_READ);
+        if (!f) continue;
+
+        while (f.available() && scanned < MAX_SCAN) {
+            String line = f.readStringUntil('\n');
+            line.trim();
+            if (line.isEmpty()) continue;
+            scanned++;
+
+            int c1 = line.indexOf(',');
+            if (c1 < 0) continue;
+            int c2 = line.indexOf(',', c1 + 1);
+            if (c2 < 0) continue;
+            int c3 = line.indexOf(',', c2 + 1);
+            if (c3 < 0) c3 = line.length();
+
+            String key = line.substring(c1 + 1, c2);
+            if (!filterType.isEmpty() && key != filterType) continue;
+
+            uint64_t ts = strtoull(line.substring(0, c1).c_str(), nullptr, 10);
+            if (ts < since) continue;
+
+            float value = line.substring(c2 + 1, c3).toFloat();
+
+            if (count < 1024) {
+                points[count].ts = ts;
+                points[count].value = value;
+                count++;
+            } else {
+                points[start % 1024].ts = ts;
+                points[start % 1024].value = value;
+                start++;
+            }
+        }
+        f.close();
+    }
 
     uint16_t total = (count < 1024) ? count : 1024;
     uint16_t offset = (count < 1024) ? 0 : start % 1024;
@@ -282,7 +332,7 @@ void WebServer::handleCommand(AsyncWebServerRequest* request) {
         }
     }
 
-    StaticJsonDocument<256> doc;
+    JsonDocument doc;
     if (deserializeJson(doc, body)) {
         request->send(400, "application/json", "{\"error\":\"bad_json\"}");
         return;

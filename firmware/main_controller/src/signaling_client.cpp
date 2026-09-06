@@ -16,6 +16,7 @@ static bool signalingPost(const char* path, const char* body) {
     HTTPClient http;
     String url = String(SIGNALING_URL) + path;
     http.begin(url, ROOT_CA_CERT);
+    http.setTimeout(5000);  // bound blocking HTTPS calls (loop task / WDT)
     http.addHeader("Content-Type", "application/json");
     http.addHeader("Authorization", String("Bearer ") + SIGNALING_TOKEN);
     int code = http.POST(body);
@@ -30,7 +31,7 @@ static bool signalingPost(const char* path, const char* body) {
 void signalingInit() {
     if (WiFi.status() != WL_CONNECTED) return;
 
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     doc["id"] = DEVICE_ID;
     doc["name"] = DEVICE_NAME;
     doc["type"] = DEVICE_TYPE;

@@ -33,6 +33,19 @@ uint64_t epochMillis() {
     return 0;
 }
 
+// Called from loop(): retries time sync periodically until it sticks.
+// Handles the case where WiFi came up after the boot-time ntpInit() (or NTP
+// was unreachable at boot) — otherwise timestamps stay 0 and SD logs never
+// rotate to daily files.
+void ntpEnsureSynced() {
+    if (synced || WiFi.status() != WL_CONNECTED) return;
+    static unsigned long lastTry = 0;
+    unsigned long now = millis();
+    if (now - lastTry < 30000) return;
+    lastTry = now;
+    ntpInit();
+}
+
 bool timeSynced() {
     return synced;
 }
