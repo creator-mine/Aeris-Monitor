@@ -10,6 +10,7 @@
 #include "signaling_client.h"
 #include "wifi_config.h"
 #include "provisioning.h"
+#include "mqtt_config.h"
 #include "modules/sensor_registry.h"
 #include "modules/bme680_module.h"
 #include "modules/bh1750_module.h"
@@ -24,6 +25,11 @@ unsigned long lastHeartbeat = 0;
 unsigned long lastReconnect = 0;
 
 String deviceId = DEVICE_ID;
+
+// MQTT is optional: NVS flag "mqtt_en" (default MQTT_ENABLED_DEFAULT).
+bool mqttReady() {
+    return MqttConfig::enabled() && mqtt.connected();
+}
 
 // ===================== WIFI =====================
 
@@ -114,6 +120,7 @@ String mqttTopic(const char* suffix) {
 }
 
 void mqttPublishMetric(const char* sensorType, float value, const char* unit) {
+    if (!mqttReady()) return;
     String topic = mqttTopic("sensors/") + sensorType;
     String payload = "{";
     payload += "\"device_id\":\"" + deviceId + "\",";
@@ -126,6 +133,7 @@ void mqttPublishMetric(const char* sensorType, float value, const char* unit) {
 }
 
 void mqttPublishStatus() {
+    if (!mqttReady()) return;
     String topic = mqttTopic("status");
     String payload = "{";
     payload += "\"device_id\":\"" + deviceId + "\",";
@@ -167,6 +175,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 void mqttConnect() {
     if (mqtt.connected()) return;
+    if (!MqttConfig::enabled()) {
+        Serial.println("[MQTT] Disabled by config");
+        return;
+    }
 
     String clientId = String(MQTT_CLIENT_ID) + "_" + String(random(1000));
     Serial.print("[MQTT] Connecting...");
@@ -183,6 +195,14 @@ void mqttConnect() {
 }
 
 void mqttUpdate() {
+    if (!MqttConfig::enabled()) {
+        if (mqtt.connected()) {
+            Serial.println("[MQTT] Disabled, disconnecting");
+            mqtt.disconnect();
+            mqtt.loop();
+        }
+        return;
+    }
     if (!mqtt.connected()) {
         if (millis() - lastReconnect > RECONNECT_INTERVAL_MS) {
             lastReconnect = millis();
@@ -302,7 +322,7 @@ void uartProcessSensorData(uint8_t moduleId, uint8_t* payload, uint8_t len) {
         memcpy(&value, &mod->values[v * 4], 4);
         Serial.printf("  %s = %.2f %s\n", mod->metricKeys[v], value, mod->metricUnits[v]);
 
-        if (mqtt.connected()) {
+        if (mqttReady()) {
             mqttPublishMetric(mod->metricKeys[v], value, mod->metricUnits[v]);
         }
     }
@@ -417,7 +437,7 @@ void sensorsRead() {
         auto metrics = mod->read();
 
         for (auto& m : metrics) {
-            if (mqtt.connected()) {
+            if (mqttReady()) {
                 mqttPublishMetric(m.key, m.value, m.unit);
             }
             sdSave(m.key, m.value, m.unit);
@@ -441,10 +461,14 @@ void setup() {
     wifiConnect();
     ntpInit();
 
-    mqtt.setServer(MQTT_BROKER, MQTT_PORT);
-    mqtt.setBufferSize(MQTT_BUFFER_SIZE);
-    mqtt.setCallback(mqttCallback);
-    mqttConnect();
+    if (MqttConfig::enabled()) {
+        mqtt.setServer(MQTT_BROKER, MQTT_PORT);
+        mqtt.setBufferSize(MQTT_BUFFER_SIZE);
+        mqtt.setCallback(mqttCallback);
+        mqttConnect();
+    } else {
+        Serial.println("[MQTT] Skipping MQTT setup (disabled)");
+    }
 
     sdInit();
     sensorsInit();
@@ -474,7 +498,7 @@ void loop() {
 
     if (millis() - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
         lastHeartbeat = millis();
-        if (mqtt.connected()) {
+        if (mqttReady()) {
             mqttPublishStatus();
         }
         WebServer::instance().broadcastStatus();

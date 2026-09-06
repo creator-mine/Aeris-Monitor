@@ -1,5 +1,6 @@
 #include "web_server.h"
 #include "config.h"
+#include "mqtt_config.h"
 #include "modules/sensor_registry.h"
 #include "time_util.h"
 #include <WiFi.h>
@@ -108,6 +109,13 @@ void WebServer::setupWebSocket() {
                         SensorRegistry::instance().scanI2CBus(I2C_SDA, I2C_SCL);
                         client->text("{\"type\":\"modules_update\",\"modules\":" +
                                      SensorRegistry::instance().modulesToJson() + "}");
+                    } else if (strcmp(command, "mqtt_enable") == 0 ||
+                               strcmp(command, "mqtt_disable") == 0) {
+                        bool on = strcmp(command, "mqtt_enable") == 0;
+                        MqttConfig::setEnabled(on);
+                        Serial.printf("[MQTT] %s by command\n", on ? "enabled" : "disabled");
+                        client->text(String("{\"type\":\"ack\",\"command\":\"") + command +
+                                     "\",\"mqtt_enabled\":" + (on ? "true" : "false") + "}");
                     } else {
                         client->text("{\"type\":\"error\",\"error\":\"unknown_command\"}");
                     }
@@ -280,6 +288,17 @@ void WebServer::handleCommand(AsyncWebServerRequest* request) {
     } else if (strcmp(command, "rescan") == 0) {
         SensorRegistry::instance().scanI2CBus(I2C_SDA, I2C_SCL);
         request->send(200, "application/json", SensorRegistry::instance().modulesToJson());
+    } else if (strcmp(command, "mqtt_enable") == 0 ||
+               strcmp(command, "mqtt_disable") == 0) {
+        bool on = strcmp(command, "mqtt_enable") == 0;
+        MqttConfig::setEnabled(on);
+        Serial.printf("[MQTT] %s by command\n", on ? "enabled" : "disabled");
+        String json = "{\"ok\":true,\"command\":\"";
+        json += command;
+        json += "\",\"mqtt_enabled\":";
+        json += on ? "true" : "false";
+        json += "}";
+        request->send(200, "application/json", json);
     } else {
         request->send(400, "application/json", "{\"error\":\"unknown_command\"}");
     }

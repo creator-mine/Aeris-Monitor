@@ -17,6 +17,9 @@
 #define PROVISION_TIMEOUT_MS 300000         // 5 min, then restart and retry STA
 
 // MQTT Configuration (broker on the IoT VPS)
+// MQTT_ENABLED_DEFAULT is the default state at first boot; a runtime
+// NVS flag ("mqtt_en") can override it (commands mqtt_enable/mqtt_disable).
+#define MQTT_ENABLED_DEFAULT 1
 #define MQTT_BROKER "2.26.98.234"
 #define MQTT_PORT 1883
 #define MQTT_USER "main"
