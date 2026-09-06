@@ -26,4 +26,20 @@ void main() {
     await settings.init();
     expect(settings.connectionMode, ConnectionMode.auto);
   });
+
+  test('mqtt credentials persist and fall back to defaults', () async {
+    SharedPreferences.setMockInitialValues({});
+    final settings = SettingsProvider();
+    await settings.init();
+    expect(settings.mqttUsername.isNotEmpty, true);
+    expect(settings.mqttPassword.isNotEmpty, true);
+
+    await settings.setMqttUsername('app');
+    await settings.setMqttPassword('secret');
+
+    final restored = SettingsProvider();
+    await restored.init();
+    expect(restored.mqttUsername, 'app');
+    expect(restored.mqttPassword, 'secret');
+  });
 }

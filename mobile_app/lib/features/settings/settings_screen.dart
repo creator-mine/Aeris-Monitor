@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'providers/settings_provider.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/theme/app_theme.dart';
+import '../../core/api/mqtt_client.dart';
+import '../../core/config/app_config.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -50,6 +52,32 @@ class SettingsScreen extends StatelessWidget {
                     },
                     icon: Icons.numbers,
                     keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    context,
+                    'MQTT Логин',
+                    provider.mqttUsername,
+                    (value) => provider.setMqttUsername(value),
+                    icon: Icons.person,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    context,
+                    'MQTT Пароль',
+                    provider.mqttPassword,
+                    (value) => provider.setMqttPassword(value),
+                    icon: Icons.key,
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _reconnectMqtt(context, provider),
+                      icon: const Icon(Icons.sync, size: 18),
+                      label: const Text('Переподключить MQTT'),
+                    ),
                   ),
                 ],
               ),
@@ -259,6 +287,24 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _reconnectMqtt(BuildContext context, SettingsProvider provider) async {
+    final mqtt = context.read<MqttService>();
+    final ok = await mqtt.reconnect(
+      broker: provider.mqttBroker,
+      port: provider.mqttPort,
+      useWebSocket: provider.mqttPort == AppConfig.mqttPort,
+      username: provider.mqttUsername,
+      password: provider.mqttPassword,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok ? 'MQTT переподключён' : 'Не удалось подключиться к MQTT'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> _pickImage(BuildContext context, SettingsProvider provider) async {
     final picker = ImagePicker();
     final xFile = await picker.pickImage(
@@ -302,6 +348,7 @@ class SettingsScreen extends StatelessWidget {
     Function(String) onChanged, {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    bool obscureText = false,
   }) {
     return TextField(
       controller: TextEditingController(text: value),
@@ -313,6 +360,7 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
       keyboardType: keyboardType,
+      obscureText: obscureText,
       onChanged: onChanged,
     );
   }

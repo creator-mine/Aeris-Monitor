@@ -26,16 +26,41 @@ class MqttService {
     String? clientId,
     bool useWebSocket = false,
     bool fallbackToTcp = true,
+    String? username,
+    String? password,
   }) async {
-    var ok = await _tryConnect(useWebSocket, broker, port, clientId);
+    var ok = await _tryConnect(useWebSocket, broker, port, clientId, username, password);
     if (!ok && useWebSocket && fallbackToTcp) {
       _statusController.add('ws_failed_fallback_tcp');
-      ok = await _tryConnect(false, broker, 1883, clientId);
+      ok = await _tryConnect(false, broker, 1883, clientId, username, password);
     }
     return ok;
   }
 
-  Future<bool> _tryConnect(bool linkWebSocket, String? broker, int? port, String? clientId) async {
+  /// Drops the current connection and reconnects with new broker
+  /// parameters, keeping the active device subscription.
+  Future<bool> reconnect({
+    String? broker,
+    int? port,
+    bool useWebSocket = false,
+    String? username,
+    String? password,
+  }) async {
+    _updatesSub?.cancel();
+    _client?.disconnect();
+    _isConnected = false;
+    return connect(
+      broker: broker,
+      port: port,
+      useWebSocket: useWebSocket,
+      fallbackToTcp: false,
+      username: username,
+      password: password,
+    );
+  }
+
+  Future<bool> _tryConnect(bool linkWebSocket, String? broker, int? port, String? clientId,
+      String? username, String? password) async {
     try {
       final b = broker ?? AppConfig.mqttBroker;
       final p = port ?? AppConfig.mqttPort;
@@ -56,9 +81,11 @@ class MqttService {
 
       final connMessage = MqttConnectMessage()
           .withClientIdentifier(clientId ?? 'flutter_app')
-          .authenticateAs(AppConfig.mqttUsername, AppConfig.mqttPassword)
           .startClean()
           .withWillQos(MqttQos.atMostOnce);
+      final user = username ?? AppConfig.mqttUsername;
+      final pass = password ?? AppConfig.mqttPassword;
+      connMessage.authenticateAs(user, pass);
 
       _client!.connectionMessage = connMessage;
 

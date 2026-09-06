@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/config/connection_mode.dart';
+import '../../../core/config/app_config.dart';
 
 class SettingsProvider extends ChangeNotifier {
   late SharedPreferences _prefs;
@@ -12,9 +13,14 @@ class SettingsProvider extends ChangeNotifier {
   static const String _legacyMqttBroker = 'localhost';
   static const int _legacyMqttPort = 1883;
 
+  static String get _defaultMqttUsername => AppConfig.mqttUsername;
+  static String get _defaultMqttPassword => AppConfig.mqttPassword;
+
   String _apiUrl = _defaultApiUrl;
   String _mqttBroker = _defaultMqttBroker;
   int _mqttPort = _defaultMqttPort;
+  String _mqttUsername = AppConfig.mqttUsername;
+  String _mqttPassword = AppConfig.mqttPassword;
   bool _darkMode = false;
   String _language = 'ru';
   int _accentColorIndex = 0;
@@ -25,6 +31,8 @@ class SettingsProvider extends ChangeNotifier {
   String get apiUrl => _apiUrl;
   String get mqttBroker => _mqttBroker;
   int get mqttPort => _mqttPort;
+  String get mqttUsername => _mqttUsername;
+  String get mqttPassword => _mqttPassword;
   bool get darkMode => _darkMode;
   String get language => _language;
   int get accentColorIndex => _accentColorIndex;
@@ -46,6 +54,9 @@ class SettingsProvider extends ChangeNotifier {
     _mqttPort = (storedMqttPort == null || storedMqttPort == _legacyMqttPort)
         ? _defaultMqttPort
         : storedMqttPort;
+
+    _mqttUsername = _prefs.getString('mqtt_username') ?? _defaultMqttUsername;
+    _mqttPassword = _prefs.getString('mqtt_password') ?? _defaultMqttPassword;
 
     _darkMode = _prefs.getBool('dark_mode') ?? false;
     _language = _prefs.getString('language') ?? 'ru';
@@ -93,6 +104,18 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setMqttPort(int port) async {
     _mqttPort = port;
     await _prefs.setInt('mqtt_port', port);
+    notifyListeners();
+  }
+
+  Future<void> setMqttUsername(String username) async {
+    _mqttUsername = username;
+    await _prefs.setString('mqtt_username', username);
+    notifyListeners();
+  }
+
+  Future<void> setMqttPassword(String password) async {
+    _mqttPassword = password;
+    await _prefs.setString('mqtt_password', password);
     notifyListeners();
   }
 

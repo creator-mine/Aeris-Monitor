@@ -41,6 +41,8 @@ void main() async {
     broker: settingsProvider.mqttBroker,
     port: settingsProvider.mqttPort,
     useWebSocket: settingsProvider.mqttPort == AppConfig.mqttPort,
+    username: settingsProvider.mqttUsername,
+    password: settingsProvider.mqttPassword,
   );
 
   runApp(
