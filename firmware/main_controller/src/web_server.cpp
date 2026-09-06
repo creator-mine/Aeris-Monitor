@@ -25,6 +25,10 @@ void WebServer::begin(uint16_t httpPort, uint16_t wsPort) {
     _ws = new AsyncWebSocket("/ws");
     _wsPort = wsPort;
 
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type");
+
     setupRoutes();
     setupWebSocket();
 
@@ -58,6 +62,10 @@ void WebServer::setupRoutes() {
     );
 
     _http->onNotFound([](AsyncWebServerRequest* request) {
+        if (request->method() == HTTP_OPTIONS) {
+            request->send(204);
+            return;
+        }
         request->send(404, "application/json", "{\"error\":\"not_found\"}");
     });
 }
