@@ -4,6 +4,7 @@ import '../../../core/api/signaling_api.dart';
 import '../../../core/api/direct_device_client.dart';
 import '../../../core/api/device_ws_client.dart';
 import '../../../core/api/mqtt_client.dart';
+import '../../../core/config/connection_mode.dart';
 import '../../../models/device.dart';
 import '../../../models/sensor_data.dart';
 
@@ -14,6 +15,9 @@ class DashboardProvider extends ChangeNotifier {
   StreamSubscription<SensorData>? _mqttSensorSub;
   DirectDeviceClient? _deviceClient;
 
+  ConnectionMode _mode;
+  ActiveChannel _activeChannel = ActiveChannel.none;
+
   List<Device> _devices = [];
   Device? _selectedDevice;
   Map<String, SensorData> _latestSensorData = {};
@@ -22,9 +26,13 @@ class DashboardProvider extends ChangeNotifier {
   bool _isConnected = false;
   DateTime? _lastUpdate;
 
-  DashboardProvider({required SignalingApi signalingApi, MqttService? mqtt})
-      : _signalingApi = signalingApi,
+  DashboardProvider({
+    required SignalingApi signalingApi,
+    MqttService? mqtt,
+    ConnectionMode mode = ConnectionMode.auto,
+  })  : _signalingApi = signalingApi,
         _mqtt = mqtt,
+        _mode = mode,
         _wsClient = DeviceWsClient() {
     _wsClient
       ..onSensorUpdate = _handleSensorUpdate
@@ -43,6 +51,19 @@ class DashboardProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isConnected => _isConnected;
   DateTime? get lastUpdate => _lastUpdate;
+  ConnectionMode get connectionMode => _mode;
+  ActiveChannel get activeChannel => _activeChannel;
+
+  String? get activeChannelLabel {
+    switch (_activeChannel) {
+      case ActiveChannel.lan:
+        return 'LAN';
+      case ActiveChannel.mqtt:
+        return 'MQTT';
+      case ActiveChannel.none:
+        return null;
+    }
+  }
 
   List<Device> get onlineDevices =>
       _devices.where((d) => d.isOnline).toList();
@@ -69,27 +90,65 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   Future<void> selectDevice(Device device) async {
+    _selectedDevice = device;
+    _latestSensorData.clear();
+    _lastUpdate = null;
+    _isConnected = false;
+    await _applyConnection(device);
+  }
+
+  /// Switches the data channel and re-applies the connection for the
+  /// currently selected device.
+  Future<void> setConnectionMode(ConnectionMode mode) async {
+    if (mode == _mode) return;
+    _mode = mode;
+    _activeChannel = ActiveChannel.none;
+    notifyListeners();
+    final device = _selectedDevice;
+    if (device != null) {
+      await _applyConnection(device);
+    }
+  }
+
+  Future<void> _applyConnection(Device device) async {
     await _wsClient.disconnect();
     _deviceClient?.dispose();
     _deviceClient = null;
 
     _mqtt?.unsubscribeFromDevice(_selectedDevice?.id ?? '');
-
-    _selectedDevice = device;
-    _latestSensorData.clear();
-    _lastUpdate = null;
     _isConnected = false;
 
-    final baseUrl = device.httpBaseUrl;
-    if (baseUrl != null) {
-      notifyListeners();
-      _deviceClient = DirectDeviceClient(baseUrl: baseUrl);
-      await _wsClient.connect(device);
-    } else {
-      notifyListeners();
+    final wantsDirect = _mode != ConnectionMode.mqtt;
+    if (wantsDirect) {
+      final baseUrl = device.httpBaseUrl;
+      if (baseUrl != null) {
+        notifyListeners();
+        _deviceClient = DirectDeviceClient(baseUrl: baseUrl);
+        await _wsClient.connect(device);
+      }
     }
 
-    _mqtt?.subscribeToDevice(device.id);
+    final wantsMqtt = _mode != ConnectionMode.lanDirect;
+    if (wantsMqtt) {
+      _mqtt?.subscribeToDevice(device.id);
+    }
+
+    _updateActiveChannel();
+    notifyListeners();
+  }
+
+  void _updateActiveChannel() {
+    switch (_mode) {
+      case ConnectionMode.lanDirect:
+        _activeChannel = _isConnected ? ActiveChannel.lan : ActiveChannel.none;
+        break;
+      case ConnectionMode.mqtt:
+        _activeChannel = ActiveChannel.mqtt;
+        break;
+      case ConnectionMode.auto:
+        _activeChannel = _isConnected ? ActiveChannel.lan : ActiveChannel.mqtt;
+        break;
+    }
   }
 
   void _handleSensorUpdate(Map<String, dynamic> data) {
@@ -133,11 +192,13 @@ class DashboardProvider extends ChangeNotifier {
 
   void _handleConnected() {
     _isConnected = true;
+    _updateActiveChannel();
     notifyListeners();
   }
 
   void _handleDisconnected() {
     _isConnected = false;
+    _updateActiveChannel();
     notifyListeners();
   }
 
@@ -149,7 +210,9 @@ class DashboardProvider extends ChangeNotifier {
   void sendCommand(String command) {
     final mqtt = _mqtt;
     final deviceId = _selectedDevice?.id;
-    if (mqtt != null && mqtt.isConnected && deviceId != null) {
+    final useMqtt = _mode == ConnectionMode.mqtt ||
+        (_mode == ConnectionMode.auto && !_isConnected);
+    if (mqtt != null && useMqtt && deviceId != null) {
       mqtt.publishCommand(deviceId, {'type': 'command', 'command': command});
     } else {
       _wsClient.sendCommand(command);

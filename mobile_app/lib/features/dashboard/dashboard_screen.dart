@@ -8,7 +8,9 @@ import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/loading_indicator.dart';
 import '../../shared/widgets/error_widget.dart';
 import '../../core/config/app_config.dart';
+import '../../core/config/connection_mode.dart';
 import '../../models/device.dart';
+import '../settings/providers/settings_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -22,7 +24,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DashboardProvider>().loadDevices();
+      final dashboard = context.read<DashboardProvider>();
+      dashboard.loadDevices();
+      final settings = context.read<SettingsProvider>();
+      if (settings.connectionMode != dashboard.connectionMode) {
+        dashboard.setConnectionMode(settings.connectionMode);
+      }
     });
   }
 
@@ -31,6 +38,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return AppScaffold(
       title: 'Панель управления',
       actions: [
+        Consumer<DashboardProvider>(
+          builder: (context, provider, child) {
+            return PopupMenuButton<ConnectionMode>(
+              icon: Icon(
+                switch (provider.connectionMode) {
+                  ConnectionMode.auto => Icons.compare_arrows,
+                  ConnectionMode.lanDirect => Icons.lan,
+                  ConnectionMode.mqtt => Icons.cloud_queue,
+                },
+              ),
+              tooltip: 'Режим соединения',
+              onSelected: (mode) {
+                provider.setConnectionMode(mode);
+                context.read<SettingsProvider>().setConnectionMode(mode);
+              },
+              itemBuilder: (context) => [
+                for (final mode in ConnectionMode.values)
+                  PopupMenuItem(
+                    value: mode,
+                    child: Row(
+                      children: [
+                        Icon(
+                          mode == provider.connectionMode
+                              ? Icons.check
+                              : Icons.settings_ethernet,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(mode.label),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
         IconButton(
           icon: const Icon(Icons.refresh),
           onPressed: () {
@@ -146,11 +189,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
         ),
         const SizedBox(height: 4),
-        Text(
-          'Последнее обновление: ${DateFormat('dd.MM.yyyy HH:mm').format(device.lastSeen)}',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey,
+        Row(
+          children: [
+            Text(
+              'Последнее обновление: ${DateFormat('dd.MM.yyyy HH:mm').format(device.lastSeen)}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey,
+                  ),
+            ),
+            const SizedBox(width: 8),
+            if (provider.activeChannelLabel != null)
+              Chip(
+                label: Text(provider.activeChannelLabel!),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                labelStyle: Theme.of(context).textTheme.labelSmall,
               ),
+          ],
         ),
         const SizedBox(height: 16),
         Row(

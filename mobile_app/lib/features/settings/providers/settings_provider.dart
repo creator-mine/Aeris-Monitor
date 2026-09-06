@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/config/connection_mode.dart';
 
 class SettingsProvider extends ChangeNotifier {
   late SharedPreferences _prefs;
@@ -19,6 +20,7 @@ class SettingsProvider extends ChangeNotifier {
   int _accentColorIndex = 0;
   String? _backgroundImagePath;
   double _backgroundOpacity = 0.3;
+  ConnectionMode _connectionMode = ConnectionMode.auto;
 
   String get apiUrl => _apiUrl;
   String get mqttBroker => _mqttBroker;
@@ -28,6 +30,7 @@ class SettingsProvider extends ChangeNotifier {
   int get accentColorIndex => _accentColorIndex;
   String? get backgroundImagePath => _backgroundImagePath;
   double get backgroundOpacity => _backgroundOpacity;
+  ConnectionMode get connectionMode => _connectionMode;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -49,6 +52,12 @@ class SettingsProvider extends ChangeNotifier {
     _accentColorIndex = _prefs.getInt('accent_color_index') ?? 0;
     _backgroundImagePath = _prefs.getString('background_image_path');
     _backgroundOpacity = _prefs.getDouble('background_opacity') ?? 0.3;
+
+    final storedMode = _prefs.getString('connection_mode');
+    _connectionMode = ConnectionMode.values.firstWhere(
+      (m) => m.name == storedMode,
+      orElse: () => ConnectionMode.auto,
+    );
     notifyListeners();
   }
 
@@ -118,6 +127,12 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setBackgroundOpacity(double opacity) async {
     _backgroundOpacity = opacity;
     await _prefs.setDouble('background_opacity', opacity);
+    notifyListeners();
+  }
+
+  Future<void> setConnectionMode(ConnectionMode mode) async {
+    _connectionMode = mode;
+    await _prefs.setString('connection_mode', mode.name);
     notifyListeners();
   }
 }
