@@ -11,6 +11,8 @@
 #include "wifi_config.h"
 #include "provisioning.h"
 #include "mqtt_config.h"
+#include "esp_task_wdt.h"
+#include <time.h>
 #include "modules/sensor_registry.h"
 #include "modules/bme680_module.h"
 #include "modules/bh1750_module.h"
@@ -48,6 +50,7 @@ bool wifiConnectSta(const char* ssid, const char* password) {
         }
         delay(500);
         Serial.print(".");
+        esp_task_wdt_reset(); // keep feeding even during long reconnect waits
     }
     Serial.println();
     Serial.print("[WiFi] IP: ");
@@ -111,6 +114,18 @@ void wifiReconfigure() {
                               : "[WiFi] Reconfiguration cancelled, rebooting");
     delay(300);
     ESP.restart();
+}
+
+// ===================== WATCHDOG =====================
+
+void watchdogInit() {
+    esp_err_t err = esp_task_wdt_init(WDT_TIMEOUT_SECONDS, true); // panic+reboot on timeout
+    if (err == ESP_OK) {
+        esp_task_wdt_add(NULL); // feed loop() task explicitly
+        Serial.printf("[WDT] Task watchdog enabled (%ds)\n", WDT_TIMEOUT_SECONDS);
+    } else {
+        Serial.println("[WDT] Task watchdog init failed (continuing)");
+    }
 }
 
 // ===================== MQTT =====================
@@ -386,6 +401,90 @@ void uartUpdate() {
 // ===================== SD CARD =====================
 
 bool sdMounted = false;
+unsigned long lastSdCleanup = 0;
+const unsigned long SD_CLEANUP_INTERVAL_MS = 3600000; // check retention once an hour
+
+// Rotate log files by date: /data_<device>_YYYYMMDD.csv.
+// Before time sync (NTP) still working, falls back to the legacy flat file.
+String sdDailyPath() {
+    char buf[80];
+    if (timeSynced() && time(nullptr) > 100000) {
+        time_t now = time(nullptr);
+        struct tm tm;
+        gmtime_r(&now, &tm);
+        snprintf(buf, sizeof(buf), "/data_%s_%04d%02d%02d.csv",
+                 DEVICE_ID, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+        return String(buf);
+    }
+    return String("/data_") + String(DEVICE_ID) + ".csv";
+}
+
+struct SdLogEntry {
+    char name[40];
+    time_t mtime;
+};
+
+int sdCollectLogs(SdLogEntry* out, int max) {
+    int n = 0;
+    File root = SD.open("/");
+    if (!root) return 0;
+
+    String prefix = String("data_") + String(DEVICE_ID) + "_";
+    File file = root.openNextFile();
+    while (file && n < max) {
+        String name = String(file.name());
+        if (name.startsWith(prefix) && name.endsWith(".csv")) {
+            snprintf(out[n].name, sizeof(out[n].name), "%s", name.c_str());
+            out[n].mtime = file.getLastWrite();
+            n++;
+        }
+        file.close();
+        file = root.openNextFile();
+    }
+    root.close();
+
+    // bubble sort ascending by mtime (oldest first)
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (out[j].mtime < out[i].mtime) {
+                SdLogEntry t = out[i];
+                out[i] = out[j];
+                out[j] = t;
+            }
+        }
+    }
+    return n;
+}
+
+void sdDeleteOldestLogs(int count) {
+    SdLogEntry files[64];
+    int n = sdCollectLogs(files, 64);
+    int toDelete = n < count ? 0 : count;
+    for (int i = 0; i < toDelete; i++) {
+        String p = String("/") + files[i].name;
+        if (SD.remove(p)) {
+            Serial.printf("[SD] Removed old log %s\n", p.c_str());
+        }
+    }
+}
+
+void sdRotateCleanup() {
+    if (!sdMounted) return;
+    SdLogEntry files[64];
+    int n = sdCollectLogs(files, 64);
+
+    if (n > SD_MAX_LOG_FILES) {
+        Serial.printf("[SD] %d log files, keeping last %d\n", n, SD_MAX_LOG_FILES);
+        sdDeleteOldestLogs(n - SD_MAX_LOG_FILES);
+    }
+
+    uint64_t total = SD.totalBytes();
+    uint64_t used = SD.usedBytes();
+    if (total > 0 && used > 0 && (used * 100) / total > SD_FULL_PERCENT) {
+        Serial.printf("[SD] Card at %llu%% full, trimming old logs\n", (used * 100) / total);
+        sdDeleteOldestLogs(5);
+    }
+}
 
 bool sdInit() {
     if (!SD.begin(SD_CS)) {
@@ -403,7 +502,7 @@ bool sdInit() {
 
 void sdSave(const char* sensorType, float value, const char* unit) {
     if (!sdMounted) return;
-    String path = "/data_" + String(deviceId) + ".csv";
+    String path = sdDailyPath();
     File f = SD.open(path, FILE_APPEND);
     if (f) {
         f.print(epochMillis());
@@ -476,12 +575,21 @@ void setup() {
     WebServer::instance().begin(HTTP_PORT, WEBSOCKET_PORT);
     signalingInit();
 
+    watchdogInit();
+
     Serial.println("=================================");
     Serial.printf("  Ready! Free heap: %d\n", ESP.getFreeHeap());
     Serial.println("=================================");
 }
 
 void loop() {
+    esp_task_wdt_reset(); // feed watchdog each iteration
+
+    if (millis() - lastSdCleanup >= SD_CLEANUP_INTERVAL_MS) {
+        lastSdCleanup = millis();
+        sdRotateCleanup();
+    }
+
     wifiUpdate();
     mqttUpdate();
     uartUpdate();

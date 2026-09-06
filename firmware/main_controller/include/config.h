@@ -70,4 +70,11 @@
 #define HEARTBEAT_INTERVAL_MS 30000
 #define RECONNECT_INTERVAL_MS 5000
 
+// Watchdog (feeds in loop(); reboots if the system hangs)
+#define WDT_TIMEOUT_SECONDS 20
+
+// SD log retention: keep at most N daily files, free space guard at P%
+#define SD_MAX_LOG_FILES 60
+#define SD_FULL_PERCENT 90
+
 #endif
