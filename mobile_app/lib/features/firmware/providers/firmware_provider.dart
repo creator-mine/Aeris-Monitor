@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../../models/firmware_version.dart';
 import '../../../core/api/firmware_service.dart';
 import '../../../core/storage/firmware_storage.dart';
+import '../../../shared/helpers/chip_helper.dart';
 
 class FirmwareProvider extends ChangeNotifier {
   final FirmwareService _service = FirmwareService();
@@ -70,8 +71,7 @@ class FirmwareProvider extends ChangeNotifier {
   bool get isDetectingChip => _isDetectingChip;
   String? get detectedChip => _detectedChip;
   String? get detectChipError => _detectChipError;
-  String get expectedChipName =>
-      _selectedDeviceType.toLowerCase().contains('c6') ? 'ESP32-C6' : 'ESP32-C3';
+  String get expectedChipName => expectedChipNameFor(_selectedDeviceType);
   String get autoNextVersion => _storage.getNextVersion(_selectedDeviceType);
 
   static final RegExp _versionPattern = RegExp(r'^\d+\.\d+\.\d+$');

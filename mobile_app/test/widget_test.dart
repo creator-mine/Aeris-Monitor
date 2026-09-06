@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:iot_modular_app/app.dart';
 import 'package:iot_modular_app/core/api/api_client.dart';
 import 'package:iot_modular_app/core/api/mqtt_client.dart';
+import 'package:iot_modular_app/core/api/signaling_api.dart';
+import 'package:iot_modular_app/features/dashboard/providers/dashboard_provider.dart';
 import 'package:iot_modular_app/features/settings/providers/settings_provider.dart';
 
 void main() {
@@ -19,10 +20,18 @@ void main() {
           ChangeNotifierProvider.value(value: settingsProvider),
           Provider.value(value: ApiClient()),
           Provider.value(value: MqttService()),
+          ChangeNotifierProvider.value(
+            value: DashboardProvider(
+              signalingApi: SignalingApi(
+                baseUrl: 'http://127.0.0.1:1/api/v1',
+              ),
+            ),
+          ),
         ],
         child: const IoTApp(),
       ),
     );
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Главная'), findsOneWidget);
   });
