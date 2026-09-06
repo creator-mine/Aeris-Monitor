@@ -28,6 +28,12 @@
 #define MQTT_TOPIC_PREFIX "iot"
 #define MQTT_BUFFER_SIZE 2048
 
+// Over-the-Air firmware updates (pulled over HTTPS from the public site)
+#define FIRMWARE_VERSION "1.1.0"
+#define OTA_FW_HOST "spe4naz.online"
+#define OTA_FW_PORT 443
+#define OTA_FW_PATH "/fw/main.bin"
+
 // Web Server Configuration
 #define HTTP_PORT 80
 #define WEBSOCKET_PORT 81

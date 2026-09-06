@@ -11,6 +11,7 @@
 #include "wifi_config.h"
 #include "provisioning.h"
 #include "mqtt_config.h"
+#include "ota_updater.h"
 #include "esp_task_wdt.h"
 #include <time.h>
 #include "modules/sensor_registry.h"
@@ -584,6 +585,10 @@ void setup() {
 
 void loop() {
     esp_task_wdt_reset(); // feed watchdog each iteration
+
+    if (OtaUpdater::pending()) {
+        OtaUpdater::apply();
+    }
 
     if (millis() - lastSdCleanup >= SD_CLEANUP_INTERVAL_MS) {
         lastSdCleanup = millis();

@@ -1,6 +1,7 @@
 #include "web_server.h"
 #include "config.h"
 #include "mqtt_config.h"
+#include "ota_updater.h"
 #include "modules/sensor_registry.h"
 #include "time_util.h"
 #include <WiFi.h>
@@ -116,6 +117,11 @@ void WebServer::setupWebSocket() {
                         Serial.printf("[MQTT] %s by command\n", on ? "enabled" : "disabled");
                         client->text(String("{\"type\":\"ack\",\"command\":\"") + command +
                                      "\",\"mqtt_enabled\":" + (on ? "true" : "false") + "}");
+                    } else if (strcmp(command, "ota") == 0) {
+                        bool started = OtaUpdater::request();
+                        client->text(started
+                            ? "{\"type\":\"ack\",\"command\":\"ota\",\"status\":\"started\"}"
+                            : "{\"type\":\"error\",\"error\":\"ota_busy\"}");
                     } else {
                         client->text("{\"type\":\"error\",\"error\":\"unknown_command\"}");
                     }
@@ -139,6 +145,7 @@ String WebServer::buildStatusJson() {
     json += "\"wifi_connected\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";
     json += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
     json += "\"time_synced\":" + String(timeSynced() ? "true" : "false");
+    json += ",\"firmware\":\"" + String(FIRMWARE_VERSION) + "\"";
     json += "}";
     return json;
 }
@@ -299,6 +306,13 @@ void WebServer::handleCommand(AsyncWebServerRequest* request) {
         json += on ? "true" : "false";
         json += "}";
         request->send(200, "application/json", json);
+    } else if (strcmp(command, "ota") == 0) {
+        bool started = OtaUpdater::request();
+        if (started) {
+            request->send(200, "application/json", "{\"ok\":true,\"command\":\"ota\",\"status\":\"started\"}");
+        } else {
+            request->send(409, "application/json", "{\"ok\":false,\"error\":\"ota_busy\"}");
+        }
     } else {
         request->send(400, "application/json", "{\"error\":\"unknown_command\"}");
     }
