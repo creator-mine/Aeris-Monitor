@@ -32,6 +32,9 @@ secrets*
 Temp/
 *.log
 
+# --- VPS snapshot (contains passwd, certs, tokens) ---
+vps-backup/
+
 # --- OS / editor ---
 Thumbs.db
 Desktop.ini
