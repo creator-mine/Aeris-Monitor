@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <SD.h>
+#include <ArduinoJson.h>
 #include "config.h"
 #include "time_util.h"
 #include "web_server.h"
@@ -12,11 +13,13 @@
 #include "provisioning.h"
 #include "mqtt_config.h"
 #include "ota_updater.h"
+#include "ring_logger.h"
+#include "serial_cmd.h"
 #include "esp_task_wdt.h"
 #include <time.h>
 #include "modules/sensor_registry.h"
-#include "modules/bme680_module.h"
-#include "modules/bh1750_module.h"
+#include <bme680_module.h>
+#include <bh1750_module.h>
 
 // ===================== GLOBAL STATE =====================
 
@@ -56,6 +59,7 @@ bool wifiConnectSta(const char* ssid, const char* password) {
     Serial.println();
     Serial.print("[WiFi] IP: ");
     Serial.println(WiFi.localIP());
+    LOG_INFO("WiFi", "Connected to %s", ssid);
     return true;
 }
 
@@ -93,6 +97,7 @@ void wifiConnect() {
     Serial.println("[WiFi] No connection, starting config mode");
     Provisioning::startAndWait();
     Serial.println("[WiFi] Provisioning session ended, rebooting");
+    RingLogger::save();
     delay(300);
     ESP.restart();
 #else
@@ -101,21 +106,32 @@ void wifiConnect() {
 }
 
 void wifiUpdate() {
+    static bool wasConnected = true;
     if (WiFi.status() != WL_CONNECTED) {
+        if (wasConnected) {
+            LOG_INFO("WiFi", "Connection lost, reconnecting...");
+            wasConnected = false;
+        }
         if (millis() - lastReconnect > RECONNECT_INTERVAL_MS) {
             lastReconnect = millis();
-            Serial.println("[WiFi] Reconnecting...");
             wifiTryConnect();
+        }
+    } else {
+        if (!wasConnected) {
+            LOG_INFO("WiFi", "Reconnected");
+            wasConnected = true;
         }
     }
 }
 
 void wifiReconfigure() {
     Serial.println("[WiFi] Reconfiguration requested, entering config mode");
+    RingLogger::save();
     WifiConfig::clear();
     bool configured = Provisioning::startAndWait();
     Serial.println(configured ? "[WiFi] New credentials saved, rebooting"
                               : "[WiFi] Reconfiguration cancelled, rebooting");
+    RingLogger::save();
     delay(300);
     ESP.restart();
 }
@@ -161,7 +177,7 @@ void mqttPublishStatus() {
     payload += "\"uptime\":" + String(millis() / 1000) + ",";
     payload += "\"free_heap\":" + String(ESP.getFreeHeap()) + ",";
 
-    auto& modules = SensorRegistry::instance().activeModules();
+    auto modules = SensorRegistry::instance().activeModules();
     payload += "\"modules\":[";
     for (size_t i = 0; i < modules.size(); i++) {
         if (i > 0) payload += ",";
@@ -183,8 +199,33 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
     Serial.println("[MQTT] Received: " + msg);
 
+    if (msg.indexOf("wifi_set") >= 0) {
+        JsonDocument doc;
+        if (!deserializeJson(doc, msg)) {
+            const char* ssid = doc["ssid"];
+            const char* password = doc["password"];
+            if (ssid && strlen(ssid) > 0) {
+                if (WifiConfig::save(ssid, password ? password : "")) {
+                    LOG_INFO("WiFi", "MQTT saved credentials (ssid=%s), reconnecting", ssid);
+                    RingLogger::save();
+                    ESP.restart();
+                }
+            }
+        }
+        return;
+    }
+
     if (msg.indexOf("restart") >= 0) {
+        RingLogger::save();
         ESP.restart();
+    }
+    if (msg.indexOf("ota") >= 0) {
+        bool force = msg.indexOf("force") >= 0;
+        if (OtaUpdater::request(force)) {
+            Serial.println("[MQTT] OTA request accepted");
+        } else {
+            Serial.println("[MQTT] OTA already pending, request ignored");
+        }
     }
     if (msg.indexOf("read_sensor") >= 0) {
         lastSensorRead = 0;
@@ -209,16 +250,19 @@ void mqttConnect() {
 
     if (mqtt.connect(clientId.c_str(), MQTT_USER, MQTT_PASSWORD)) {
         Serial.println(" OK");
+        LOG_INFO("MQTT", "Connected to %s:%d", MQTT_BROKER, MQTT_PORT);
         String cmdTopic = mqttTopic("commands");
         mqtt.subscribe(cmdTopic.c_str());
         Serial.println("[MQTT] Subscribed: " + cmdTopic);
         mqttPublishStatus();
     } else {
         Serial.println(" FAIL rc=" + String(mqtt.state()));
+        LOG_INFO("MQTT", "Connect failed rc=%d", mqtt.state());
     }
 }
 
 void mqttUpdate() {
+    static bool wasConnected = true;
     if (!MqttConfig::enabled()) {
         if (mqtt.connected()) {
             Serial.println("[MQTT] Disabled, disconnecting");
@@ -228,11 +272,19 @@ void mqttUpdate() {
         return;
     }
     if (!mqtt.connected()) {
+        if (wasConnected) {
+            LOG_INFO("MQTT", "Connection lost, reconnecting...");
+            wasConnected = false;
+        }
         if (millis() - lastReconnect > RECONNECT_INTERVAL_MS) {
             lastReconnect = millis();
             mqttConnect();
         }
     } else {
+        if (!wasConnected) {
+            LOG_INFO("MQTT", "Reconnected");
+            wasConnected = true;
+        }
         mqtt.loop();
     }
 }
@@ -240,20 +292,30 @@ void mqttUpdate() {
 // ===================== UART BRIDGE =====================
 
 #include "uart_protocol.h"
+#include <uart_frame.h>
 
-uint8_t uartRxBuf[UART_BUFFER_SIZE];
-uint16_t uartRxIdx = 0;
-unsigned long uartRxStart = 0;
-const unsigned long UART_RX_TIMEOUT_MS = 500;
+// Resync-aware frame parser: survives partial/corrupt frames by dropping one
+// byte at a time until a valid 0xAA 0x55 header + CRC frame is found.
+UartFrameParser uartFrame;
 
-// Registered remote modules: moduleId -> metric keys (ordered)
-struct RemoteModule {
-    uint8_t moduleId;
+// Registered remote modules: one moduleId -> one or more sensors, each with its
+// own metric keys. The UART module registers ALL its sensors in one frame and
+// sends sensor data as one value stream (flattened across sensors in the same
+// order), so values map positionally onto the flattened metric list.
+struct RemoteSensor {
     uint8_t typeId;
     char name[32];
+    uint8_t metricCount;   // metrics contributed by this sensor
+    uint8_t metricOffset;  // index into module's flattened metric list
+};
+
+struct RemoteModule {
+    uint8_t moduleId;
+    RemoteSensor sensors[8];
+    uint8_t sensorCount;
     char metricKeys[8][24];
     char metricUnits[8][8];
-    uint8_t metricCount;
+    uint8_t metricCount;   // total metrics across all sensors (<= 8)
     uint8_t values[8 * 4]; // last received raw float values
     uint8_t valueCount;
     bool hasData;
@@ -284,44 +346,68 @@ void uartProcessRegister(uint8_t moduleId, uint8_t* payload, uint8_t len) {
     RemoteModule* mod = findOrCreateRemoteModule(moduleId);
     if (mod == nullptr) {
         Serial.println("[UART] Too many modules!");
+        LOG_INFO("UART", "Too many modules!");
         return;
     }
 
+    // A register frame fully describes the module: reset any previous
+    // registration so repeated (periodic) registers stay idempotent.
+    memset(mod, 0, sizeof(RemoteModule));
+    mod->moduleId = moduleId;
+
     uint16_t idx = 0;
-    mod->typeId = payload[idx++];
+    if (idx >= len) return;
+    uint8_t sensorCount = payload[idx++];
+    mod->sensorCount = sensorCount > 8 ? 8 : sensorCount;
 
-    uint8_t nameLen = payload[idx++];
-    if (idx + nameLen > len) return;
-    if (nameLen > 31) return;  // reject oversized names (buffer is 32 bytes)
-    memcpy(mod->name, payload + idx, nameLen);
-    mod->name[nameLen] = '\0';
-    idx += nameLen;
+    for (uint8_t s = 0; s < mod->sensorCount; s++) {
+        RemoteSensor& sensor = mod->sensors[s];
 
-    uint8_t metricCount = payload[idx++];
-    mod->metricCount = metricCount > 8 ? 8 : metricCount;
+        if (idx + 2 > len) return;
+        sensor.typeId = payload[idx++];
 
-    for (uint8_t m = 0; m < mod->metricCount; m++) {
-        if (idx + 1 > len) return;
-        uint8_t keyLen = payload[idx++];
-        if (idx + keyLen + 1 > len) return;
-        if (keyLen > 23) return;  // metricKeys[m] is 24 bytes
-        memcpy(mod->metricKeys[m], payload + idx, keyLen);
-        mod->metricKeys[m][keyLen] = '\0';
-        idx += keyLen;
+        uint8_t nameLen = payload[idx++];
+        if (idx + nameLen > len || nameLen > 31) return;
+        memcpy(sensor.name, payload + idx, nameLen);
+        sensor.name[nameLen] = '\0';
+        idx += nameLen;
 
-        uint8_t unitLen = payload[idx++];
-        if (idx + unitLen > len) return;
-        if (unitLen > 7) return;  // metricUnits[m] is 8 bytes
-        memcpy(mod->metricUnits[m], payload + idx, unitLen);
-        mod->metricUnits[m][unitLen] = '\0';
-        idx += unitLen;
+        if (idx >= len) return;
+        uint8_t metricCount = payload[idx++];
+        sensor.metricCount = metricCount > 8 ? 8 : metricCount;
+        sensor.metricOffset = mod->metricCount;
+
+        for (uint8_t m = 0; m < sensor.metricCount; m++) {
+            uint8_t dst = mod->metricCount;
+            if (dst >= 8) return;
+            if (idx + 1 > len) return;
+            uint8_t keyLen = payload[idx++];
+            if (idx + keyLen + 1 > len || keyLen > 23) return;
+            memcpy(mod->metricKeys[dst], payload + idx, keyLen);
+            mod->metricKeys[dst][keyLen] = '\0';
+            idx += keyLen;
+
+            uint8_t unitLen = payload[idx++];
+            if (idx + unitLen > len || unitLen > 7) return;
+            memcpy(mod->metricUnits[dst], payload + idx, unitLen);
+            mod->metricUnits[dst][unitLen] = '\0';
+            idx += unitLen;
+
+            mod->metricCount++;
+        }
     }
 
-    mod->hasData = false;
-    Serial.printf("[UART] Module %d registered: %s (type %d, %d metrics)\n",
-                  moduleId, mod->name, mod->typeId, mod->metricCount);
-    for (uint8_t m = 0; m < mod->metricCount; m++) {
-        Serial.printf("  [%d] %s (%s)\n", m, mod->metricKeys[m], mod->metricUnits[m]);
+    Serial.printf("[UART] Module %d registered: %d sensor(s), %d metric(s)\n",
+                  moduleId, mod->sensorCount, mod->metricCount);
+    LOG_INFO("UART", "Module %d registered: %d sensor(s), %d metric(s)",
+             moduleId, mod->sensorCount, mod->metricCount);
+    for (uint8_t s = 0; s < mod->sensorCount; s++) {
+        Serial.printf("  Sensor %s (type %d):\n",
+                      mod->sensors[s].name, mod->sensors[s].typeId);
+        for (uint8_t m = 0; m < mod->sensors[s].metricCount; m++) {
+            uint8_t mi = mod->sensors[s].metricOffset + m;
+            Serial.printf("    [%d] %s (%s)\n", mi, mod->metricKeys[mi], mod->metricUnits[mi]);
+        }
     }
 }
 
@@ -343,8 +429,9 @@ void uartProcessSensorData(uint8_t moduleId, uint8_t* payload, uint8_t len) {
     }
     mod->hasData = true;
 
-    Serial.printf("[UART] Module %d (%s) data:\n", moduleId, mod->name);
-    for (uint8_t v = 0; v < mod->valueCount && v < mod->metricCount; v++) {
+    Serial.printf("[UART] Module %d data:\n", moduleId);
+    uint8_t limit = mod->metricCount < mod->valueCount ? mod->metricCount : mod->valueCount;
+    for (uint8_t v = 0; v < limit; v++) {
         float value;
         memcpy(&value, &mod->values[v * 4], 4);
         Serial.printf("  %s = %.2f %s\n", mod->metricKeys[v], value, mod->metricUnits[v]);
@@ -355,7 +442,9 @@ void uartProcessSensorData(uint8_t moduleId, uint8_t* payload, uint8_t len) {
     }
 }
 
-void uartProcessPacket(uint8_t moduleId, uint8_t cmd, uint8_t* payload, uint8_t len) {
+void uartProcessPacket(uint8_t moduleId, uint8_t cmd, uint8_t* payload,
+                       uint16_t len, void* context) {
+    (void)context;
     switch (cmd) {
         case CMD_REGISTER:
             uartProcessRegister(moduleId, payload, len);
@@ -368,45 +457,14 @@ void uartProcessPacket(uint8_t moduleId, uint8_t cmd, uint8_t* payload, uint8_t 
             break;
         default:
             Serial.printf("[UART] Unknown cmd 0x%02X from module %d\n", cmd, moduleId);
+            LOG_INFO("UART", "Unknown cmd 0x%02X from module %d", cmd, moduleId);
             break;
     }
 }
 
 void uartUpdate() {
-    if (uartRxIdx > 0 && millis() - uartRxStart > UART_RX_TIMEOUT_MS) {
-        Serial.printf("[UART] RX timeout (%d bytes stuck), resetting\n", uartRxIdx);
-        uartRxIdx = 0;
-    }
-
     while (Serial1.available()) {
-        uint8_t b = Serial1.read();
-        if (uartRxIdx == 0) uartRxStart = millis();
-        if (uartRxIdx < UART_BUFFER_SIZE) {
-            uartRxBuf[uartRxIdx++] = b;
-        } else {
-            Serial.printf("[UART] RX overflow, resetting\n");
-            uartRxIdx = 0;
-            continue;
-        }
-        if (uartRxIdx >= 8) {
-            if (uartRxBuf[0] == UART_HDR1 && uartRxBuf[1] == UART_HDR2) {
-                uint16_t payLen = (uartRxBuf[4] << 8) | uartRxBuf[5];
-                uint32_t total = 8 + (uint32_t)payLen;
-                if (total > UART_BUFFER_SIZE) {
-                    Serial.printf("[UART] Frame too large (%d), discarding\n", total);
-                    uartRxIdx = 0;
-                } else if (uartRxIdx >= total) {
-                    uint16_t rxCrc = (uartRxBuf[total - 2] << 8) | uartRxBuf[total - 1];
-                    uint16_t calcCrc = uartCrc16(uartRxBuf, total - 2);
-                    if (rxCrc == calcCrc) {
-                        uartProcessPacket(uartRxBuf[2], uartRxBuf[3], uartRxBuf + 6, payLen);
-                    }
-                    uartRxIdx = 0;
-                }
-            } else {
-                uartRxIdx = 0;
-            }
-        }
+        uartFrame.feed(Serial1.read(), uartProcessPacket, nullptr);
     }
 }
 
@@ -501,6 +559,7 @@ void sdRotateCleanup() {
 bool sdInit() {
     if (!SD.begin(SD_CS)) {
         Serial.println("[SD] Mount failed");
+        LOG_INFO("SD", "Mount failed");
         return false;
     }
     Serial.print("[SD] Type: ");
@@ -509,6 +568,7 @@ bool sdInit() {
     Serial.print(SD.totalBytes() / (1024 * 1024));
     Serial.println(" MB");
     sdMounted = true;
+    LOG_INFO("SD", "Mounted, %llu MB total", SD.totalBytes() / (1024 * 1024));
     return true;
 }
 
@@ -539,20 +599,34 @@ void sensorsInit() {
     registry.scanI2CBus(I2C_SDA, I2C_SCL);
 
     Serial.printf("[System] Active modules: %d\n", registry.activeCount());
+    LOG_INFO("Boot", "Active modules: %d", registry.activeCount());
 }
 
 void sensorsRead() {
-    auto& modules = SensorRegistry::instance().activeModules();
+    SensorRegistry& registry = SensorRegistry::instance();
 
+    struct Sample { const char* key; float value; const char* unit; };
+    Sample samples[8];
+    size_t sampleCount = 0;
+
+    auto modules = registry.activeModules(); // snapshot (internally locked)
+
+    registry.lock(); // serialize Wire access with WS scan/read handlers
     for (auto* mod : modules) {
         auto metrics = mod->read();
-
         for (auto& m : metrics) {
-            if (mqttReady()) {
-                mqttPublishMetric(m.key, m.value, m.unit);
+            if (sampleCount < 8) {
+                samples[sampleCount++] = { m.key, m.value, m.unit };
             }
-            sdSave(m.key, m.value, m.unit);
         }
+    }
+    registry.unlock();
+
+    for (size_t i = 0; i < sampleCount; i++) {
+        if (mqttReady()) {
+            mqttPublishMetric(samples[i].key, samples[i].value, samples[i].unit);
+        }
+        sdSave(samples[i].key, samples[i].value, samples[i].unit);
     }
 }
 
@@ -562,12 +636,19 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
 
+    RingLogger::init();   // restore persisted logs (survive reboot history)
+
+    MqttConfig::init();   // cache NVS "mqtt_en" flag in RAM (avoids NVS per loop)
+
     Serial.println("=================================");
-    Serial.println("  IoT Modular System - ESP32-C3");
+    Serial.print  ("  IoT Modular System - ");
+    Serial.println(ESP.getChipModel());
     Serial.println("  Device: " + deviceId);
     Serial.println("=================================");
 
     Serial1.begin(UART_BAUD_RATE, SERIAL_8N1, UART_RX, UART_TX);
+    LOG_INFO("Boot", "Firmware %s starting (chip %d MHz, %d MB flash)",
+             FIRMWARE_VERSION, ESP.getCpuFreqMHz(), ESP.getFlashChipSize() / (1024 * 1024));
 
     wifiConnect();
     ntpInit();
@@ -589,6 +670,8 @@ void setup() {
 
     watchdogInit();
 
+    LOG_INFO("Boot", "Firmware %s ready", FIRMWARE_VERSION);
+    serialCmdInit();
     Serial.println("=================================");
     Serial.printf("  Ready! Free heap: %d\n", ESP.getFreeHeap());
     Serial.println("=================================");
@@ -610,6 +693,7 @@ void loop() {
     mqttUpdate();
     uartUpdate();
     ntpEnsureSynced();
+    serialCmdUpdate();
 
     WebServer::instance().update();
     SensorRegistry::instance().checkLiveness();

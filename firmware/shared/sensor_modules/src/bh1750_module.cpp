@@ -1,4 +1,4 @@
-#include "modules/bh1750_module.h"
+#include "bh1750_module.h"
 #include <Wire.h>
 
 std::vector<uint8_t> BH1750Module::i2cAddresses() const {

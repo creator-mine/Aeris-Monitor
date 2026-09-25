@@ -20,13 +20,15 @@
 #define UART_HEADER_SIZE 6
 #define UART_CRC_SIZE 2
 
-// CMD_REGISTER payload:
-//   [type_id 1B][name_len 1B][name...][metric_count 1B]
-//   per metric: [key_len 1B][key...][unit_len 1B][unit...]
+// CMD_REGISTER payload (one frame per module, all its sensors):
+//   [sensor_count 1B]
+//   per sensor: [type_id 1B][name_len 1B][name...][metric_count 1B]
+//       per metric: [key_len 1B][key...][unit_len 1B][unit...]
 //
 // CMD_SENSOR_DATA payload:
 //   [timestamp 4B][value1 4B float][value2 4B float]...
-//   values ordered by metrics from CMD_REGISTER
+//   values ordered by flattening all sensors' metrics in the same order as
+//   CMD_REGISTER (sensor order, then each sensor's metric order).
 
 static uint16_t uartCrc16(uint8_t* data, uint16_t len) {
     uint16_t crc = 0xFFFF;

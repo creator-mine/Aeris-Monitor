@@ -21,10 +21,10 @@ class AppConfig {
   static const int mqttPort = 9001; // mosquitto WebSocket listener
   static const String mqttTopicPrefix = 'iot';
   static const String mqttUsername = 'app';
-  static const String mqttPassword = 'REDACTED';
+  static const String mqttPassword = '20e1fd207e9d20c2e981d1cc415b7df4';
 
   // Signaling server write-token (register/delete/alerts require it)
-  static const String signalingToken = 'REDACTED';
+  static const String signalingToken = '296a5ec2b5987baec785771bed971d30158859796bf1ee04f575e6db52f710cf';
   
   // Timeouts
   static const Duration connectionTimeout = Duration(seconds: 30);

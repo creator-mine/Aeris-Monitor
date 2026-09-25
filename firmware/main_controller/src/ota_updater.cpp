@@ -4,20 +4,102 @@
 #include <Update.h>
 #include "config.h"
 #include "root_ca.h"
+#include "ring_logger.h"
 #include "esp_task_wdt.h"
+#include "mbedtls/md.h"
+#include <ArduinoJson.h>
 
 namespace {
 
 volatile bool pendingRequest = false;
+volatile bool forceRequest = false;
+portMUX_TYPE otaMux = portMUX_INITIALIZER_UNLOCKED;
+
+// Fetch a small HTTPS resource (headers stripped). Returns false on any failure.
+bool httpsGet(const char* path, String& out, size_t maxBytes) {
+    WiFiClientSecure client;
+    client.setCACert(ROOT_CA_CERT);
+
+    if (!client.connect(OTA_FW_HOST, OTA_FW_PORT)) {
+        LOG_INFO("OTA", "HTTPS connect failed for %s", path);
+        return false;
+    }
+
+    client.print(String("GET ") + path + " HTTP/1.1\r\n"
+                 + "Host: " + OTA_FW_HOST + "\r\n"
+                 + "Connection: close\r\n\r\n");
+
+    unsigned long waitUntil = millis() + 15000;
+    while (client.available() == 0 && millis() < waitUntil) {
+        esp_task_wdt_reset();
+        delay(50);
+    }
+    if (client.available() == 0) {
+        LOG_INFO("OTA", "No HTTP response (timeout) for %s", path);
+        client.stop();
+        return false;
+    }
+
+    String statusLine = client.readStringUntil('\n');
+    statusLine.trim();
+    if (statusLine.indexOf(" 200 ") < 0 && !statusLine.startsWith("HTTP/1.1 200")) {
+        LOG_INFO("OTA", "HTTP error for %s: %s", path, statusLine.c_str());
+        client.stop();
+        return false;
+    }
+
+    // Skip the remaining header lines.
+    String line;
+    while (line != "\r" && client.available()) {
+        line = client.readStringUntil('\n');
+    }
+
+    out = "";
+    while (client.available() && out.length() < maxBytes) {
+        out += (char)client.read();
+    }
+    client.stop();
+    return !out.isEmpty();
+}
+
+// Numeric comparison of "major.minor.patch" (+ optional suffix ignored).
+// Returns a-b (<0, 0, >0).
+int versionCmp(const char* a, const char* b) {
+    int x[3] = {0, 0, 0};
+    int y[3] = {0, 0, 0};
+
+    const char* pa = a;
+    const char* pb = b;
+    for (int i = 0; i < 3; i++) {
+        x[i] = atoi(pa);
+        y[i] = atoi(pb);
+        pa = strchr(pa, '.');
+        pb = strchr(pb, '.');
+        if (!pa || !pb) break;
+        pa++;
+        pb++;
+    }
+
+    for (int i = 0; i < 3; i++) {
+        if (x[i] != y[i]) return x[i] - y[i];
+    }
+    return 0;
+}
 
 } // namespace
 
 namespace OtaUpdater {
 
-bool request() {
-    if (pendingRequest) return false;
+bool request(bool force) {
+    portENTER_CRITICAL(&otaMux);
+    if (pendingRequest) {
+        portEXIT_CRITICAL(&otaMux);
+        return false;
+    }
     pendingRequest = true;
-    Serial.println("[OTA] Update requested");
+    forceRequest = force;
+    portEXIT_CRITICAL(&otaMux);
+    LOG_INFO("OTA", "Update requested (%s)", force ? "force" : "auto");
     return true;
 }
 
@@ -26,15 +108,49 @@ bool pending() {
 }
 
 bool apply() {
+    portENTER_CRITICAL(&otaMux);
+    bool force = forceRequest;
     pendingRequest = false;
-    Serial.println("[OTA] Starting download...");
+    forceRequest = false;
+    portEXIT_CRITICAL(&otaMux);
+    LOG_INFO("OTA", "Starting update (%s)", force ? "force" : "auto");
+
+    // 1) Check the published manifest to avoid re-flashing the same firmware.
+    String manifest;
+    bool haveManifest = httpsGet(OTA_VERSION_PATH, manifest, 1024);
+    String publishedVersion;
+    String expectedSha256;
+    bool manifestOk = false;
+
+    if (haveManifest) {
+        JsonDocument doc;
+        if (!deserializeJson(doc, manifest)) {
+            manifestOk = true;
+            const char* v = doc["version"];
+            const char* h = doc["sha256"];
+            if (v && v[0]) publishedVersion = String(v);
+            if (h && h[0]) expectedSha256 = String(h);
+        }
+    }
+
+    if (!force && manifestOk && !publishedVersion.isEmpty() &&
+        versionCmp(FIRMWARE_VERSION, publishedVersion.c_str()) >= 0) {
+        LOG_INFO("OTA", "Already up to date (%s == %s), skipping", FIRMWARE_VERSION, publishedVersion.c_str());
+        return true;
+    }
+
+    if (manifestOk && !publishedVersion.isEmpty()) {
+        LOG_INFO("OTA", "Updating %s -> %s", FIRMWARE_VERSION, publishedVersion.c_str());
+    } else {
+        // No manifest (old deployment) — proceed with a plain download.
+        LOG_INFO("OTA", "No version manifest, downloading %s", OTA_FW_PATH);
+    }
 
     WiFiClientSecure client;
     client.setCACert(ROOT_CA_CERT);
 
-    Serial.printf("[OTA] Connecting %s:%d...\n", OTA_FW_HOST, OTA_FW_PORT);
     if (!client.connect(OTA_FW_HOST, OTA_FW_PORT)) {
-        Serial.println("[OTA] HTTPS connect failed");
+        LOG_INFO("OTA", "HTTPS connect failed");
         return false;
     }
 
@@ -48,16 +164,15 @@ bool apply() {
         delay(50);
     }
     if (client.available() == 0) {
-        Serial.println("[OTA] No HTTP response");
+        LOG_INFO("OTA", "No HTTP response (timeout)");
         client.stop();
         return false;
     }
 
     String statusLine = client.readStringUntil('\n');
     statusLine.trim();
-    Serial.printf("[OTA] %s\n", statusLine.c_str());
     if (statusLine.indexOf(" 200 ") < 0 && !statusLine.startsWith("HTTP/1.1 200")) {
-        Serial.println("[OTA] HTTP error status");
+        LOG_INFO("OTA", "HTTP error: %s", statusLine.c_str());
         client.stop();
         return false;
     }
@@ -75,18 +190,30 @@ bool apply() {
     }
 
     if (contentLength <= 0) {
-        Serial.printf("[OTA] Bad content length (%d)\n", contentLength);
+        LOG_INFO("OTA", "Bad content length: %d", contentLength);
         client.stop();
         return false;
     }
 
     if (!Update.begin(contentLength)) {
-        Serial.printf("[OTA] Update.begin failed: %s\n", Update.errorString());
+        LOG_INFO("OTA", "Update.begin failed: %s", Update.errorString());
         client.stop();
         return false;
     }
 
-    Serial.printf("[OTA] Downloading %d bytes...\n", contentLength);
+    // Compute SHA-256 of the stream as it is flashed (if SHA-256 expected).
+    mbedtls_md_context_t mdCtx;
+    bool hashing = false;
+    unsigned char sha256Out[32];
+    if (!expectedSha256.isEmpty() && expectedSha256.length() == 64) {
+        mbedtls_md_init(&mdCtx);
+        const mbedtls_md_info_t* mdInfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+        hashing = (mdInfo != nullptr) &&
+                  (mbedtls_md_setup(&mdCtx, mdInfo, 0) == 0) &&
+                  (mbedtls_md_starts(&mdCtx) == 0);
+    }
+
+    LOG_INFO("OTA", "Downloading %d bytes...", contentLength);
     size_t written = 0;
     uint8_t buf[1024];
     while (written < (size_t)contentLength && client.connected()) {
@@ -96,25 +223,41 @@ bool apply() {
             int r = client.readBytes(buf, n);
             if (r <= 0) break;
             written += Update.write(buf, (size_t)r);
+            if (hashing) mbedtls_md_update(&mdCtx, buf, (size_t)r);
         } else {
             delay(20);
         }
         esp_task_wdt_reset();
     }
     client.stop();
+    if (hashing) {
+        mbedtls_md_finish(&mdCtx, sha256Out);
+        mbedtls_md_free(&mdCtx);
+    }
 
     if (written != (size_t)contentLength) {
-        Serial.printf("[OTA] Short download: %u/%d\n", (unsigned int)written, contentLength);
+        LOG_INFO("OTA", "Short download: %u/%d", (unsigned int)written, contentLength);
         Update.abort();
         return false;
     }
 
+    if (hashing) {
+        char hex[65];
+        for (int i = 0; i < 32; i++) snprintf(hex + 2 * i, 3, "%02x", sha256Out[i]);
+        if (String(hex) != expectedSha256) {
+            LOG_INFO("OTA", "SHA-256 mismatch, aborting");
+            Update.abort();
+            return false;
+        }
+    }
+
     if (!Update.end()) {
-        Serial.printf("[OTA] Update.end failed: %s\n", Update.errorString());
+        LOG_INFO("OTA", "Update.end failed: %s", Update.errorString());
         return false;
     }
 
-    Serial.println("[OTA] Success! Rebooting...");
+    LOG_INFO("OTA", "Success! Rebooting...");
+    RingLogger::save();
     delay(500);
     ESP.restart();
     return true;

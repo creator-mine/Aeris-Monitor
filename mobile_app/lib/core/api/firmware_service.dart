@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
+import '../../models/firmware_manifest.dart';
+import 'ota_api.dart';
 
 class BuildResult {
   final bool success;
@@ -367,6 +369,27 @@ class FirmwareService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Parses the real `FIRMWARE_VERSION` from include/config.h (or "" if missing).
+  Future<String> getFirmwareVersionFromConfig(String projectPath) async {
+    try {
+      final configFile = File(p.join(projectPath, 'include', 'config.h'));
+      if (!await configFile.exists()) return '';
+      final content = await configFile.readAsString();
+      final match = RegExp(
+        r'#define\s+FIRMWARE_VERSION\s+"([^"]+)"',
+      ).firstMatch(content);
+      return match?.group(1)?.trim() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Fetches the published firmware manifest from the OTA site
+  /// for the given device type (defaults to the legacy esp32-c3 manifest).
+  Future<FirmwareManifest?> fetchOtaManifest({String? deviceType}) async {
+    return OtaApi().fetchManifest(deviceType: deviceType);
   }
 
   /// Parses [platformio.ini] and returns the settings of the selected env

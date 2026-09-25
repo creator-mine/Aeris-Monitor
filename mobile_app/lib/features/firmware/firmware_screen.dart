@@ -8,6 +8,7 @@ import 'package:iot_modular_app/features/firmware/widgets/port_selector.dart';
 import 'package:iot_modular_app/features/firmware/widgets/build_log_widget.dart';
 import 'package:iot_modular_app/features/firmware/widgets/firmware_info_card.dart';
 import 'package:iot_modular_app/features/firmware/widgets/preflight_card.dart';
+import 'package:iot_modular_app/features/firmware/widgets/published_version_card.dart';
 import 'package:iot_modular_app/features/firmware/widgets/version_history.dart';
 import 'package:iot_modular_app/shared/widgets/app_scaffold.dart';
 
@@ -58,6 +59,9 @@ class FirmwareScreen extends StatelessWidget {
                 ),
               DeviceSelector(),
               PortSelector(),
+              const SizedBox(height: 8),
+              PublishedVersionCard(),
+              const SizedBox(height: 8),
               Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 child: Padding(
@@ -162,6 +166,14 @@ class FirmwareScreen extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (provider.updateCheckError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              provider.updateCheckError!,
+                              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.error),
+                            ),
+                          ),
                       ],
                     ],
                   ),

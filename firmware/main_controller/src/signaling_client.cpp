@@ -1,6 +1,7 @@
 #include "signaling_client.h"
 #include "config.h"
 #include "root_ca.h"
+#include "ring_logger.h"
 #include "modules/sensor_registry.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -23,6 +24,7 @@ static bool signalingPost(const char* path, const char* body) {
     bool ok = (code >= 200 && code < 300);
     if (!ok) {
         Serial.printf("[Signaling] POST %s -> HTTP %d\n", path, code);
+        LOG_INFO("Signaling", "POST %s -> HTTP %d", path, code);
     }
     http.end();
     return ok;
@@ -37,9 +39,10 @@ void signalingInit() {
     doc["type"] = DEVICE_TYPE;
     doc["ip"] = WiFi.localIP().toString();
     doc["port"] = HTTP_PORT;
+    doc["firmwareVersion"] = FIRMWARE_VERSION;
 
-    JsonArray sensors = doc.createNestedArray("sensors");
-    auto& modules = SensorRegistry::instance().activeModules();
+    JsonArray sensors = doc["sensors"].to<JsonArray>();
+    auto modules = SensorRegistry::instance().activeModules();
     for (auto* mod : modules) {
         for (auto& m : mod->metrics()) {
             sensors.add(m.key);
@@ -52,8 +55,10 @@ void signalingInit() {
     if (signalingPost("/api/v1/devices/register", buf)) {
         registered = true;
         Serial.println("[Signaling] Registered with server");
+        LOG_INFO("Signaling", "Registered with server");
     } else {
         Serial.println("[Signaling] Register failed");
+        LOG_INFO("Signaling", "Register failed");
     }
 }
 
@@ -62,6 +67,9 @@ void signalingUpdate() {
     lastTry = millis();
 
     if (WiFi.status() != WL_CONNECTED) {
+        if (registered) {
+            LOG_INFO("Signaling", "WiFi lost, device offline");
+        }
         registered = false;
         return;
     }
@@ -71,10 +79,11 @@ void signalingUpdate() {
         return;
     }
 
-    char body[64];
-    snprintf(body, sizeof(body), "{\"id\":\"%s\"}", DEVICE_ID);
+    char body[80];
+    snprintf(body, sizeof(body), "{\"id\":\"%s\",\"firmwareVersion\":\"%s\"}", DEVICE_ID, FIRMWARE_VERSION);
 
     if (!signalingPost("/api/v1/devices/heartbeat", body)) {
+        LOG_INFO("Signaling", "Heartbeat failed, re-register");
         registered = false; // re-register on next tick
     }
 }

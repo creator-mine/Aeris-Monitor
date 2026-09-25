@@ -1,6 +1,7 @@
 #include "time_util.h"
 #include <WiFi.h>
 #include "config.h"
+#include "ring_logger.h"
 
 static bool synced = false;
 
@@ -18,7 +19,12 @@ void ntpInit() {
     time_t now = time(nullptr);
     if (now > 100000) {
         synced = true;
+        struct tm tm;
+        gmtime_r(&now, &tm);
         Serial.printf("[NTP] Time synced: %s", ctime(&now));
+        LOG_INFO("NTP", "Time synced %04d-%02d-%02d %02d:%02d:%02d UTC",
+                 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+                 tm.tm_hour, tm.tm_min, tm.tm_sec);
     } else {
         Serial.println("[NTP] Sync failed (will retry)");
     }

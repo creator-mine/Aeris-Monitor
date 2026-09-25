@@ -11,7 +11,12 @@ $remotePath = "/var/www/app"
 
 if (-not $SkipBuild) {
     $env:Path += ";C:\flutter\flutter\bin"
-    & "C:\flutter\flutter\bin\flutter.bat" build web --release
+    Push-Location $app
+    try {
+        & "C:\flutter\flutter\bin\flutter.bat" build web --release
+    } finally {
+        Pop-Location
+    }
     if ($LASTEXITCODE -ne 0) { throw "flutter build web failed" }
 }
 

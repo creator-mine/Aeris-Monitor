@@ -1,6 +1,7 @@
 #include "provisioning.h"
 #include "config.h"
 #include "wifi_config.h"
+#include "ring_logger.h"
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
@@ -100,7 +101,7 @@ void handleRoot(AsyncWebServerRequest* request) {
     request->send(200, "text/html", INDEX_HTML);
 }
 
-bool g_keepLoop = true;
+volatile bool g_keepLoop = true;
 String g_pendingBody;
 
 // Async body collector: accumulates a JSON body, parses, saves, then finishes.
@@ -136,6 +137,7 @@ void handleSaveCollect(AsyncWebServerRequest* request, uint8_t* data, size_t len
     }
 
     g_savedSsid = ssid;
+    LOG_INFO("WiFi", "Provisioning saved credentials (ssid=%s)", ssid.c_str());
     request->send(200, "application/json", "{\"ok\":true}");
     g_keepLoop = false;
 }
@@ -160,6 +162,7 @@ bool startAndWait() {
     if (PROVISION_AP_PASSWORD[0]) Serial.println("  Pass  : " + String(PROVISION_AP_PASSWORD));
     Serial.println("  Web   : http://" + ip.toString() + "/");
     Serial.println("=========================================");
+    LOG_INFO("WiFi", "Config mode: AP %s, http://%s", apName().c_str(), ip.toString().c_str());
 
     server = new AsyncWebServer(HTTP_PORT);
     server->on("/", HTTP_GET, handleRoot);

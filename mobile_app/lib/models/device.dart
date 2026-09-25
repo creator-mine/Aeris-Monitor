@@ -42,6 +42,7 @@ class Device extends Equatable {
   final int port;
   final List<Sensor> sensors;
   final List<Module> modules;
+  final String? firmwareVersion;
 
   const Device({
     required this.id,
@@ -53,6 +54,7 @@ class Device extends Equatable {
     this.port = 80,
     this.sensors = const [],
     this.modules = const [],
+    this.firmwareVersion,
   });
 
   factory Device.fromJson(Map<String, dynamic> json) {
@@ -69,6 +71,7 @@ class Device extends Equatable {
               ?.map((m) => Module.fromJson(m as Map<String, dynamic>))
               .toList() ??
           [],
+      firmwareVersion: (json['firmwareVersion'] as String?)?.trim(),
     );
   }
 
@@ -116,6 +119,7 @@ class Device extends Equatable {
       'port': port,
       'sensors': sensors.map((s) => s.toJson()).toList(),
       'modules': modules.map((m) => m.toJson()).toList(),
+      if (firmwareVersion != null) 'firmwareVersion': firmwareVersion,
     };
   }
 
@@ -129,6 +133,7 @@ class Device extends Equatable {
     int? port,
     List<Sensor>? sensors,
     List<Module>? modules,
+    String? firmwareVersion,
   }) {
     return Device(
       id: id ?? this.id,
@@ -140,6 +145,7 @@ class Device extends Equatable {
       port: port ?? this.port,
       sensors: sensors ?? this.sensors,
       modules: modules ?? this.modules,
+      firmwareVersion: firmwareVersion ?? this.firmwareVersion,
     );
   }
 
@@ -176,7 +182,7 @@ class Device extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, name, type, status, lastSeen, ip, port, sensors, modules];
+      [id, name, type, status, lastSeen, ip, port, sensors, modules, firmwareVersion];
 }
 
 class Sensor extends Equatable {

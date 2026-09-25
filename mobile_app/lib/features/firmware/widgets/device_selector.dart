@@ -32,6 +32,11 @@ class DeviceSelector extends StatelessWidget {
                       icon: Icon(Icons.memory),
                     ),
                     ButtonSegment(
+                      value: 'esp32-s3',
+                      label: Text('ESP32-S3'),
+                      icon: Icon(Icons.memory),
+                    ),
+                    ButtonSegment(
                       value: 'esp32-c6',
                       label: Text('ESP32-C6'),
                       icon: Icon(Icons.sensors),
@@ -44,9 +49,13 @@ class DeviceSelector extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  provider.selectedDeviceType == 'esp32-c3'
-                      ? 'Основной контроллер: WiFi, MQTT, I2C, UART'
-                      : 'Сенсорный модуль: BME680, BH1750, DS18B20',
+                  switch (provider.selectedDeviceType) {
+                    'esp32-c3' =>
+                      'Основной контроллер (LOLIN C3 mini): WiFi, MQTT, I2C, UART',
+                    'esp32-s3' =>
+                      'Основной контроллер (ESP32-S3 N16R8): WiFi, MQTT, I2C, UART',
+                    _ => 'Сенсорный модуль: BME680, BH1750, DS18B20',
+                  },
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],

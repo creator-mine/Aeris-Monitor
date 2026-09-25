@@ -8,6 +8,7 @@ import 'features/dashboard/providers/dashboard_provider.dart';
 import 'features/charts/charts_screen.dart';
 import 'features/charts/providers/charts_provider.dart';
 import 'features/devices/devices_screen.dart';
+import 'features/device_config/device_config_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/firmware/firmware_screen.dart';
 
@@ -43,6 +44,7 @@ class _MainNavigationState extends State<MainNavigation> {
     DashboardScreen(),
     ChartsScreen(),
     DevicesScreen(),
+    DeviceConfigScreen(),
     FirmwareScreen(),
     SettingsScreen(),
   ];
@@ -91,6 +93,11 @@ class _MainNavigationState extends State<MainNavigation> {
                 icon: Icon(Icons.devices_other_outlined),
                 selectedIcon: Icon(Icons.devices_other),
                 label: 'Устройства',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.tune),
+                selectedIcon: Icon(Icons.tune),
+                label: 'Настройка',
               ),
               NavigationDestination(
                 icon: Icon(Icons.memory_outlined),

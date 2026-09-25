@@ -3,8 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/firmware_version.dart';
+import '../../../models/firmware_manifest.dart';
 import '../../../core/api/firmware_service.dart';
 import '../../../core/storage/firmware_storage.dart';
+import '../../../core/utils/version.dart';
+import '../../../core/config/app_config.dart';
 import '../../../shared/helpers/chip_helper.dart';
 
 class FirmwareProvider extends ChangeNotifier {
@@ -24,6 +27,7 @@ class FirmwareProvider extends ChangeNotifier {
   List<PortInfo> _portInfos = [];
   String? _currentHash;
   bool _hasUpdates = false;
+  String? _updateCheckError;
   Map<String, String> _currentFileHashes = <String, String>{};
   Map<String, dynamic> _projectInfo = <String, dynamic>{};
   Map<String, dynamic> _firmwareBinInfo = <String, dynamic>{};
@@ -37,6 +41,11 @@ class FirmwareProvider extends ChangeNotifier {
   String? _detectedChip;
   String? _detectChipError;
   StreamSubscription<String>? _buildSubscription;
+
+  FirmwareManifest? _serverManifest;
+  bool _isCheckingServer = false;
+  String? _serverCheckError;
+  String? _localVersion;
 
   List<FirmwareVersion> get versions => _versions;
   String? get selectedPort => _selectedPort;
@@ -57,6 +66,7 @@ class FirmwareProvider extends ChangeNotifier {
   }
   String? get currentHash => _currentHash;
   bool get hasUpdates => _hasUpdates;
+  String? get updateCheckError => _updateCheckError;
   Map<String, dynamic> get projectInfo => _projectInfo;
   Map<String, dynamic> get firmwareBinInfo => _firmwareBinInfo;
   FirmwareVersion? get latestVersion =>
@@ -73,6 +83,17 @@ class FirmwareProvider extends ChangeNotifier {
   String? get detectChipError => _detectChipError;
   String get expectedChipName => expectedChipNameFor(_selectedDeviceType);
   String get autoNextVersion => _storage.getNextVersion(_selectedDeviceType);
+
+  FirmwareManifest? get serverManifest => _serverManifest;
+  bool get isCheckingServer => _isCheckingServer;
+  String? get serverCheckError => _serverCheckError;
+  String? get localVersion => _localVersion;
+  String? get latestPublishedVersion => _serverManifest?.version;
+  bool get hasServerManifest => _serverManifest != null;
+
+  /// Real freshness of the local project source vs the published firmware.
+  FirmwareFreshness get freshness =>
+      firmwareFreshness(_localVersion, _serverManifest?.version);
 
   static final RegExp _versionPattern = RegExp(r'^\d+\.\d+\.\d+$');
 
@@ -146,6 +167,7 @@ class FirmwareProvider extends ChangeNotifier {
 
     await refreshPorts();
     await loadProjectInfo();
+    await fetchServerManifest();
     notifyListeners();
   }
 
@@ -235,13 +257,43 @@ class FirmwareProvider extends ChangeNotifier {
     }
 
     _gitInfo = await _service.getGitInfo(_sourcePath!);
+    await _loadLocalVersion();
 
     notifyListeners();
   }
 
+  /// Fetches the real published firmware version from the OTA site
+  /// (/fw/version.json). No stubs: failures surface as a check error.
+  Future<void> fetchServerManifest() async {
+    if (_isCheckingServer) return;
+    _isCheckingServer = true;
+    _serverCheckError = null;
+    notifyListeners();
+
+    try {
+      _serverManifest = await _service.fetchOtaManifest(
+        deviceType: _selectedDeviceType,
+      );
+      if (_serverManifest == null) {
+        _serverCheckError = 'Не удалось получить данные с сайта '
+            '${AppConfig.apiBaseUrl} (нет интернета или не опубликован /fw/version.json). '
+            'Опубликуйте прошивку через deploy/fw.ps1.';
+      }
+    } catch (e) {
+      _serverCheckError = 'Ошибка проверки обновлений: $e';
+    } finally {
+      _isCheckingServer = false;
+      notifyListeners();
+    }
+  }
+
+  /// Checks whether the local source changed compared with the last saved
+  /// build of the selected device (i.e. whether a rebuild is needed).
+  /// This is separate from the published-version check above.
   Future<void> checkForUpdates() async {
     if (_sourcePath == null) return;
 
+    _updateCheckError = null;
     try {
       _currentHash = await _service.calculateSourceHash(_sourcePath!);
       _currentFileHashes = await _service.calculateSourceFileHashes(_sourcePath!);
@@ -249,15 +301,31 @@ class FirmwareProvider extends ChangeNotifier {
 
       if (latest != null && latest.buildHash != null) {
         _hasUpdates = _currentHash != latest.buildHash;
+      } else if (latest != null) {
+        _hasUpdates = true; // saved build has no hash — can't verify
       } else {
-        _hasUpdates = true;
+        _hasUpdates = true; // nothing built for this device yet
       }
     } catch (e) {
       _currentFileHashes = <String, String>{};
-      _hasUpdates = true;
+      _updateCheckError = 'Не удалось проверить исходники: $e';
+      _hasUpdates = false;
     }
 
+    await _loadLocalVersion();
     notifyListeners();
+  }
+
+  Future<void> _loadLocalVersion() async {
+    if (_sourcePath == null) {
+      _localVersion = null;
+      return;
+    }
+    try {
+      _localVersion = await _service.getFirmwareVersionFromConfig(_sourcePath!);
+    } catch (_) {
+      _localVersion = null;
+    }
   }
 
   Future<void> build() async {

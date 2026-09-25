@@ -1,4 +1,4 @@
-#include "modules/bme680_module.h"
+#include "bme680_module.h"
 #include <Wire.h>
 
 std::vector<uint8_t> BME680Module::i2cAddresses() const {

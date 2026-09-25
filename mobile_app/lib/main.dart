@@ -9,10 +9,12 @@ import 'core/config/app_config.dart';
 import 'core/api/signaling_api.dart';
 import 'core/api/api_client.dart';
 import 'core/api/mqtt_client.dart';
+import 'core/api/ota_api.dart';
 import 'models/firmware_version.dart';
 import 'features/dashboard/providers/dashboard_provider.dart';
 import 'features/charts/providers/charts_provider.dart';
 import 'features/devices/providers/devices_provider.dart';
+import 'features/device_config/providers/device_config_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
 import 'features/firmware/providers/firmware_provider.dart';
 import 'features/alerts/providers/alerts_provider.dart';
@@ -25,7 +27,7 @@ void main() async {
 
   if (!kIsWeb &&
       (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-    await LocalNotifier.setup(appName: 'IoT Modular System');
+    await LocalNotifier.instance.setup(appName: 'IoT Modular System');
   }
 
   final settingsProvider = SettingsProvider();
@@ -70,7 +72,14 @@ void main() async {
           create: (_) => ChartsProvider(),
         ),
         ChangeNotifierProvider(
-          create: (_) => DevicesProvider(signalingApi: signalingApi),
+          create: (_) => DevicesProvider(
+            signalingApi: signalingApi,
+            otaApi: OtaApi(),
+            mqtt: mqttService,
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => DeviceConfigProvider(otaApi: OtaApi()),
         ),
         ChangeNotifierProvider.value(value: firmwareProvider),
         ChangeNotifierProvider(

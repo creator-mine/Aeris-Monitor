@@ -2,9 +2,10 @@
 #include <Wire.h>
 #include "config.h"
 #include "uart_protocol.h"
+#include <uart_frame.h>
 #include "modules/sensor_registry.h"
-#include "modules/bme680_module.h"
-#include "modules/bh1750_module.h"
+#include <bme680_module.h>
+#include <bh1750_module.h>
 
 // State
 unsigned long lastSensorRead = 0;
@@ -12,25 +13,29 @@ unsigned long lastHeartbeat = 0;
 unsigned long lastRegistration = 0;
 const unsigned long REGISTRATION_INTERVAL_MS = 30000;
 
-// UART Buffer
-uint8_t rxBuffer[UART_BUFFER_SIZE];
-uint16_t rxIndex = 0;
-unsigned long rxStartTime = 0;
-const unsigned long RX_TIMEOUT_MS = 500;
+// UART RX: resync-aware frame parser (survives partial/corrupt frames).
+UartFrameParser uartFrame;
 
 void sendRegister() {
     auto& modules = SensorRegistry::instance().activeModules();
     if (modules.empty()) return;
 
-    for (auto* mod : modules) {
-        uint8_t payload[256];
-        uint16_t idx = 0;
+    // One consolidated frame per module listing ALL its sensors, in the same
+    // order sendSensorData() emits values. Payload:
+    //   [sensor_count 1B]
+    //   per sensor: [type_id 1B][name_len 1B][name ...][metric_count 1B]
+    //       per metric: [key_len 1B][key ...][unit_len 1B][unit ...]
+    uint8_t payload[256];
+    uint16_t idx = 0;
 
+    payload[idx++] = (uint8_t)modules.size();
+
+    for (auto* mod : modules) {
+        if (idx + 2 + strlen(mod->moduleName()) > 256) break;
         payload[idx++] = mod->typeId();
 
         const char* name = mod->moduleName();
         uint8_t nameLen = strlen(name);
-        if (idx + 1 + nameLen > 256) continue;
         payload[idx++] = nameLen;
         memcpy(payload + idx, name, nameLen);
         idx += nameLen;
@@ -48,11 +53,10 @@ void sendRegister() {
             memcpy(payload + idx, m.unit, uLen);
             idx += uLen;
         }
-
-        uartWriteFrame(Serial1, MODULE_ID, CMD_REGISTER, payload, idx);
-        Serial.printf("[Module] Registered: %s (type %d, %d metrics)\n",
-                      name, mod->typeId(), (int)mdefs.size());
     }
+
+    uartWriteFrame(Serial1, MODULE_ID, CMD_REGISTER, payload, idx);
+    Serial.printf("[Module] Registered: %d sensor(s)\n", (int)modules.size());
 }
 
 void sendSensorData() {
@@ -103,26 +107,11 @@ void handleCommand(uint8_t cmd, uint8_t* payload, uint8_t len) {
     }
 }
 
-bool parseMessage(uint8_t* data, uint16_t length) {
-    if (length < 8) return false;
-    if (data[0] != UART_HDR1 || data[1] != UART_HDR2) return false;
-
-    uint16_t payloadLength = (data[4] << 8) | data[5];
-    uint16_t totalLength = 8 + payloadLength;
-    if (length < totalLength) return false;
-
-    uint16_t receivedCRC = (data[totalLength - 2] << 8) | data[totalLength - 1];
-    uint16_t calculatedCRC = uartCrc16(data, totalLength - 2);
-    if (receivedCRC != calculatedCRC) {
-        Serial.println("[Module] CRC mismatch!");
-        return false;
-    }
-
-    uint8_t moduleId = data[2];
-    if (moduleId != MODULE_ID && moduleId != 0xFF) return false;
-
-    handleCommand(data[3], data + 6, payloadLength);
-    return true;
+void onUartFrame(uint8_t moduleId, uint8_t cmd, uint8_t* payload,
+                 uint16_t len, void* context) {
+    (void)context;
+    if (moduleId != MODULE_ID && moduleId != 0xFF) return;
+    handleCommand(cmd, payload, len);
 }
 
 void setup() {
@@ -172,26 +161,7 @@ void loop() {
     }
 
     while (Serial1.available()) {
-        uint8_t byte = Serial1.read();
-
-        if (rxIndex == 0) rxStartTime = currentTime;
-
-        if (rxIndex < UART_BUFFER_SIZE) {
-            rxBuffer[rxIndex++] = byte;
-
-            if (rxIndex >= 8) {
-                if (parseMessage(rxBuffer, rxIndex)) {
-                    rxIndex = 0;
-                } else if (rxIndex >= UART_BUFFER_SIZE ||
-                           currentTime - rxStartTime > RX_TIMEOUT_MS) {
-                    Serial.println("[Module] RX timeout/overflow, resetting buffer");
-                    rxIndex = 0;
-                }
-            }
-        } else {
-            Serial.println("[Module] RX overflow, resetting buffer");
-            rxIndex = 0;
-        }
+        uartFrame.feed(Serial1.read(), onUartFrame, nullptr);
     }
 
     static unsigned long lastBlink = 0;

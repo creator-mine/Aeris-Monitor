@@ -9,6 +9,7 @@
  * Command "mqtt_enable" / "mqtt_disable" toggles it without reflashing.
  */
 namespace MqttConfig {
+    void init();
     bool enabled();
     bool setEnabled(bool on);
 }

@@ -2,6 +2,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iot_modular_app/models/alert.dart';
 import 'package:iot_modular_app/models/device.dart';
+import 'package:iot_modular_app/models/log_entry.dart';
 import 'package:iot_modular_app/models/sensor_data.dart';
 
 void main() {
@@ -206,6 +207,32 @@ void main() {
       });
       expect(alert.type, AlertType.above);
       expect(alert.isActive, isFalse);
+    });
+  });
+
+  group('LogEntry', () {
+    test('parses ts/tag/msg with defaults', () {
+      final entry = LogEntry.fromJson(
+        {'ts': 1234, 'tag': 'WiFi', 'msg': 'Connected to home'},
+      );
+      expect(entry.ts, 1234);
+      expect(entry.tag, 'WiFi');
+      expect(entry.msg, 'Connected to home');
+    });
+
+    test('missing fields fall back to defaults', () {
+      final entry = LogEntry.fromJson(<String, dynamic>{});
+      expect(entry.ts, 0);
+      expect(entry.tag, '');
+      expect(entry.msg, '');
+    });
+
+    test('equality is value-based', () {
+      final a = LogEntry(ts: 1, tag: 'Boot', msg: 'ready');
+      final b = LogEntry(ts: 1, tag: 'Boot', msg: 'ready');
+      final c = LogEntry(ts: 2, tag: 'Boot', msg: 'ready');
+      expect(a, b);
+      expect(a == c, isFalse);
     });
   });
 }

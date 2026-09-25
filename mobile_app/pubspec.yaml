@@ -18,6 +18,10 @@ dependencies:
   mqtt_client: ^10.2.0
   web_socket_channel: ^2.4.5
   
+  # Serial (USB COM port for local device setup)
+  flutter_libserialport: ^0.6.0
+  libserialport: ^0.3.0
+  
   # Charts
   fl_chart: ^0.66.0
   

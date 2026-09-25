@@ -1,3 +1,6 @@
 String expectedChipNameFor(String deviceType) {
-  return deviceType.toLowerCase().contains('c6') ? 'ESP32-C6' : 'ESP32-C3';
+  final t = deviceType.toLowerCase();
+  if (t.contains('c6')) return 'ESP32-C6';
+  if (t.contains('s3')) return 'ESP32-S3';
+  return 'ESP32-C3';
 }

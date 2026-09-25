@@ -1,4 +1,5 @@
 #include "modules/sensor_registry.h"
+#include "ring_logger.h"
 #include <Wire.h>
 
 SensorRegistry& SensorRegistry::instance() {
@@ -6,7 +7,12 @@ SensorRegistry& SensorRegistry::instance() {
     return registry;
 }
 
+SensorRegistry::SensorRegistry() {
+    _mux = xSemaphoreCreateMutex();
+}
+
 SensorRegistry::~SensorRegistry() {
+    if (_mux) vSemaphoreDelete(_mux);
     for (auto* d : _drivers) delete d;
     for (auto* a : _active) {
         if (std::find(_drivers.begin(), _drivers.end(), a) == _drivers.end())
@@ -14,13 +20,25 @@ SensorRegistry::~SensorRegistry() {
     }
 }
 
+void SensorRegistry::lock() {
+    if (_mux) xSemaphoreTake(_mux, portMAX_DELAY);
+}
+
+void SensorRegistry::unlock() {
+    if (_mux) xSemaphoreGive(_mux);
+}
+
 void SensorRegistry::registerDriver(SensorModule* driver) {
+    lock();
     _drivers.push_back(driver);
     Serial.printf("[Registry] Driver registered: %s (type %d)\n",
                   driver->moduleName(), driver->typeId());
+    unlock();
 }
 
 void SensorRegistry::scanI2CBus(int sda, int scl) {
+    lock();
+
     Wire.begin(sda, scl);
     Serial.println("[Registry] Scanning I2C bus...");
 
@@ -38,6 +56,8 @@ void SensorRegistry::scanI2CBus(int sda, int scl) {
             if (driver->detect(addr)) {
                 if (driver->init(addr)) {
                     addActive(driver, addr);
+                    LOG_INFO("Sensor", "%s detected at 0x%02X",
+                             driver->moduleName(), addr);
                     Serial.printf("[Registry] Module detected: %s at 0x%02X\n",
                                   driver->moduleName(), addr);
                 }
@@ -46,23 +66,32 @@ void SensorRegistry::scanI2CBus(int sda, int scl) {
         }
     }
     Serial.printf("[Registry] Scan complete. Active modules: %d\n", _active.size());
+
+    unlock();
 }
 
 void SensorRegistry::checkLiveness() {
-    if (millis() - _lastLiveness < 10000) return;
-    _lastLiveness = millis();
+    lock();
 
-    for (size_t i = 0; i < _active.size(); ) {
-        auto* mod = _active[i];
-        Wire.beginTransmission(mod->address());
-        if (Wire.endTransmission() != 0) {
-            Serial.printf("[Registry] Module lost: %s at 0x%02X\n",
-                          mod->moduleName(), mod->address());
-            _active.erase(_active.begin() + i);
-        } else {
-            i++;
+    if (millis() - _lastLiveness >= 10000) {
+        _lastLiveness = millis();
+
+        for (size_t i = 0; i < _active.size(); ) {
+            auto* mod = _active[i];
+            Wire.beginTransmission(mod->address());
+            if (Wire.endTransmission() != 0) {
+                LOG_INFO("Sensor", "Module lost: %s at 0x%02X",
+                         mod->moduleName(), mod->address());
+                Serial.printf("[Registry] Module lost: %s at 0x%02X\n",
+                              mod->moduleName(), mod->address());
+                _active.erase(_active.begin() + i);
+            } else {
+                i++;
+            }
         }
     }
+
+    unlock();
 }
 
 void SensorRegistry::addActive(SensorModule* mod, uint8_t addr) {
@@ -74,12 +103,28 @@ void SensorRegistry::addActive(SensorModule* mod, uint8_t addr) {
     _active.push_back(mod);
 }
 
+size_t SensorRegistry::activeCount() {
+    lock();
+    size_t n = _active.size();
+    unlock();
+    return n;
+}
+
+std::vector<SensorModule*> SensorRegistry::activeModules() {
+    lock();
+    std::vector<SensorModule*> copy = _active;
+    unlock();
+    return copy;
+}
+
 static void indentComma(String& json, bool& first) {
     if (!first) json += ',';
     first = false;
 }
 
-String SensorRegistry::modulesToJson() const {
+String SensorRegistry::modulesToJson() {
+    lock();
+
     String json = "[";
     bool first = true;
 
@@ -107,10 +152,14 @@ String SensorRegistry::modulesToJson() const {
     }
 
     json += "]";
+
+    unlock();
     return json;
 }
 
-String SensorRegistry::sensorsToJson() const {
+String SensorRegistry::sensorsToJson() {
+    lock();
+
     String json = "{";
     json += "\"timestamp\":" + String(millis()) + ",";
     json += "\"modules\":{";
@@ -131,5 +180,7 @@ String SensorRegistry::sensorsToJson() const {
     }
 
     json += "}}";
+
+    unlock();
     return json;
 }

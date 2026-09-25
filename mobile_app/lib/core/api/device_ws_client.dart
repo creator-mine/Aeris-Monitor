@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../models/device.dart';
+import '../../models/log_entry.dart';
 
 /// WebSocket channel to a single ESP32 device (ws://<ip>:81/ws).
 ///
@@ -20,6 +21,7 @@ class DeviceWsClient {
   void Function(Map<String, dynamic> sensorData)? onSensorUpdate;
   void Function(Map<String, dynamic> status)? onStatusUpdate;
   void Function(List<dynamic> modules)? onModulesUpdate;
+  void Function(List<LogEntry> logs)? onLogsUpdate;
   void Function()? onConnected;
   void Function()? onDisconnected;
 
@@ -75,6 +77,13 @@ class DeviceWsClient {
           (message['modules'] as List<dynamic>?) ?? const [],
         );
         break;
+      case 'logs':
+        onLogsUpdate?.call(
+          ((message['data'] as List<dynamic>?) ?? const [])
+              .map((e) => LogEntry.fromJson(e as Map<String, dynamic>))
+              .toList(),
+        );
+        break;
       default:
         break;
     }
@@ -88,8 +97,16 @@ class DeviceWsClient {
     _send({'type': 'request_status'});
   }
 
-  void sendCommand(String command) {
-    _send({'type': 'command', 'command': command});
+  void requestLogs() {
+    _send({'type': 'request_logs'});
+  }
+
+  void sendCommand(String command, [Map<String, dynamic>? extra]) {
+    _send({
+      'type': 'command',
+      'command': command,
+      ...?extra,
+    });
   }
 
   void _send(Map<String, dynamic> payload) {

@@ -2,6 +2,8 @@
 #include "config.h"
 #include "mqtt_config.h"
 #include "ota_updater.h"
+#include "ring_logger.h"
+#include "wifi_config.h"
 #include "modules/sensor_registry.h"
 #include "time_util.h"
 #include <WiFi.h>
@@ -46,6 +48,7 @@ void WebServer::setupRoutes() {
     _http->on(API_PREFIX "/modules", HTTP_GET, handleModules);
     _http->on(API_PREFIX "/sd/info", HTTP_GET, handleSdInfo);
     _http->on(API_PREFIX "/sensors/history", HTTP_GET, handleHistory);
+    _http->on(API_PREFIX "/logs", HTTP_GET, handleLogs);
 
     _http->on(API_PREFIX "/command", HTTP_POST,
         [](AsyncWebServerRequest* request) {
@@ -79,6 +82,7 @@ void WebServer::setupWebSocket() {
             client->text("{\"type\":\"modules_update\",\"modules\":" +
                          SensorRegistry::instance().modulesToJson() + "}");
             client->text("{\"type\":\"sensor_update\",\"data\":" + buildSensorsJsonValue() + "}");
+            client->text("{\"type\":\"logs\",\"data\":" + RingLogger::toJson() + "}");
         } else if (type == WS_EVT_DISCONNECT) {
             Serial.printf("[WS] Client %u disconnected\n", client->id());
         } else if (type == WS_EVT_DATA) {
@@ -103,6 +107,8 @@ void WebServer::setupWebSocket() {
                 } else if (strcmp(type, "request_history") == 0) {
                     String history = buildHistoryJson(nullptr);
                     client->text("{\"type\":\"history\",\"data\":" + history + "}");
+                } else if (strcmp(type, "request_logs") == 0) {
+                    client->text("{\"type\":\"logs\",\"data\":" + RingLogger::toJson() + "}");
                 } else if (strcmp(type, "command") == 0) {
                     const char* command = doc["command"];
                     if (!command) return;
@@ -111,6 +117,7 @@ void WebServer::setupWebSocket() {
                     if (strcmp(command, "restart") == 0) {
                         client->text("{\"type\":\"ack\",\"command\":\"restart\"}");
                         delay(100);
+                        RingLogger::save();
                         ESP.restart();
                     } else if (strcmp(command, "read_sensor") == 0) {
                         client->text("{\"type\":\"sensor_update\",\"data\":" +
@@ -127,10 +134,24 @@ void WebServer::setupWebSocket() {
                         client->text(String("{\"type\":\"ack\",\"command\":\"") + command +
                                      "\",\"mqtt_enabled\":" + (on ? "true" : "false") + "}");
                     } else if (strcmp(command, "ota") == 0) {
-                        bool started = OtaUpdater::request();
+                        bool started = OtaUpdater::request(doc["force"] == true);
                         client->text(started
                             ? "{\"type\":\"ack\",\"command\":\"ota\",\"status\":\"started\"}"
                             : "{\"type\":\"error\",\"error\":\"ota_busy\"}");
+                    } else if (strcmp(command, "wifi_set") == 0) {
+                        const char* ssid = doc["ssid"];
+                        const char* password = doc["password"];
+                        if (!ssid || strlen(ssid) == 0) {
+                            client->text("{\"type\":\"error\",\"error\":\"missing_ssid\"}");
+                        } else if (WifiConfig::save(ssid, password ? password : "")) {
+                            LOG_INFO("WiFi", "Credentials saved (ssid=%s), reconnecting", ssid);
+                            client->text("{\"type\":\"ack\",\"command\":\"wifi_set\"}");
+                            delay(300);
+                            RingLogger::save();
+                            ESP.restart();
+                        } else {
+                            client->text("{\"type\":\"error\",\"error\":\"nvs_write_failed\"}");
+                        }
                     } else {
                         client->text("{\"type\":\"error\",\"error\":\"unknown_command\"}");
                     }
@@ -319,6 +340,14 @@ void WebServer::handleHistory(AsyncWebServerRequest* request) {
     request->send(200, "application/json", buildHistoryJson(request));
 }
 
+void WebServer::handleLogs(AsyncWebServerRequest* request) {
+    uint16_t limit = 0;
+    if (request->hasParam("limit")) {
+        limit = (uint16_t)request->getParam("limit")->value().toInt();
+    }
+    request->send(200, "application/json", RingLogger::toJson(limit));
+}
+
 void WebServer::handleCommand(AsyncWebServerRequest* request) {
     String body = lastCommandBody;
     lastCommandBody = "";
@@ -347,6 +376,7 @@ void WebServer::handleCommand(AsyncWebServerRequest* request) {
     if (strcmp(command, "restart") == 0) {
         request->send(200, "application/json", "{\"ok\":true}");
         delay(100);
+        RingLogger::save();
         ESP.restart();
     } else if (strcmp(command, "read_sensor") == 0) {
         request->send(200, "application/json", buildSensorsJsonValue());
@@ -365,11 +395,27 @@ void WebServer::handleCommand(AsyncWebServerRequest* request) {
         json += "}";
         request->send(200, "application/json", json);
     } else if (strcmp(command, "ota") == 0) {
-        bool started = OtaUpdater::request();
+        bool started = OtaUpdater::request(doc["force"] == true);
         if (started) {
             request->send(200, "application/json", "{\"ok\":true,\"command\":\"ota\",\"status\":\"started\"}");
         } else {
             request->send(409, "application/json", "{\"ok\":false,\"error\":\"ota_busy\"}");
+        }
+    } else if (strcmp(command, "wifi_set") == 0) {
+        const char* ssid = doc["ssid"];
+        const char* password = doc["password"];
+        if (!ssid || strlen(ssid) == 0) {
+            request->send(400, "application/json", "{\"error\":\"missing_ssid\"}");
+            return;
+        }
+        if (WifiConfig::save(ssid, password ? password : "")) {
+            LOG_INFO("WiFi", "Credentials saved (ssid=%s), reconnecting", ssid);
+            request->send(200, "application/json", "{\"ok\":true,\"command\":\"wifi_set\"}");
+            delay(300);
+            RingLogger::save();
+            ESP.restart();
+        } else {
+            request->send(500, "application/json", "{\"error\":\"nvs_write_failed\"}");
         }
     } else {
         request->send(400, "application/json", "{\"error\":\"unknown_command\"}");

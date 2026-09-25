@@ -20,7 +20,9 @@ class _DevicesScreenState extends State<DevicesScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DevicesProvider>().loadDevices();
+      final provider = context.read<DevicesProvider>();
+      provider.loadDevices();
+      provider.loadManifest();
     });
   }
 
@@ -139,10 +141,58 @@ class _DevicesScreenState extends State<DevicesScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(
+                  device.firmwareVersion == null
+                      ? 'fw: —'
+                      : 'fw v${device.firmwareVersion}',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                ),
+                if (provider.isOutdated(device)) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warningColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.system_update_alt,
+                            size: 12, color: AppTheme.warningColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          'обновление',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.warningColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
         trailing: PopupMenuButton(
           itemBuilder: (context) => [
+            if (device.isOnline)
+              const PopupMenuItem(
+                value: 'ota',
+                child: Row(
+                  children: [
+                    Icon(Icons.system_update_alt, size: 20),
+                    SizedBox(width: 8),
+                    Text('Обновить прошивку'),
+                  ],
+                ),
+              ),
             const PopupMenuItem(
               value: 'delete',
               child: Row(
@@ -157,9 +207,45 @@ class _DevicesScreenState extends State<DevicesScreen> {
           onSelected: (value) {
             if (value == 'delete') {
               _showDeleteConfirmation(context, device, provider);
+            } else if (value == 'ota') {
+              _showOtaDialog(context, device, provider);
             }
           },
         ),
+      ),
+    );
+  }
+
+  Future<void> _showOtaDialog(
+    BuildContext context,
+    Device device,
+    DevicesProvider provider,
+  ) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Обновить прошивку?'),
+        content: Text(
+          'Устройство "${device.name}" скачает последнюю версию прошивки '
+          '(${provider.manifestFor(device)?.version ?? '…'}) с сайта и перезагрузится.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              final message = await provider.sendOtaCommand(device);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(message)),
+              );
+            },
+            child: const Text('Обновить'),
+          ),
+        ],
       ),
     );
   }

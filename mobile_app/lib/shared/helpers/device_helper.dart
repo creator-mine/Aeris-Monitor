@@ -7,6 +7,8 @@ class DeviceHelper {
         return Icons.memory;
       case 'esp32c6':
         return Icons.developer_board;
+      case 'esp32s3':
+        return Icons.developer_board;
       default:
         return Icons.devices_other;
     }
