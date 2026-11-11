@@ -58,38 +58,15 @@
 
 ## P2 — улучшения и гигиена
 
-- [ ] **Портативность `platformio.ini`.**
-  Жёсткий путь
-  `-IC:/Users/Spe4naz/.platformio/packages/framework-arduinoespressif32/libraries/Network/src`.
-  `${platformio.packages_dir}` раскрывается в битый
-  `builder/UsersSpe4naz.platformiopackages/...`.
-  - Искать вариант через `$PROJECT_PACKAGES_DIR`, `extra_scripts` или явную зависимость `Network`.
-  - Критерий: C3 и S3 собираются на другой машине/CI.
-
-- [ ] **Удалить/обновить устаревшее.**
-  - `deploy/installer/output/iot-modular-app_1.1.0_amd64.deb` (старый бренд/версия).
-  - `deploy/iot.conf` — legacy bare-metal mosquitto.
-  - `deploy/site/wiki/server.html` — systemd/`/opt/iot-server`/`/var/www/iot-site` вместо Docker.
-  - `firmware/test_simple/platformio.ini` — `espressif32@6.5.0`, который, по комментариям, нестабилен.
-
-- [ ] **Обновить `share_plus`.**
-  Текущая версия применяет Kotlin Gradle Plugin; будущие Flutter могут не собрать APK.
-  - Критерий: `flutter build apk --release` без KGP-warning.
-
-- [ ] **Переименовать пакет сервера.**
-  `server/package.json` → `"name": "iot-signaling-server"` (косметика).
-
 - [ ] **Проверить APK на реальном телефоне.**
+  APK: `deploy/installer/output/aeris-monitor-1.2.0.apk`
+  SHA256 `bd1f4b46236c4bceea72aeaea1b8051376464fd09b4224d61324006bb298c957`.
   - [ ] Установка из неизвестного источника.
   - [ ] Фоновые уведомления при закрытом приложении (правило → системное уведомление).
   - [ ] Обновить токен в настройках → проверить, что SSE/уведомления ожили.
   - [ ] OTA-кнопки (`ota`/`rollback`/`restart`).
   - [ ] CSV через «Поделиться».
   - [ ] Провизжининг Wi-Fi через `Aeris-Setup-XXXX` → `http://192.168.4.1`.
-
-- [ ] **Документация.**
-  - [ ] `PROJECT_OVERVIEW.md`/`README.md` под текущую схему (host nginx + Docker на loopback).
-  - [ ] Раздел про публикацию прошивки и NVS-провижининг.
 
 ---
 
