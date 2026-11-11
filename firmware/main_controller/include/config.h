@@ -197,10 +197,10 @@
 #define SD_CS 10
 #endif
 
-// Relay / actuator output. Set RELAY_PIN to the GPIO wired to the relay, or
-// keep -1 to compile the control code but leave the output disabled.
+// Relay / actuator output. ESP32-C3 default: GPIO3, active HIGH.
+// Other boards override via build_flags (the S3 env disables it with -1).
 #ifndef RELAY_PIN
-#define RELAY_PIN -1
+#define RELAY_PIN 3
 #endif
 #ifndef RELAY_ACTIVE_HIGH
 #define RELAY_ACTIVE_HIGH 1
