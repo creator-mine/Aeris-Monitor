@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Сервер и развёртывание · Aeris Monitor</title>
-<meta name="description" content="Сигнальный сервер, брокер Mosquitto, nginx и TLS, systemd-юнит, развёртывание с нуля, переменные окружения, бэкапы и безопасность.">
+<meta name="description" content="Сигнальный сервер, брокер Mosquitto, nginx и TLS, Docker, развёртывание с нуля, переменные окружения, бэкапы и безопасность.">
 <link rel="canonical" href="https://spe4naz.online/wiki/server.html">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Aeris Monitor">
 <meta property="og:locale" content="ru_RU">
 <meta property="og:url" content="https://spe4naz.online/wiki/server.html">
 <meta property="og:title" content="Сервер и развёртывание">
-<meta property="og:description" content="Сигнальный сервер, брокер Mosquitto, nginx и TLS, systemd-юнит, развёртывание с нуля, переменные окружения, бэкапы и безопасность.">
+<meta property="og:description" content="Сигнальный сервер, брокер Mosquitto, nginx и TLS, Docker, развёртывание с нуля, переменные окружения, бэкапы и безопасность.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -73,7 +73,7 @@
         <div class="card">
           <span class="c-ic">🖥️</span>
           <h3 data-ru="Сигнальный сервер" data-en="Signaling server">Сигнальный сервер</h3>
-          <p data-ru="Node.js под systemd. Реестр устройств, аварии и правила. Слушает только локальный адрес, наружу выставлен через nginx." data-en="Node.js under systemd. Device registry, alerts and rules. Binds to the loopback address only; nginx is the only way in.">Node.js под systemd.</p>
+          <p data-ru="Node.js в Docker. Реестр устройств, аварии и правила. Слушает только локальный адрес, наружу выставлен через nginx." data-en="Node.js in Docker. Device registry, alerts and rules. Runs on the Docker network and is not published; nginx is the only way in.">Node.js в Docker.</p>
         </div>
         <div class="card">
           <span class="c-ic">📶</span>
@@ -222,60 +222,48 @@
         </table>
       </div>
 
-      <p data-ru="Сервер слушает только локальный адрес, поэтому напрямую из интернета он недоступен: ни токен, ни методы записи нельзя вызвать в обход nginx." data-en="The server binds to the loopback address only, so it is unreachable from the internet: neither the token nor the write methods can be bypassed around nginx.">Сервер слушает только локальный адрес.</p>
+      <p data-ru="Сервер работает в Docker-сети и не публикуется наружу; host nginx — единая точка входа. Снаружи открыты 80/443 (nginx), 8883 (MQTT TLS) и 9001/9002 (WebSocket)." data-en="The server runs on the Docker network and is not published; the host nginx is the single entry point. Externally open: 80/443 (nginx), 8883 (MQTT TLS) and 9001/9002 (WebSocket).">Сервер в Docker-сети, наружу не публикуется.</p>
 
       <h2 id="razvertyvanie" data-ru="Развёртывание с нуля" data-en="Deploying from scratch">Развёртывание с нуля</h2>
 
+      <p data-ru="Стек запускается в Docker; host nginx остаётся единой точкой входа и завершает TLS. Подробности — в deploy/docker/README.md." data-en="The stack runs in Docker; the host nginx stays the single entry point and terminates TLS. See deploy/docker/README.md for details.">Стек запускается в Docker.</p>
+
       <div class="steps">
         <div class="step">
-          <h3 data-ru="Подготовьте систему" data-en="Prepare the system">Подготовьте систему</h3>
-          <pre style="margin-top:4px"><code>sudo apt update &amp;&amp; sudo apt install -y nginx mosquitto mosquitto-clients
-sudo npm install -g pm2   # если сервер ставится вручную, а не systemd</code></pre>
+          <h3 data-ru="Подготовьте хост" data-en="Prepare the host">Подготовьте хост</h3>
+          <pre style="margin-top:4px"><code>sudo apt update
+sudo apt install -y docker.io docker-compose-plugin nginx certbot
+sudo systemctl enable --now docker nginx</code></pre>
         </div>
         <div class="step">
-          <h3 data-ru="Разверните сервер" data-en="Deploy the server">Разверните сервер</h3>
-          <pre style="margin-top:4px"><code>sudo mkdir -p /opt/iot-server
-sudo chown "$USER" /opt/iot-server
-cd /opt/iot-server
-npm install --omit=dev
-node src/index.js   # проверка: должен напечатать версию и порт</code></pre>
+          <h3 data-ru="Настройте окружение" data-en="Configure the environment">Настройте окружение</h3>
+          <pre style="margin-top:4px"><code>cd /opt/iot/deploy/docker
+cp .env.example .env
+# заполнить NGINX_DOMAIN, REGISTER_TOKEN, PANEL_PASSWORD, MQTT_*
+docker compose up -d --build</code></pre>
+          <p data-ru="Статика сайта, вики, /fw и /app лежит в runtime/site и подключена в контейнер web." data-en="The site, wiki, /fw and /app live in runtime/site and are mounted into the web container.">Статика — в runtime/site.</p>
         </div>
         <div class="step">
-          <h3 data-ru="Опишите systemd-юнит" data-en="Write the systemd unit">Опишите systemd-юнит</h3>
-          <pre style="margin-top:4px"><code>[Unit]
-Description=IoT Signaling Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/iot-server
-ExecStart=/usr/bin/node src/index.js
-Restart=always
-RestartSec=5
-User=iot
-
-[Install]
-WantedBy=multi-user.target</code></pre>
-          <p data-ru="Токен и остальные настройки задаются в отдельном файле окружения, а не прямо в юните, чтобы не светить секреты в юнит-файле." data-en="The token and other settings go into a separate environment file rather than into the unit itself, so secrets never appear in the unit file.">Токен задаётся в отдельном файле окружения.</p>
-        </div>
-        <div class="step">
-          <h3 data-ru="Включите и проверьте" data-en="Enable and verify">Включите и проверьте</h3>
-          <pre style="margin-top:4px"><code>sudo systemctl daemon-reload
-sudo systemctl enable --now iot-server
-systemctl is-active iot-server
-curl -s http://127.0.0.1:3100/api/v1/health</code></pre>
-          <p data-ru="В ответе должны быть версия, время работы и счётчики устройств и аварий." data-en="The reply should carry the version, uptime and the device and alert counters.">В ответе версия, аптайм и счётчики.</p>
-        </div>
-        <div class="step">
-          <h3 data-ru="Настройте nginx и сертификат" data-en="Configure nginx and the certificate">Настройте nginx и сертификат</h3>
-          <pre style="margin-top:4px"><code>sudo certbot --nginx -d example.com
+          <h3 data-ru="Подключите host nginx" data-en="Wire the host nginx">Подключите host nginx</h3>
+          <pre style="margin-top:4px"><code>sudo cp /opt/iot/deploy/iot-site.conf /etc/nginx/sites-available/spe4naz.conf
+sudo ln -sf /etc/nginx/sites-available/spe4naz.conf /etc/nginx/sites-enabled/
 sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
+          <p data-ru="Контейнер web публикуется только на 127.0.0.1:8080; host nginx проксирует на него spe4naz.online. Второй сайт (например, shorkey.online) живёт отдельным vhost." data-en="The web container is published only on 127.0.0.1:8080; the host nginx proxies spe4naz.online to it. A second site (for example shorkey.online) lives in its own vhost.">web слушает только 127.0.0.1:8080.</p>
         </div>
         <div class="step">
-          <h3 data-ru="Разложите статику" data-en="Place the static files">Разложите статику</h3>
-          <pre style="margin-top:4px"><code>sudo mkdir -p /var/www/iot-site
-sudo chown -R "$USER" /var/www/iot-site
-# скопировать site/, собрать и положить panel/ и app/</code></pre>
+          <h3 data-ru="Выпустите сертификат" data-en="Issue the certificate">Выпустите сертификат</h3>
+          <pre style="margin-top:4px"><code>sudo mkdir -p /var/www/certbot
+sudo certbot certonly --webroot -w /var/www/certbot -d spe4naz.online
+sudo systemctl reload nginx</code></pre>
+          <p data-ru="Сертификат продлевается таймером certbot; deploy-hook перезагружает nginx." data-en="The certificate is renewed by the certbot timer; a deploy hook reloads nginx.">Продление — таймером certbot.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Проверьте" data-en="Verify">Проверьте</h3>
+          <pre style="margin-top:4px"><code>curl -s https://spe4naz.online/api/v1/health
+curl -s -o /dev/null -w '%{http_code}
+' https://spe4naz.online/panel/
+curl -s -o /dev/null -w '%{http_code}
+' https://spe4naz.online/app/</code></pre>
         </div>
       </div>
 
@@ -293,13 +281,13 @@ sudo chown -R "$USER" /var/www/iot-site
           <tbody>
             <tr>
               <td class="mono">PORT</td>
-              <td class="mono">3000</td>
-              <td data-ru="Порт HTTP-сервера" data-en="HTTP server port">Порт HTTP-сервера</td>
+              <td class="mono">3100</td>
+              <td data-ru="Порт HTTP-сервера внутри контейнера" data-en="HTTP server port inside the container">Порт HTTP-сервера</td>
             </tr>
             <tr>
               <td class="mono">HOST</td>
-              <td class="mono">127.0.0.1</td>
-              <td data-ru="Адрес привязки; оставлять петлю для работы за nginx" data-en="Bind address; keep loopback when behind nginx">Адрес привязки</td>
+              <td class="mono">0.0.0.0</td>
+              <td data-ru="Адрес внутри контейнера; наружу порт не публикуется" data-en="Bind address inside the container; the port is not published">Адрес внутри контейнера</td>
             </tr>
             <tr>
               <td class="mono">API_PREFIX</td>
@@ -376,14 +364,10 @@ sudo chown -R "$USER" /var/www/iot-site
 
       <p data-ru="Сохранять нужно три вещи: реестр устройств с авариями и правилами, каталог прошивок — и, если включён мост данных, каталог с JSONL-файлами метрик." data-en="Three things are worth saving: the registry with alerts and rules, the firmware directory — and, when the data bridge is enabled, the directory with the JSONL metric files.">Сохранять нужно реестр, каталог прошивок и метрики.</p>
 
-      <pre><code># реестр, аварии и правила
-tar czf iot-data-$(date +%F).tar.gz -C /opt/iot-server data
+      <pre><code># реестр, аварии, правила, метрики и сертификаты
+sudo /opt/iot/deploy/docker/backup.sh
 
-# JSONL-файлы метрик (если включён MQTT_ENABLED с INGEST_DIR)
-tar czf iot-metrics-$(date +%F).tar.gz -C /opt/iot-server $(basename "${INGEST_DIR:-/opt/iot-server/ingest}")
-
-# каталог прошивок
-tar czf iot-fw-$(date +%F).tar.gz -C /var/www iot-site/fw</code></pre>
+# архив: /var/backups/iot/iot-YYYY-MM-DD_HHMMSS.tar.gz</code></pre>
 
       <div class="callout ok">
         <div class="co-ic">🔁</div>

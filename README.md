@@ -168,6 +168,27 @@ Mobile App (Flutter) ← MQTT + REST API
 - `flutter_staggered_animations` — анимации
 - `file_picker` — выбор файлов прошивки
 
+## Развёртывание
+
+Продовый стек — Docker Compose + host nginx:
+
+- `deploy/docker/docker-compose.yml` — `server`, `mqtt`, `web`;
+  `web` публикуется только на `127.0.0.1:8080`.
+- Host nginx — единая точка входа: `spe4naz.online` → `127.0.0.1:8080`,
+  второй сайт (например, `shorkey.online`) — отдельным vhost.
+- TLS: host nginx (443), MQTT TLS (8883), wss (9002); `1883` — только loopback.
+- Секреты прошивки — в NVS (страница `Aeris-Setup-XXXX`); публичные OTA-сборки
+  собираются без секретов (`deploy/build_fw_release.ps1`).
+- Подробности: `deploy/docker/README.md`, `deploy/iot-site.conf`.
+
+Быстрый старт:
+
+```bash
+cd deploy/docker
+cp .env.example .env   # заполнить NGINX_DOMAIN, REGISTER_TOKEN, PANEL_PASSWORD, MQTT_*
+docker compose up -d --build
+```
+
 ## Текущий статус и планы
 
 - [x] Главный контроллер ESP32-C3: WiFi, MQTT, UART, SD, локальные датчики
