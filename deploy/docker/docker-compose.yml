@@ -1,0 +1,147 @@
+# Aeris Monitor — self-hosted full-stack deployment.
+# Stack: node signaling server + mosquitto (MQTT) + nginx (web/OTA/API/panel) + certbot (TLS).
+#
+# All mutable state lives under ./runtime/ (bind mounts), so migrating to
+# another VPS = copy ./runtime + .env and run `docker compose up -d --build`.
+# See MIGRATION.md.
+#
+# Quick start (HTTP-only for LAN):
+#   cp .env.example .env   # fill NGINX_DOMAIN, REGISTER_TOKEN, PANEL_PASSWORD, MQTT_*
+#   docker compose up -d --build
+#
+# Quick start (HTTPS with automatic Let's Encrypt):
+#   NGINX_TLS=1, CERTBOT_EMAIL set, DNS A-record -> server IP
+#   docker compose --profile certbot up -d --build
+#
+# Full guide: see README.md in this directory.
+
+name: iot-selfhost
+
+# Bound container log growth (json-file) so a long-running VPS cannot fill the
+# disk. Applied to every service via `logging: *default-logging`.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  server:
+    build:
+      context: ../../server
+      dockerfile: ../deploy/docker/server/Dockerfile
+    image: iot-selfhost/server:latest
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      PORT: "3100"
+      HOST: "0.0.0.0"
+      NODE_ENV: "production"
+      REGISTER_TOKEN: "${REGISTER_TOKEN:-}"
+      PANEL_PASSWORD: "${PANEL_PASSWORD:-}"
+      STALE_MS: "${STALE_MS:-180000}"
+      MAX_DEVICES_PER_IP: "${MAX_DEVICES_PER_IP:-20}"
+      RATE_LIMIT_WINDOW_MS: "${RATE_LIMIT_WINDOW_MS:-60000}"
+      RATE_LIMIT_REGISTER: "${RATE_LIMIT_REGISTER:-20}"
+      RATE_LIMIT_HEARTBEAT: "${RATE_LIMIT_HEARTBEAT:-120}"
+      RATE_LIMIT_WRITE: "${RATE_LIMIT_WRITE:-60}"
+      RATE_LIMIT_READ: "${RATE_LIMIT_READ:-120}"
+      # MQTT bridge: server subscribes to the local broker for sensor/status.
+      MQTT_ENABLED: "1"
+      MQTT_HOST: mqtt
+      MQTT_PORT: "1883"
+      MQTT_USER: "${MQTT_USER:-app}"
+      MQTT_PASSWORD: "${MQTT_PASSWORD:-}"
+      # Persistence (all under /app/data -> ./runtime/data).
+      REGISTRY_FILE: /app/data/devices.json
+      ALERTS_FILE: /app/data/alerts.json
+      RULES_FILE: /app/data/rules.json
+      METRICS_FILE: /app/data/metrics.json
+      STABILITY_FILE: /app/data/stability.json
+      SETTINGS_FILE: /app/data/settings.json
+      INGEST_DIR: /app/data/ingest
+    volumes:
+      - ./runtime/data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - iot
+
+  mqtt:
+    build: ./mqtt
+    image: iot-selfhost/mqtt:latest
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      MQTT_USER: "${MQTT_USER:-app}"
+      MQTT_PASSWORD: "${MQTT_PASSWORD:-changeme}"
+      MQTT_DEVICE_USER: "${MQTT_DEVICE_USER:-device}"
+      MQTT_DEVICE_PASSWORD: "${MQTT_DEVICE_PASSWORD:-changeme}"
+    ports:
+      # Plain MQTT stays on loopback for local diagnostics; devices use 8883 TLS.
+      - "127.0.0.1:1883:1883"
+      - "8883:8883"
+      - "9001:9001"
+      - "9002:9002"
+    volumes:
+      - ./runtime/mqtt/data:/mosquitto/data
+      - ./runtime/mqtt/log:/mosquitto/log
+      - ./runtime/mqtt/secrets:/mosquitto/secrets
+      - ./runtime/mqtt/certs:/mosquitto/certs
+    networks:
+      - iot
+
+  web:
+    build: ./nginx
+    image: iot-selfhost/web:latest
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - server
+    environment:
+      NGINX_DOMAIN: "${NGINX_DOMAIN:-localhost}"
+      NGINX_TLS: "${NGINX_TLS:-0}"
+      UPSTREAM_SERVER: server
+    # Published on loopback only: a host nginx (shorkey + spe4naz) owns 80/443
+    # and proxies spe4naz.online here. MQTT ports stay published below.
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./runtime/site:/usr/share/nginx/html:ro
+      - ./runtime/letsencrypt:/etc/letsencrypt
+      - ./runtime/certbot-www:/var/www/certbot
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - iot
+
+  certbot:
+    image: certbot/certbot
+    profiles: ["certbot"]
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      NGINX_DOMAIN: "${NGINX_DOMAIN:-localhost}"
+      CERTBOT_EMAIL: "${CERTBOT_EMAIL:-}"
+    volumes:
+      - ./runtime/letsencrypt:/etc/letsencrypt
+      - ./runtime/certbot-www:/var/www/certbot
+      - ./certbot/certbot-entrypoint.sh:/usr/local/bin/iot-certbot:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/iot-certbot"]
+    networks:
+      - iot
+
+networks:
+  iot:
+    driver: bridge

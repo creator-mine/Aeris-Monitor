@@ -58,12 +58,12 @@ $manifestJson = $manifest | ConvertTo-Json -Compress
     [System.Text.UTF8Encoding]::new($false)
 )
 
-& scp -i "$env:USERPROFILE\.ssh\lumira_vps" -P 22 -o StrictHostKeyChecking=no `
-    (Join-Path $fwDir $binName) "root@2.26.98.234:/var/www/iot-site/fw/$binName"
+& scp -i "$env:USERPROFILE\.ssh\iot_vps" -P 22 -o StrictHostKeyChecking=no `
+    (Join-Path $fwDir $binName) "root@64.188.67.46:/opt/iot/deploy/docker/runtime/site/fw/$binName"
 if ($LASTEXITCODE -ne 0) { throw "scp $binName failed (exit $LASTEXITCODE)" }
 
-& scp -i "$env:USERPROFILE\.ssh\lumira_vps" -P 22 -o StrictHostKeyChecking=no `
-    (Join-Path $fwDir $manifestName) "root@2.26.98.234:/var/www/iot-site/fw/$manifestName"
+& scp -i "$env:USERPROFILE\.ssh\iot_vps" -P 22 -o StrictHostKeyChecking=no `
+    (Join-Path $fwDir $manifestName) "root@64.188.67.46:/opt/iot/deploy/docker/runtime/site/fw/$manifestName"
 if ($LASTEXITCODE -ne 0) { throw "scp $manifestName failed (exit $LASTEXITCODE)" }
 
 Write-Host "OTA firmware v$version deployed -> https://spe4naz.online/fw/$binName"
