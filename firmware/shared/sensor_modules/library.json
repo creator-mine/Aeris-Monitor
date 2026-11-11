@@ -1,13 +1,16 @@
 {
     "name": "sensor_modules",
-    "version": "1.0.0",
-    "description": "Shared I2C sensor drivers (BME680, BH1750) and SensorModule base class for IoT Modular System firmware",
-    "keywords": ["sensor", "bme680", "bh1750", "i2c"],
+    "version": "1.1.0",
+    "description": "Shared I2C sensor drivers (BME680, BH1750, SCD30, INA219, BMP280), the SensorModule base class and the bus registry for Aeris Monitor firmware",
+    "keywords": ["sensor", "bme680", "bh1750", "scd30", "ina219", "bmp280", "i2c"],
     "frameworks": ["arduino"],
     "platforms": ["espressif32"],
     "dependencies": [
         { "name": "Adafruit BME680 Library" },
         { "name": "BH1750" },
-        { "name": "Adafruit Unified Sensor" }
+        { "name": "Adafruit Unified Sensor" },
+        { "name": "Adafruit BMP280 Library" },
+        { "name": "Adafruit SCD30" },
+        { "name": "Adafruit INA219" }
     ]
 }

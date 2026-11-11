@@ -1,4 +1,5 @@
 #include "bh1750_module.h"
+#include "sensor_registry.h"
 #include <Wire.h>
 
 std::vector<uint8_t> BH1750Module::i2cAddresses() const {
@@ -11,8 +12,6 @@ bool BH1750Module::detect(uint8_t address) {
 }
 
 bool BH1750Module::init(uint8_t address) {
-    _detectedAddr = address;
-
     if (!_bh1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE, (byte)address)) {
         Serial.printf("[BH1750] Init failed at 0x%02X\n", address);
         return false;
@@ -31,6 +30,10 @@ std::vector<Metric> BH1750Module::read() {
     if (!_bhReady) return result;
 
     float lux = _bh1750.readLightLevel();
+    // The library returns -1 on a failed I2C read and -2 when the sensor was
+    // never configured; neither is a measurement.
+    if (!(lux >= 0.0F)) return result;
+
     result.push_back({"illuminance", lux, "lux"});
 
     return result;
@@ -41,3 +44,5 @@ std::vector<MetricDef> BH1750Module::metrics() const {
         {"illuminance", "Illuminance", "lux"}
     };
 }
+
+REGISTER_SENSOR(BH1750Module)

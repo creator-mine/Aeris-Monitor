@@ -1,14 +1,17 @@
 #include "web_server.h"
 #include "config.h"
 #include "mqtt_config.h"
+#include "relay_control.h"
 #include "ota_updater.h"
 #include "ring_logger.h"
 #include "wifi_config.h"
-#include "modules/sensor_registry.h"
+#include "sensor_registry.h"
 #include "time_util.h"
+#include "sys_info.h"
 #include <WiFi.h>
 #include <SD.h>
 #include <ArduinoJson.h>
+#include <cmath>
 
 static String lastCommandBody;
 
@@ -40,7 +43,7 @@ void WebServer::begin(uint16_t httpPort, uint16_t wsPort) {
 
 void WebServer::setupRoutes() {
     _http->on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-        request->send(200, "text/plain", "IoT Modular System - API at " API_PREFIX);
+        request->send(200, "text/plain", "Aeris Monitor - API at " API_PREFIX);
     });
 
     _http->on(API_PREFIX "/sensors", HTTP_GET, handleSensors);
@@ -120,6 +123,7 @@ void WebServer::setupWebSocket() {
                         RingLogger::save();
                         ESP.restart();
                     } else if (strcmp(command, "read_sensor") == 0) {
+                        SensorRegistry::instance().forceRead();
                         client->text("{\"type\":\"sensor_update\",\"data\":" +
                                      buildSensorsJsonValue() + "}");
                     } else if (strcmp(command, "rescan") == 0) {
@@ -138,6 +142,22 @@ void WebServer::setupWebSocket() {
                         client->text(started
                             ? "{\"type\":\"ack\",\"command\":\"ota\",\"status\":\"started\"}"
                             : "{\"type\":\"error\",\"error\":\"ota_busy\"}");
+                    } else if (strcmp(command, "ota_rollback") == 0) {
+                        if (OtaUpdater::rollback()) {
+                            client->text("{\"type\":\"ack\",\"command\":\"ota_rollback\",\"status\":\"started\"}");
+                        } else {
+                            client->text("{\"type\":\"error\",\"error\":\"rollback_failed\"}");
+                        }
+                    } else if (strcmp(command, "relay") == 0 ||
+                               strncmp(command, "relay:", 6) == 0) {
+                        const char* state = doc["state"] | "";
+                        if (strncmp(command, "relay:", 6) == 0) state = command + 6;
+                        if (RelayControl::handleCommand("relay", state)) {
+                            client->text(String("{\"type\":\"ack\",\"command\":\"relay\",\"relay\":") +
+                                         RelayControl::toJson() + "}");
+                        } else {
+                            client->text("{\"type\":\"error\",\"error\":\"bad_relay_state\"}");
+                        }
                     } else if (strcmp(command, "wifi_set") == 0) {
                         const char* ssid = doc["ssid"];
                         const char* password = doc["password"];
@@ -174,8 +194,13 @@ String WebServer::buildStatusJson() {
     json += "\"free_heap\":" + String(ESP.getFreeHeap()) + ",";
     json += "\"wifi_connected\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";
     json += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
-    json += "\"time_synced\":" + String(timeSynced() ? "true" : "false");
-    json += ",\"firmware\":\"" + String(FIRMWARE_VERSION) + "\"";
+    json += "\"time_synced\":" + String(timeSynced() ? "true" : "false") + ",";
+    json += "\"rssi\":" + String(WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0) + ",";
+    float chipTemp = chipTemperatureCelsius();
+    if (!std::isnan(chipTemp)) {
+        json += "\"chip_temp\":" + String(chipTemp, 1) + ",";
+    }
+    json += "\"firmware\":\"" + String(FIRMWARE_VERSION) + "\"";
     json += "}";
     return json;
 }
@@ -379,6 +404,7 @@ void WebServer::handleCommand(AsyncWebServerRequest* request) {
         RingLogger::save();
         ESP.restart();
     } else if (strcmp(command, "read_sensor") == 0) {
+        SensorRegistry::instance().forceRead();
         request->send(200, "application/json", buildSensorsJsonValue());
     } else if (strcmp(command, "rescan") == 0) {
         SensorRegistry::instance().scanI2CBus(I2C_SDA, I2C_SCL);
@@ -400,6 +426,22 @@ void WebServer::handleCommand(AsyncWebServerRequest* request) {
             request->send(200, "application/json", "{\"ok\":true,\"command\":\"ota\",\"status\":\"started\"}");
         } else {
             request->send(409, "application/json", "{\"ok\":false,\"error\":\"ota_busy\"}");
+        }
+    } else if (strcmp(command, "ota_rollback") == 0) {
+        if (OtaUpdater::rollback()) {
+            request->send(200, "application/json", "{\"ok\":true,\"command\":\"ota_rollback\",\"status\":\"started\"}");
+        } else {
+            request->send(500, "application/json", "{\"ok\":false,\"error\":\"rollback_failed\"}");
+        }
+    } else if (strcmp(command, "relay") == 0 ||
+               strncmp(command, "relay:", 6) == 0) {
+        const char* state = doc["state"] | "";
+        if (strncmp(command, "relay:", 6) == 0) state = command + 6;
+        if (RelayControl::handleCommand("relay", state)) {
+            request->send(200, "application/json",
+                          String("{\"ok\":true,\"relay\":") + RelayControl::toJson() + "}");
+        } else {
+            request->send(400, "application/json", "{\"error\":\"bad_relay_state\"}");
         }
     } else if (strcmp(command, "wifi_set") == 0) {
         const char* ssid = doc["ssid"];
@@ -423,13 +465,19 @@ void WebServer::handleCommand(AsyncWebServerRequest* request) {
 }
 
 void WebServer::broadcastSensors() {
-    _ws->textAll("{\"type\":\"sensor_update\",\"data\":" + buildSensorsJsonValue() + "}");
+    if (_ws) {
+        _ws->textAll("{\"type\":\"sensor_update\",\"data\":" + buildSensorsJsonValue() + "}");
+    }
 }
 
 void WebServer::broadcastStatus() {
-    _ws->textAll(buildStatusJson());
+    if (_ws) {
+        _ws->textAll(buildStatusJson());
+    }
 }
 
 void WebServer::update() {
-    _ws->cleanupClients();
+    if (_ws) {
+        _ws->cleanupClients();
+    }
 }

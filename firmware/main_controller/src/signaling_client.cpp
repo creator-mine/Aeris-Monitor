@@ -1,8 +1,9 @@
 #include "signaling_client.h"
 #include "config.h"
+#include "device_secrets.h"
 #include "root_ca.h"
 #include "ring_logger.h"
-#include "modules/sensor_registry.h"
+#include "sensor_registry.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -19,7 +20,7 @@ static bool signalingPost(const char* path, const char* body) {
     http.begin(url, ROOT_CA_CERT);
     http.setTimeout(5000);  // bound blocking HTTPS calls (loop task / WDT)
     http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", String("Bearer ") + SIGNALING_TOKEN);
+    http.addHeader("Authorization", String("Bearer ") + DeviceSecrets::signalingToken());
     int code = http.POST(body);
     bool ok = (code >= 200 && code < 300);
     if (!ok) {

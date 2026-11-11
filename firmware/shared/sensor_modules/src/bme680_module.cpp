@@ -1,13 +1,18 @@
 #include "bme680_module.h"
+#include "sensor_registry.h"
 #include <Wire.h>
+#include <algorithm>
 
 std::vector<uint8_t> BME680Module::i2cAddresses() const {
     return {0x76, 0x77};
 }
 
+// BME680 and BMP280 both answer on 0x76/0x77, so an ACK alone is not enough:
+// the chip id decides which driver owns the address.
 bool BME680Module::detect(uint8_t address) {
-    Wire.beginTransmission(address);
-    return Wire.endTransmission() == 0;
+    uint8_t chipId = 0;
+    if (!readSensorRegister(address, 0xD0, chipId)) return false;
+    return chipId == 0x60;
 }
 
 bool BME680Module::init(uint8_t address) {
@@ -54,3 +59,5 @@ std::vector<MetricDef> BME680Module::metrics() const {
         {"gas_resistance", "Gas Resistance", "Ohm"}
     };
 }
+
+REGISTER_SENSOR(BME680Module)

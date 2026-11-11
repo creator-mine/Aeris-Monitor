@@ -16,6 +16,7 @@ namespace OtaUpdater {
     bool request(bool force = false); // flag one update (false if one is already pending)
     bool pending();   // a request is queued, apply() should run now
     bool apply();     // check manifest + download + flash + reboot. Blocks until done.
+    bool rollback();  // reboot into the previously running app partition
 }
 
 #endif

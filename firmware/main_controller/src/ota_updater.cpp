@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <Update.h>
+#include <esp_ota_ops.h>
 #include "config.h"
 #include "root_ca.h"
 #include "ring_logger.h"
@@ -259,6 +260,35 @@ bool apply() {
     LOG_INFO("OTA", "Success! Rebooting...");
     RingLogger::save();
     delay(500);
+    ESP.restart();
+    return true;
+}
+
+bool rollback() {
+    // After Update.end() the boot partition points at the newly flashed
+    // slot; the *running* partition is the previous firmware. Mark it valid
+    // (so a future update with anti-rollback enabled won't bounce back) and
+    // switch boot to it.
+    const esp_partition_t* running = esp_ota_get_running_partition();
+    if (running == nullptr) {
+        LOG_INFO("OTA", "Rollback: no running partition");
+        return false;
+    }
+
+    esp_ota_img_states_t state;
+    if (esp_ota_get_state_partition(running, &state) == ESP_OK &&
+        state == ESP_OTA_IMG_PENDING_VERIFY) {
+        esp_ota_mark_app_valid_cancel_rollback();
+    }
+
+    if (esp_ota_set_boot_partition(running) != ESP_OK) {
+        LOG_INFO("OTA", "Rollback: set_boot_partition failed");
+        return false;
+    }
+
+    LOG_INFO("OTA", "Rollback: booting %s", running->label);
+    RingLogger::save();
+    delay(300);
     ESP.restart();
     return true;
 }

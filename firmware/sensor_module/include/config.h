@@ -11,6 +11,12 @@
 #define I2C_SCL 7
 #define I2C_FREQUENCY 100000
 
+// TCA9548A mux addresses on the bus, 0-terminated. {0x00} = no mux.
+// Example for one mux with A0-A2 tied low: { 0x70, 0x00 }
+#ifndef I2C_MUX_ADDRESSES
+#define I2C_MUX_ADDRESSES { 0x00 }
+#endif
+
 // UART Configuration (to Main Controller)
 #define UART_RX 4
 #define UART_TX 5

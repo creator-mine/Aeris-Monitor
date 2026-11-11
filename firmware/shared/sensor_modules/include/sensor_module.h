@@ -3,6 +3,20 @@
 
 #include <Arduino.h>
 #include <vector>
+#include <Wire.h>
+
+// Reads a single register byte over I2C without CRC handling. Drivers whose
+// chip shares an address range with another chip (BME680/BMP280 on 0x76/0x77)
+// must verify the chip id in detect() instead of trusting an ACK, otherwise the
+// first registered driver claims the address.
+inline bool readSensorRegister(uint8_t address, uint8_t reg, uint8_t& value) {
+    Wire.beginTransmission(address);
+    Wire.write(reg);
+    if (Wire.endTransmission(false) != 0) return false;
+    if (Wire.requestFrom((int)address, (size_t)1) != 1) return false;
+    value = Wire.read();
+    return true;
+}
 
 struct MetricDef {
     const char* key;
@@ -29,6 +43,13 @@ public:
     virtual std::vector<Metric> read() = 0;
     virtual std::vector<MetricDef> metrics() const = 0;
     virtual uint32_t readInterval() const = 0;
+
+    // The registry keeps one prototype per driver and clones it once per
+    // detected address, so two identical devices on different addresses do
+    // not share mutable driver state (current address, handles, calibration).
+    // Implementations must return a freshly constructed, not yet initialised
+    // instance: never copy an already initialised driver.
+    virtual SensorModule* clone() const = 0;
 
     uint8_t address() const { return _address; }
     bool isActive() const { return _active; }

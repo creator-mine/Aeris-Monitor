@@ -14,6 +14,7 @@ public:
     std::vector<Metric> read() override;
     std::vector<MetricDef> metrics() const override;
     uint32_t readInterval() const override { return 5000; }
+    SensorModule* clone() const override { return new BME680Module(); }
 
 private:
     Adafruit_BME680 _bme;

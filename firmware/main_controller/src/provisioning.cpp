@@ -1,5 +1,6 @@
 #include "provisioning.h"
 #include "config.h"
+#include "device_secrets.h"
 #include "wifi_config.h"
 #include "ring_logger.h"
 #include <WiFi.h>
@@ -23,7 +24,7 @@ String apName() {
     WiFi.softAPmacAddress(mac);
     char name[32];
     snprintf(name, sizeof(name), "%s-%c%c%c%c",
-             "IoT-Setup",
+             "Aeris-Setup",
              lastBytes2Hex(mac[2]), lastBytes2Hex(mac[3]),
              lastBytes2Hex(mac[4]), lastBytes2Hex(mac[5]));
     return String(name);
@@ -36,7 +37,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>IoT - Wi-Fi Setup</title>
+<title>Aeris Monitor - Wi-Fi Setup</title>
 <style>
   body{font-family:system-ui,Arial,sans-serif;background:#0f172a;color:#e2e8f0;
        margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center}
@@ -56,13 +57,20 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 </head>
 <body>
 <div class="card">
-  <h1>IoT Setup</h1>
-  <p>Enter your router (2.4 GHz) credentials. The device will save them and reconnect.</p>
+  <h1>Aeris Monitor Setup</h1>
+  <p>Enter your router (2.4 GHz) credentials. Optionally set the MQTT and API
+     credentials; they are stored on the device (NVS), not compiled into the firmware.</p>
   <form id="f">
     <label for="ssid">Wi-Fi SSID</label>
     <input id="ssid" name="ssid" autocomplete="off" required>
     <label for="password">Password</label>
     <input id="password" name="password" type="password" autocomplete="off">
+    <label for="mqtt_user">MQTT user (optional)</label>
+    <input id="mqtt_user" name="mqtt_user" autocomplete="off" placeholder="main">
+    <label for="mqtt_password">MQTT password (blank = keep)</label>
+    <input id="mqtt_password" name="mqtt_password" type="password" autocomplete="off">
+    <label for="signaling_token">API token (blank = keep)</label>
+    <input id="signaling_token" name="signaling_token" type="password" autocomplete="off">
     <button type="submit">Save &amp; Reconnect</button>
   </form>
   <div id="status" class="status"></div>
@@ -76,7 +84,10 @@ document.getElementById('f').addEventListener('submit', async (e) => {
   st.textContent = 'Saving...';
   const body = JSON.stringify({
     ssid: e.target.ssid.value.trim(),
-    password: e.target.password.value
+    password: e.target.password.value,
+    mqtt_user: e.target.mqtt_user.value.trim(),
+    mqtt_password: e.target.mqtt_password.value,
+    signaling_token: e.target.signaling_token.value
   });
   try {
     const r = await fetch('/wifi/save', {
@@ -124,11 +135,24 @@ void handleSaveCollect(AsyncWebServerRequest* request, uint8_t* data, size_t len
 
     String ssid = doc["ssid"] | "";
     String password = doc["password"] | "";
+    String mqttUser = doc["mqtt_user"] | "";
+    String mqttPass = doc["mqtt_password"] | "";
+    String token = doc["signaling_token"] | "";
     ssid.trim();
+    mqttUser.trim();
 
     if (ssid.isEmpty()) {
         request->send(400, "application/json", "{\"error\":\"missing_ssid\"}");
         return;
+    }
+
+    // Optional credentials: blank fields keep the existing NVS values.
+    if (!mqttUser.isEmpty() || !mqttPass.isEmpty() || !token.isEmpty()) {
+        if (!DeviceSecrets::save(mqttUser, mqttPass, token)) {
+            request->send(500, "application/json", "{\"error\":\"secrets_write_failed\"}");
+            return;
+        }
+        LOG_INFO("Secrets", "Provisioning credentials updated (NVS)");
     }
 
     if (!WifiConfig::save(ssid.c_str(), password.c_str())) {

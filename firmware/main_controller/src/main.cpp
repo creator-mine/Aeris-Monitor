@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -12,18 +13,21 @@
 #include "wifi_config.h"
 #include "provisioning.h"
 #include "mqtt_config.h"
+#include "device_secrets.h"
+#include "relay_control.h"
+#include "root_ca.h"
 #include "ota_updater.h"
 #include "ring_logger.h"
 #include "serial_cmd.h"
+#include "sys_info.h"
 #include "esp_task_wdt.h"
 #include <time.h>
-#include "modules/sensor_registry.h"
-#include <bme680_module.h>
-#include <bh1750_module.h>
+#include <cmath>
+#include "sensor_registry.h"
 
 // ===================== GLOBAL STATE =====================
 
-WiFiClient wifiClient;
+WiFiClientSecure wifiClient;  // MQTT over TLS (port 8883)
 PubSubClient mqtt(wifiClient);
 
 unsigned long lastSensorRead = 0;
@@ -139,6 +143,23 @@ void wifiReconfigure() {
 // ===================== WATCHDOG =====================
 
 void watchdogInit() {
+#if ESP_IDF_VERSION_MAJOR >= 5
+    esp_task_wdt_config_t wdtConfig = {};
+    wdtConfig.timeout_ms = (uint32_t)WDT_TIMEOUT_SECONDS * 1000;
+    wdtConfig.idle_core_mask = (1 << CONFIG_FREERTOS_NUMBER_OF_CORES) - 1;
+    wdtConfig.trigger_panic = true;
+    esp_err_t err = esp_task_wdt_init(&wdtConfig); // panic+reboot on timeout
+    if (err != ESP_OK) {
+        // arduino core 3.x / IDF already initialized the TWDT; subscribe to it.
+        Serial.printf("[WDT] TWDT already active (%d), subscribing\n", (int)err);
+    }
+    err = esp_task_wdt_add(NULL); // feed loop() task explicitly
+    if (err == ESP_OK) {
+        Serial.printf("[WDT] Task watchdog enabled (%ds)\n", WDT_TIMEOUT_SECONDS);
+    } else {
+        Serial.printf("[WDT] Task watchdog add failed (%d, continuing)\n", (int)err);
+    }
+#else
     esp_err_t err = esp_task_wdt_init(WDT_TIMEOUT_SECONDS, true); // panic+reboot on timeout
     if (err == ESP_OK) {
         esp_task_wdt_add(NULL); // feed loop() task explicitly
@@ -146,6 +167,7 @@ void watchdogInit() {
     } else {
         Serial.println("[WDT] Task watchdog init failed (continuing)");
     }
+#endif
 }
 
 // ===================== MQTT =====================
@@ -176,6 +198,15 @@ void mqttPublishStatus() {
     payload += "\"status\":\"online\",";
     payload += "\"uptime\":" + String(millis() / 1000) + ",";
     payload += "\"free_heap\":" + String(ESP.getFreeHeap()) + ",";
+    payload += "\"rssi\":" + String(WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0) + ",";
+    float chipTemp = chipTemperatureCelsius();
+    if (!std::isnan(chipTemp)) {
+        payload += "\"chip_temp\":" + String(chipTemp, 1) + ",";
+    }
+
+    if (RelayControl::enabled()) {
+        payload += "\"relay\":" + String(RelayControl::state() ? "true" : "false") + ",";
+    }
 
     auto modules = SensorRegistry::instance().activeModules();
     payload += "\"modules\":[";
@@ -184,6 +215,13 @@ void mqttPublishStatus() {
         payload += "\"" + String(modules[i]->moduleName()) + "\"";
     }
     payload += "]}";
+    mqtt.publish(topic.c_str(), payload.c_str());
+}
+
+void mqttPublishRelay() {
+    if (!mqttReady()) return;
+    String topic = mqttTopic("relay");
+    String payload = RelayControl::toJson();
     mqtt.publish(topic.c_str(), payload.c_str());
 }
 
@@ -215,9 +253,42 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         return;
     }
 
+    // Relay / actuator: JSON {"command":"relay","state":"on"} / {"relay":true}
+    // or the plain text form "relay:on" used by server rules.
+    {
+        JsonDocument doc;
+        bool handled = false;
+        if (!deserializeJson(doc, msg)) {
+            const char* cmd = doc["command"] | "";
+            const char* st = doc["state"] | "";
+            if (RelayControl::handleCommand(cmd, st)) {
+                handled = true;
+            } else if (doc["relay"].is<bool>()) {
+                RelayControl::set(doc["relay"].as<bool>());
+                handled = true;
+            }
+        }
+        if (!handled) {
+            int idx = msg.indexOf("relay:");
+            if (idx >= 0) {
+                String st = msg.substring(idx + 6);
+                st.trim();
+                handled = RelayControl::handleCommand("relay", st.c_str());
+            }
+        }
+        if (handled) {
+            mqttPublishRelay();
+            return;
+        }
+    }
+
     if (msg.indexOf("restart") >= 0) {
         RingLogger::save();
         ESP.restart();
+    }
+    if (msg.indexOf("rollback") >= 0) {
+        OtaUpdater::rollback();
+        return;
     }
     if (msg.indexOf("ota") >= 0) {
         bool force = msg.indexOf("force") >= 0;
@@ -228,6 +299,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         }
     }
     if (msg.indexOf("read_sensor") >= 0) {
+        SensorRegistry::instance().forceRead();
         lastSensorRead = 0;
     }
     if (msg.indexOf("rescan") >= 0) {
@@ -244,11 +316,22 @@ void mqttConnect() {
         Serial.println("[MQTT] Disabled by config");
         return;
     }
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("[MQTT] Skipped (no Wi-Fi)");  // lwIP not usable without a link
+        return;
+    }
 
     String clientId = String(MQTT_CLIENT_ID) + "_" + String(random(1000));
-    Serial.print("[MQTT] Connecting...");
+    String user = DeviceSecrets::mqttUser();
+    String pass = DeviceSecrets::mqttPassword();
+    if (user.isEmpty() || pass.isEmpty()) {
+        Serial.println("[MQTT] Skipped (no credentials provisioned)");
+        return;
+    }
+    Serial.print("[MQTT] Connecting (TLS)...");
+    wifiClient.setCACert(ROOT_CA_CERT);
 
-    if (mqtt.connect(clientId.c_str(), MQTT_USER, MQTT_PASSWORD)) {
+    if (mqtt.connect(clientId.c_str(), user.c_str(), pass.c_str())) {
         Serial.println(" OK");
         LOG_INFO("MQTT", "Connected to %s:%d", MQTT_BROKER, MQTT_PORT);
         String cmdTopic = mqttTopic("commands");
@@ -302,6 +385,16 @@ UartFrameParser uartFrame;
 // own metric keys. The UART module registers ALL its sensors in one frame and
 // sends sensor data as one value stream (flattened across sensors in the same
 // order), so values map positionally onto the flattened metric list.
+// A UART module reports every sensor it hosts in one registration frame, so the
+// flattened metric limit has to cover the whole module, not one sensor: five
+// drivers (BME680, BH1750, SCD30, INA219, BMP280) already contribute 13.
+#define REMOTE_MODULE_MAX_SENSORS 8
+#define REMOTE_MODULE_MAX_METRICS 24
+#define REMOTE_MODULE_MAX_VALUE_BYTES (REMOTE_MODULE_MAX_METRICS * 4)
+#define REMOTE_MODULE_COUNT 8
+#define REMOTE_METRIC_KEY_LEN 23
+#define REMOTE_METRIC_UNIT_LEN 7
+
 struct RemoteSensor {
     uint8_t typeId;
     char name[32];
@@ -311,17 +404,17 @@ struct RemoteSensor {
 
 struct RemoteModule {
     uint8_t moduleId;
-    RemoteSensor sensors[8];
+    RemoteSensor sensors[REMOTE_MODULE_MAX_SENSORS];
     uint8_t sensorCount;
-    char metricKeys[8][24];
-    char metricUnits[8][8];
-    uint8_t metricCount;   // total metrics across all sensors (<= 8)
-    uint8_t values[8 * 4]; // last received raw float values
+    char metricKeys[REMOTE_MODULE_MAX_METRICS][REMOTE_METRIC_KEY_LEN + 1];
+    char metricUnits[REMOTE_MODULE_MAX_METRICS][REMOTE_METRIC_UNIT_LEN + 1];
+    uint8_t metricCount;  // total metrics across all sensors
+    uint8_t values[REMOTE_MODULE_MAX_VALUE_BYTES]; // last received raw floats
     uint8_t valueCount;
     bool hasData;
 };
 
-RemoteModule remoteModules[8];
+RemoteModule remoteModules[REMOTE_MODULE_COUNT];
 uint8_t remoteModuleCount = 0;
 
 RemoteModule* findRemoteModule(uint8_t moduleId) {
@@ -334,7 +427,7 @@ RemoteModule* findRemoteModule(uint8_t moduleId) {
 RemoteModule* findOrCreateRemoteModule(uint8_t moduleId) {
     RemoteModule* mod = findRemoteModule(moduleId);
     if (mod != nullptr) return mod;
-    if (remoteModuleCount >= 8) return nullptr;
+    if (remoteModuleCount >= REMOTE_MODULE_COUNT) return nullptr;
 
     mod = &remoteModules[remoteModuleCount++];
     memset(mod, 0, sizeof(RemoteModule));
@@ -342,7 +435,85 @@ RemoteModule* findOrCreateRemoteModule(uint8_t moduleId) {
     return mod;
 }
 
-void uartProcessRegister(uint8_t moduleId, uint8_t* payload, uint8_t len) {
+// Parses a CMD_REGISTER payload into mod. Returns false and leaves mod cleared
+// when the frame is malformed: a half-filled registration would map data values
+// onto the wrong keys, which is worse than no registration at all.
+// len is uint16_t on purpose: the frame header carries a 16-bit length and a
+// registration with the five current drivers is already ~255 bytes.
+static bool parseRegisterFrame(RemoteModule* mod, uint8_t* payload, uint16_t len,
+                               uint16_t* droppedOut) {
+    memset(mod, 0, sizeof(RemoteModule));
+
+    uint16_t idx = 0;
+    if (idx >= len) return false;
+
+    uint8_t sensorCount = payload[idx++];
+    mod->sensorCount =
+        sensorCount > REMOTE_MODULE_MAX_SENSORS ? REMOTE_MODULE_MAX_SENSORS
+                                                : sensorCount;
+    uint16_t dropped = 0;
+
+    for (uint8_t s = 0; s < mod->sensorCount; s++) {
+        RemoteSensor& sensor = mod->sensors[s];
+
+        if (idx + 2 > len) return false;
+        sensor.typeId = payload[idx++];
+
+        uint8_t nameLen = payload[idx++];
+        if (idx + nameLen > len || nameLen > 31) return false;
+        memcpy(sensor.name, payload + idx, nameLen);
+        sensor.name[nameLen] = '\0';
+        idx += nameLen;
+
+        if (idx >= len) return false;
+        uint8_t metricCount = payload[idx++];
+        if (metricCount > REMOTE_MODULE_MAX_METRICS)
+            metricCount = REMOTE_MODULE_MAX_METRICS;
+        sensor.metricOffset = mod->metricCount;
+
+        for (uint8_t m = 0; m < metricCount; m++) {
+            // Every length is validated against the buffer before it is used:
+            // a corrupt length byte would otherwise overflow the fixed-size key
+            // and unit arrays below.
+            if (idx + 2 > len) return false;
+            uint8_t keyLen = payload[idx];
+            if (idx + 1 + keyLen >= len) return false;
+            uint8_t unitLen = payload[idx + 1 + keyLen];
+            if (idx + 2 + keyLen + unitLen > len) return false;
+            if (keyLen > REMOTE_METRIC_KEY_LEN ||
+                unitLen > REMOTE_METRIC_UNIT_LEN)
+                return false;
+
+            if (mod->metricCount >= REMOTE_MODULE_MAX_METRICS) {
+                // Over the module limit: skip the descriptor so the sensors
+                // behind it are still parsed correctly. The accepted metrics stay
+                // a prefix of the module's stream, which is what keeps keys and
+                // values aligned.
+                dropped++;
+                idx += 2 + keyLen + unitLen;
+                continue;
+            }
+
+            idx++; // key length
+            memcpy(mod->metricKeys[mod->metricCount], payload + idx, keyLen);
+            mod->metricKeys[mod->metricCount][keyLen] = '\0';
+            idx += keyLen;
+
+            idx++; // unit length
+            memcpy(mod->metricUnits[mod->metricCount], payload + idx, unitLen);
+            mod->metricUnits[mod->metricCount][unitLen] = '\0';
+            idx += unitLen;
+
+            mod->metricCount++;
+        }
+        sensor.metricCount = mod->metricCount - sensor.metricOffset;
+    }
+
+    *droppedOut = dropped;
+    return true;
+}
+
+void uartProcessRegister(uint8_t moduleId, uint8_t* payload, uint16_t len) {
     RemoteModule* mod = findOrCreateRemoteModule(moduleId);
     if (mod == nullptr) {
         Serial.println("[UART] Too many modules!");
@@ -350,51 +521,21 @@ void uartProcessRegister(uint8_t moduleId, uint8_t* payload, uint8_t len) {
         return;
     }
 
-    // A register frame fully describes the module: reset any previous
-    // registration so repeated (periodic) registers stay idempotent.
-    memset(mod, 0, sizeof(RemoteModule));
+    uint16_t dropped = 0;
+    // A register frame fully describes the module, so repeated (periodic)
+    // registers stay idempotent: mod is cleared at the start of the parse.
+    if (!parseRegisterFrame(mod, payload, len, &dropped)) {
+        memset(mod, 0, sizeof(RemoteModule));
+        mod->moduleId = moduleId;
+        Serial.printf("[UART] Module %d sent a malformed register frame, ignored\n",
+                      moduleId);
+        return;
+    }
     mod->moduleId = moduleId;
 
-    uint16_t idx = 0;
-    if (idx >= len) return;
-    uint8_t sensorCount = payload[idx++];
-    mod->sensorCount = sensorCount > 8 ? 8 : sensorCount;
-
-    for (uint8_t s = 0; s < mod->sensorCount; s++) {
-        RemoteSensor& sensor = mod->sensors[s];
-
-        if (idx + 2 > len) return;
-        sensor.typeId = payload[idx++];
-
-        uint8_t nameLen = payload[idx++];
-        if (idx + nameLen > len || nameLen > 31) return;
-        memcpy(sensor.name, payload + idx, nameLen);
-        sensor.name[nameLen] = '\0';
-        idx += nameLen;
-
-        if (idx >= len) return;
-        uint8_t metricCount = payload[idx++];
-        sensor.metricCount = metricCount > 8 ? 8 : metricCount;
-        sensor.metricOffset = mod->metricCount;
-
-        for (uint8_t m = 0; m < sensor.metricCount; m++) {
-            uint8_t dst = mod->metricCount;
-            if (dst >= 8) return;
-            if (idx + 1 > len) return;
-            uint8_t keyLen = payload[idx++];
-            if (idx + keyLen + 1 > len || keyLen > 23) return;
-            memcpy(mod->metricKeys[dst], payload + idx, keyLen);
-            mod->metricKeys[dst][keyLen] = '\0';
-            idx += keyLen;
-
-            uint8_t unitLen = payload[idx++];
-            if (idx + unitLen > len || unitLen > 7) return;
-            memcpy(mod->metricUnits[dst], payload + idx, unitLen);
-            mod->metricUnits[dst][unitLen] = '\0';
-            idx += unitLen;
-
-            mod->metricCount++;
-        }
+    if (dropped > 0) {
+        Serial.printf("[UART] Module %d: %u metric(s) dropped, module limit is %d\n",
+                      moduleId, dropped, REMOTE_MODULE_MAX_METRICS);
     }
 
     Serial.printf("[UART] Module %d registered: %d sensor(s), %d metric(s)\n",
@@ -411,7 +552,7 @@ void uartProcessRegister(uint8_t moduleId, uint8_t* payload, uint8_t len) {
     }
 }
 
-void uartProcessSensorData(uint8_t moduleId, uint8_t* payload, uint8_t len) {
+void uartProcessSensorData(uint8_t moduleId, uint8_t* payload, uint16_t len) {
     RemoteModule* mod = findRemoteModule(moduleId);
     if (mod == nullptr) {
         Serial.printf("[UART] Data from unknown module %d (not registered)\n", moduleId);
@@ -422,7 +563,7 @@ void uartProcessSensorData(uint8_t moduleId, uint8_t* payload, uint8_t len) {
     uint16_t idx = 4; // skip timestamp
 
     mod->valueCount = 0;
-    while (idx + 4 <= len && mod->valueCount < 8) {
+    while (idx + 4 <= len && mod->valueCount < REMOTE_MODULE_MAX_METRICS) {
         memcpy(&mod->values[mod->valueCount * 4], payload + idx, 4);
         mod->valueCount++;
         idx += 4;
@@ -434,6 +575,9 @@ void uartProcessSensorData(uint8_t moduleId, uint8_t* payload, uint8_t len) {
     for (uint8_t v = 0; v < limit; v++) {
         float value;
         memcpy(&value, &mod->values[v * 4], 4);
+        // A metric without a reading yet arrives as NaN: neither MQTT nor the
+        // SD log can represent it, and "nan" would break JSON consumers.
+        if (!std::isfinite(value)) continue;
         Serial.printf("  %s = %.2f %s\n", mod->metricKeys[v], value, mod->metricUnits[v]);
 
         if (mqttReady()) {
@@ -590,11 +734,49 @@ void sdSave(const char* sensorType, float value, const char* unit) {
 
 // ===================== SENSORS (MODULE SYSTEM) =====================
 
+// Publishing every metric on every cycle floods MQTT and the SD log as soon as
+// more sensors are added, so a value is published when it changes and at least
+// once per METRIC_HEARTBEAT_MS to keep the topic alive.
+#define METRIC_EPSILON 0.01F
+#define METRIC_HEARTBEAT_MS 60000
+#define MAX_TRACKED_METRICS 48
+
+struct TrackedMetric {
+    char key[24];
+    float value;
+    unsigned long at;
+};
+static TrackedMetric trackedMetrics[MAX_TRACKED_METRICS];
+static size_t trackedMetricCount = 0;
+
+static bool metricShouldPublish(const char* key, float value) {
+    unsigned long now = millis();
+    for (size_t i = 0; i < trackedMetricCount; i++) {
+        if (strcmp(trackedMetrics[i].key, key) != 0) continue;
+        bool changed = fabsf(value - trackedMetrics[i].value) > METRIC_EPSILON;
+        bool stale = now - trackedMetrics[i].at >= METRIC_HEARTBEAT_MS;
+        trackedMetrics[i].value = value;
+        trackedMetrics[i].at = now;
+        return changed || stale;
+    }
+
+    if (trackedMetricCount < MAX_TRACKED_METRICS) {
+        TrackedMetric& slot = trackedMetrics[trackedMetricCount++];
+        snprintf(slot.key, sizeof(slot.key), "%s", key);
+        slot.value = value;
+        slot.at = now;
+    }
+    return true;
+}
+
 void sensorsInit() {
     SensorRegistry& registry = SensorRegistry::instance();
 
-    registry.registerDriver(new BME680Module());
-    registry.registerDriver(new BH1750Module());
+    // Drivers register themselves: REGISTER_SENSOR at the end of each driver
+    // .cpp, so adding a sensor never touches this function.
+    static const uint8_t kMuxAddresses[] = I2C_MUX_ADDRESSES;
+    registry.setMuxAddresses(kMuxAddresses,
+                             sizeof(kMuxAddresses) / sizeof(kMuxAddresses[0]));
 
     registry.scanI2CBus(I2C_SDA, I2C_SCL);
 
@@ -603,30 +785,19 @@ void sensorsInit() {
 }
 
 void sensorsRead() {
-    SensorRegistry& registry = SensorRegistry::instance();
+    auto records = SensorRegistry::instance().activeRecords();
 
-    struct Sample { const char* key; float value; const char* unit; };
-    Sample samples[8];
-    size_t sampleCount = 0;
-
-    auto modules = registry.activeModules(); // snapshot (internally locked)
-
-    registry.lock(); // serialize Wire access with WS scan/read handlers
-    for (auto* mod : modules) {
-        auto metrics = mod->read();
-        for (auto& m : metrics) {
-            if (sampleCount < 8) {
-                samples[sampleCount++] = { m.key, m.value, m.unit };
+    for (auto& rec : records) {
+        for (auto& m : rec.cached) {
+            // Skip metrics without a valid reading (SCD30 warm-up, failed read):
+            // MQTT and the CSV log have no representation for NaN.
+            if (!std::isfinite(m.value)) continue;
+            if (!metricShouldPublish(m.key, m.value)) continue;
+            if (mqttReady()) {
+                mqttPublishMetric(m.key, m.value, m.unit);
             }
+            sdSave(m.key, m.value, m.unit);
         }
-    }
-    registry.unlock();
-
-    for (size_t i = 0; i < sampleCount; i++) {
-        if (mqttReady()) {
-            mqttPublishMetric(samples[i].key, samples[i].value, samples[i].unit);
-        }
-        sdSave(samples[i].key, samples[i].value, samples[i].unit);
     }
 }
 
@@ -639,9 +810,11 @@ void setup() {
     RingLogger::init();   // restore persisted logs (survive reboot history)
 
     MqttConfig::init();   // cache NVS "mqtt_en" flag in RAM (avoids NVS per loop)
+    DeviceSecrets::init();  // load/migrate MQTT + signaling credentials from NVS
+    RelayControl::init();   // safe default: output off
 
     Serial.println("=================================");
-    Serial.print  ("  IoT Modular System - ");
+    Serial.print  ("  Aeris Monitor - ");
     Serial.println(ESP.getChipModel());
     Serial.println("  Device: " + deviceId);
     Serial.println("=================================");
@@ -656,6 +829,7 @@ void setup() {
     if (MqttConfig::enabled()) {
         mqtt.setServer(MQTT_BROKER, MQTT_PORT);
         mqtt.setBufferSize(MQTT_BUFFER_SIZE);
+        wifiClient.setCACert(ROOT_CA_CERT);  // ISRG Root X1 (Let's Encrypt)
         mqtt.setCallback(mqttCallback);
         mqttConnect();
     } else {
@@ -665,7 +839,11 @@ void setup() {
     sdInit();
     sensorsInit();
 
-    WebServer::instance().begin(HTTP_PORT, WEBSOCKET_PORT);
+    if (WiFi.status() == WL_CONNECTED) {  // AsyncTCP/lwIP needs a live network link
+        WebServer::instance().begin(HTTP_PORT, WEBSOCKET_PORT);
+    } else {
+        Serial.println("[HTTP] Skipped (no Wi-Fi)");
+    }
     signalingInit();
 
     watchdogInit();
@@ -697,6 +875,7 @@ void loop() {
 
     WebServer::instance().update();
     SensorRegistry::instance().checkLiveness();
+    SensorRegistry::instance().poll();
     signalingUpdate();
 
     if (millis() - lastSensorRead >= SENSOR_READ_INTERVAL_MS) {

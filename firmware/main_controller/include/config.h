@@ -4,6 +4,30 @@
 #include <Arduino.h>
 
 // ============================================================
+// Optional build-time secret overrides.
+//
+// All defaults below are PLACEHOLDERS. Real credentials (MQTT broker,
+// signaling token, AP password) must live in `secrets.h`, a file that is
+// git-ignored and never reaches the repository. Create it by copying
+// `secrets.h.example`:
+//
+//     cp include/secrets.h.example include/secrets.h   # then edit values
+//
+// Every define keeps its #ifndef guard, so a value set in secrets.h wins
+// and stays valid for the whole build (config.h is the single include).
+// Without secrets.h the placeholder defaults below keep everything working.
+// ============================================================
+// Release builds pass -DAERIS_NO_COMPILED_SECRETS so no real credentials are
+// embedded in the public OTA image; values then come from NVS provisioning.
+#if !defined(AERIS_NO_COMPILED_SECRETS)
+#if defined(__has_include)
+#if __has_include("secrets.h")
+#include "secrets.h"
+#endif
+#endif
+#endif
+
+// ============================================================
 // Board configuration.
 //
 // All settings below are board defaults (ESP32-C3 main controller).
@@ -18,7 +42,7 @@
 // WiFi Defaults
 // These are used ONLY as static fallbacks during development/flashing.
 // In normal use the device provisions Wi-Fi at first boot via SoftAP
-// (SSID "IoT-Setup-XXXX", http://192.168.4.1) and stores credentials in NVS.
+// (SSID "Aeris-Setup-XXXX", http://192.168.4.1) and stores credentials in NVS.
 #ifndef WIFI_SSID
 #define WIFI_SSID ""
 #endif
@@ -47,16 +71,18 @@
 #define MQTT_ENABLED_DEFAULT 1
 #endif
 #ifndef MQTT_BROKER
-#define MQTT_BROKER "2.26.98.234"
+#define MQTT_BROKER "spe4naz.online"
 #endif
 #ifndef MQTT_PORT
-#define MQTT_PORT 1883
+#define MQTT_PORT 8883   // MQTT over TLS
 #endif
 #ifndef MQTT_USER
 #define MQTT_USER "main"
 #endif
+// Real password lives in the git-ignored secrets.h (or NVS at runtime).
+// Empty default = no credential compiled in, which fails safe.
 #ifndef MQTT_PASSWORD
-#define MQTT_PASSWORD "24ebc3e8d31588d24b7c56ae1ef8a267"
+#define MQTT_PASSWORD ""
 #endif
 #ifndef MQTT_CLIENT_ID
 #define MQTT_CLIENT_ID "esp32c3_main"
@@ -71,7 +97,7 @@
 // Over-the-Air firmware updates (pulled over HTTPS from the public site).
 // Each board pulls its own binary + manifest (per-device_type files).
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "1.2.2"
+#define FIRMWARE_VERSION "1.2.3"
 #endif
 #ifndef OTA_FW_HOST
 #define OTA_FW_HOST "spe4naz.online"
@@ -111,8 +137,10 @@
 #ifndef SIGNALING_URL
 #define SIGNALING_URL "https://spe4naz.online"
 #endif
+// Real token lives in the git-ignored secrets.h; must match REGISTER_TOKEN.
+// Empty default = registry calls are rejected (fails safe).
 #ifndef SIGNALING_TOKEN
-#define SIGNALING_TOKEN "296a5ec2b5987baec785771bed971d30158859796bf1ee04f575e6db52f710cf"
+#define SIGNALING_TOKEN ""
 #endif
 #ifndef SIGNALING_HEARTBEAT_MS
 #define SIGNALING_HEARTBEAT_MS 30000
@@ -142,6 +170,12 @@
 #define I2C_FREQUENCY 100000
 #endif
 
+// TCA9548A I2C mux addresses on the bus, 0-terminated. {0x00} = no mux.
+// Example for one mux with A0-A2 tied low: { 0x70, 0x00 }
+#ifndef I2C_MUX_ADDRESSES
+#define I2C_MUX_ADDRESSES { 0x00 }
+#endif
+
 // UART Configuration (for ESP32-C6 sensor modules)
 // ESP32-S3 overrides via build_flags: RX 4 / TX 5.
 #ifndef UART_RX
@@ -161,6 +195,15 @@
 // ESP32-S3 overrides via build_flags: CS 10 (SPI default SCK12/MISO11/MOSI13).
 #ifndef SD_CS
 #define SD_CS 10
+#endif
+
+// Relay / actuator output. Set RELAY_PIN to the GPIO wired to the relay, or
+// keep -1 to compile the control code but leave the output disabled.
+#ifndef RELAY_PIN
+#define RELAY_PIN -1
+#endif
+#ifndef RELAY_ACTIVE_HIGH
+#define RELAY_ACTIVE_HIGH 1
 #endif
 
 // Sensor Configuration

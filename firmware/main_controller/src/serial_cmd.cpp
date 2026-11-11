@@ -4,11 +4,13 @@
 #include "wifi_config.h"
 #include "mqtt_config.h"
 #include "ota_updater.h"
-#include "modules/sensor_registry.h"
+#include "sensor_registry.h"
 #include "time_util.h"
+#include "sys_info.h"
 #include <WiFi.h>
 #include <ArduinoJson.h>
 #include <esp_system.h>
+#include <cmath>
 
 // Line buffer for incoming Serial data.
 static char cmdBuf[256];
@@ -49,6 +51,11 @@ static void cmdStatus() {
     json += "\"wifi_connected\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";
     json += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
     json += "\"time_synced\":" + String(timeSynced() ? "true" : "false") + ",";
+    json += "\"rssi\":" + String(WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0) + ",";
+    float chipTemp = chipTemperatureCelsius();
+    if (!std::isnan(chipTemp)) {
+        json += "\"chip_temp\":" + String(chipTemp, 1) + ",";
+    }
     json += "\"firmware\":\"" + String(FIRMWARE_VERSION) + "\",";
     json += "\"mqtt_enabled\":" + String(MqttConfig::enabled() ? "true" : "false");
     json += "}";
@@ -150,6 +157,14 @@ static void cmdOta(const char* arg) {
     }
 }
 
+static void cmdOtaRollback() {
+    if (OtaUpdater::rollback()) {
+        respond("{\"type\":\"ack\",\"command\":\"ota_rollback\",\"status\":\"started\"}");
+    } else {
+        respond("{\"type\":\"error\",\"error\":\"rollback_failed\"}");
+    }
+}
+
 // --- parser ---
 
 static void processCmd(const char* line) {
@@ -182,6 +197,7 @@ static void processCmd(const char* line) {
     else if (strncmp(p, "wifi_clear", 10) == 0) { cmdWifiClear(); }
     else if (strncmp(p, "mqtt_enable", 11) == 0) { cmdMqttEnable(true); }
     else if (strncmp(p, "mqtt_disable", 12) == 0) { cmdMqttEnable(false); }
+    else if (strncmp(p, "ota_rollback", 12) == 0) { cmdOtaRollback(); }
     else if (strncmp(p, "ota", 3) == 0) { cmdOta(p + 3); }
     else if (strncmp(p, "restart", 7) == 0) { cmdRestart(); }
     else {

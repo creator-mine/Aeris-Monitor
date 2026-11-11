@@ -14,11 +14,11 @@ public:
     std::vector<Metric> read() override;
     std::vector<MetricDef> metrics() const override;
     uint32_t readInterval() const override { return 5000; }
+    SensorModule* clone() const override { return new BH1750Module(); }
 
 private:
     BH1750 _bh1750;
     bool _bhReady = false;
-    uint8_t _detectedAddr = 0;
 };
 
 #endif
