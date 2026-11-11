@@ -55,7 +55,7 @@ test('root returns text banner', async () => {
   const res = await fetch(base + '/');
   assert.equal(res.status, 200);
   const text = await res.text();
-  assert.match(text, /IoT Modular System/);
+  assert.match(text, /Aeris Monitor/);
 });
 
 test('OPTIONS returns CORS preflight 204', async () => {
