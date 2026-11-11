@@ -1,5 +1,5 @@
 {
-  "name": "iot-signaling-server",
+  "name": "aeris-signaling-server",
   "version": "0.4.0",
   "description": "Aeris Monitor - signaling/registry server with self-hosted admin panel (3X-UI style). Stores no sensor telemetry.",
   "main": "src/index.js",

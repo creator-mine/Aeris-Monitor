@@ -1,113 +1,113 @@
-# IoT SIGNALING SERVER
+﻿# IoT SIGNALING SERVER
 
-Лёгкий REST API / реестр устройств для Aeris Monitor.
-Соединяет приложение и ESP32-устройства: регистрация, heartbeat, список устройств,
-алерты и правила умного дома. **Телеметрию не хранит** — только реестр и правила.
+Р›С‘РіРєРёР№ REST API / СЂРµРµСЃС‚СЂ СѓСЃС‚СЂРѕР№СЃС‚РІ РґР»СЏ Aeris Monitor.
+РЎРѕРµРґРёРЅСЏРµС‚ РїСЂРёР»РѕР¶РµРЅРёРµ Рё ESP32-СѓСЃС‚СЂРѕР№СЃС‚РІР°: СЂРµРіРёСЃС‚СЂР°С†РёСЏ, heartbeat, СЃРїРёСЃРѕРє СѓСЃС‚СЂРѕР№СЃС‚РІ,
+Р°Р»РµСЂС‚С‹ Рё РїСЂР°РІРёР»Р° СѓРјРЅРѕРіРѕ РґРѕРјР°. **РўРµР»РµРјРµС‚СЂРёСЋ РЅРµ С…СЂР°РЅРёС‚** вЂ” С‚РѕР»СЊРєРѕ СЂРµРµСЃС‚СЂ Рё РїСЂР°РІРёР»Р°.
 
-Ноль внешних зависимостей (только встроенные модули Node.js ≥ 18).
-С версии 0.4 поставляется **веб-панель** (`/panel`, Vue 3, стиль 3X-UI):
-дашборд с графиками производительности, карточки устройств с аптаймом,
-CRUD устройств/алертов/правил и настройки сервера в рантайме.
+РќРѕР»СЊ РІРЅРµС€РЅРёС… Р·Р°РІРёСЃРёРјРѕСЃС‚РµР№ (С‚РѕР»СЊРєРѕ РІСЃС‚СЂРѕРµРЅРЅС‹Рµ РјРѕРґСѓР»Рё Node.js в‰Ґ 18).
+РЎ РІРµСЂСЃРёРё 0.4 РїРѕСЃС‚Р°РІР»СЏРµС‚СЃСЏ **РІРµР±-РїР°РЅРµР»СЊ** (`/panel`, Vue 3, СЃС‚РёР»СЊ 3X-UI):
+РґР°С€Р±РѕСЂРґ СЃ РіСЂР°С„РёРєР°РјРё РїСЂРѕРёР·РІРѕРґРёС‚РµР»СЊРЅРѕСЃС‚Рё, РєР°СЂС‚РѕС‡РєРё СѓСЃС‚СЂРѕР№СЃС‚РІ СЃ Р°РїС‚Р°Р№РјРѕРј,
+CRUD СѓСЃС‚СЂРѕР№СЃС‚РІ/Р°Р»РµСЂС‚РѕРІ/РїСЂР°РІРёР» Рё РЅР°СЃС‚СЂРѕР№РєРё СЃРµСЂРІРµСЂР° РІ СЂР°РЅС‚Р°Р№РјРµ.
 
-## Состав
+## РЎРѕСЃС‚Р°РІ
 
-| Файл | Назначение |
+| Р¤Р°Р№Р» | РќР°Р·РЅР°С‡РµРЅРёРµ |
 |---|---|
-| `src/index.js` | Точка входа: HTTP-сервер + graceful shutdown |
-| `src/app.js` | Маршруты, rate-limit, CORS, auth, panel API + статика `/panel` |
-| `src/registry.js` | Реестр устройств (статусы, stale-таймаут, лимиты по IP) |
-| `src/rules.js` | Правила умного дома (CRUD + персист) |
-| `src/alerts.js` | CRUD алертов |
-| `src/metrics.js` | Метрики сервера (CPU/MEM/load/сеть/req/latency, персист) |
-| `src/stability.js` | Журнал статусов устройств + аптайм 24ч/7д |
-| `src/settings.js` | Переопределение настроек в рантайме (валидация, персист) |
-| `src/session.js` | HMAC-сессии панели (HttpOnly cookie) |
-| `src/persist.js` | Атомарная запись JSON в файл |
-| `src/config.js` | Вся конфигурация через env |
-| `web/` | Фронтенд панели (Vue 3 + Vite + Element Plus + uPlot); `web/dist` собирается в образ |
+| `src/index.js` | РўРѕС‡РєР° РІС…РѕРґР°: HTTP-СЃРµСЂРІРµСЂ + graceful shutdown |
+| `src/app.js` | РњР°СЂС€СЂСѓС‚С‹, rate-limit, CORS, auth, panel API + СЃС‚Р°С‚РёРєР° `/panel` |
+| `src/registry.js` | Р РµРµСЃС‚СЂ СѓСЃС‚СЂРѕР№СЃС‚РІ (СЃС‚Р°С‚СѓСЃС‹, stale-С‚Р°Р№РјР°СѓС‚, Р»РёРјРёС‚С‹ РїРѕ IP) |
+| `src/rules.js` | РџСЂР°РІРёР»Р° СѓРјРЅРѕРіРѕ РґРѕРјР° (CRUD + РїРµСЂСЃРёСЃС‚) |
+| `src/alerts.js` | CRUD Р°Р»РµСЂС‚РѕРІ |
+| `src/metrics.js` | РњРµС‚СЂРёРєРё СЃРµСЂРІРµСЂР° (CPU/MEM/load/СЃРµС‚СЊ/req/latency, РїРµСЂСЃРёСЃС‚) |
+| `src/stability.js` | Р–СѓСЂРЅР°Р» СЃС‚Р°С‚СѓСЃРѕРІ СѓСЃС‚СЂРѕР№СЃС‚РІ + Р°РїС‚Р°Р№Рј 24С‡/7Рґ |
+| `src/settings.js` | РџРµСЂРµРѕРїСЂРµРґРµР»РµРЅРёРµ РЅР°СЃС‚СЂРѕРµРє РІ СЂР°РЅС‚Р°Р№РјРµ (РІР°Р»РёРґР°С†РёСЏ, РїРµСЂСЃРёСЃС‚) |
+| `src/session.js` | HMAC-СЃРµСЃСЃРёРё РїР°РЅРµР»Рё (HttpOnly cookie) |
+| `src/persist.js` | РђС‚РѕРјР°СЂРЅР°СЏ Р·Р°РїРёСЃСЊ JSON РІ С„Р°Р№Р» |
+| `src/config.js` | Р’СЃСЏ РєРѕРЅС„РёРіСѓСЂР°С†РёСЏ С‡РµСЂРµР· env |
+| `web/` | Р¤СЂРѕРЅС‚РµРЅРґ РїР°РЅРµР»Рё (Vue 3 + Vite + Element Plus + uPlot); `web/dist` СЃРѕР±РёСЂР°РµС‚СЃСЏ РІ РѕР±СЂР°Р· |
 
-## Запуск
+## Р—Р°РїСѓСЃРє
 
 ```bash
 node src/index.js
 ```
 
-Здоровье: `GET /api/v1/health`. Тесты: `npm test` (= `node --test test/*.test.js`), 88 тестов.
-Сборка фронтенда: `npm --prefix web install && npm --prefix web run build` (dist уже в образ/репо).
+Р—РґРѕСЂРѕРІСЊРµ: `GET /api/v1/health`. РўРµСЃС‚С‹: `npm test` (= `node --test test/*.test.js`), 88 С‚РµСЃС‚РѕРІ.
+РЎР±РѕСЂРєР° С„СЂРѕРЅС‚РµРЅРґР°: `npm --prefix web install && npm --prefix web run build` (dist СѓР¶Рµ РІ РѕР±СЂР°Р·/СЂРµРїРѕ).
 
-## Конфигурация (env)
+## РљРѕРЅС„РёРіСѓСЂР°С†РёСЏ (env)
 
-| Переменная | По умолчанию | Описание |
+| РџРµСЂРµРјРµРЅРЅР°СЏ | РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ | РћРїРёСЃР°РЅРёРµ |
 |---|---|---|
-| `PORT` | `3000` | Порт HTTP |
-| `HOST` | `127.0.0.1` | Адрес (наружу — через прокси, `0.0.0.0` — публично) |
-| `API_PREFIX` | `/api/v1` | Префикс API |
-| `REGISTER_TOKEN` | (пусто) | Токен записи; при задании `register/delete/alerts` и `GET /devices` требуют `Authorization: Bearer <token>` |
-| `REGISTRY_FILE` | `data/devices.json` | Файл реестра устройств |
-| `ALERTS_FILE` | `data/alerts.json` | Файл алертов |
-| `RULES_FILE` | `data/rules.json` | Файл правил |
-| `METRICS_FILE` | `data/metrics.json` | История метрик сервера |
-| `STABILITY_FILE` | `data/stability.json` | Журнал статусов устройств |
-| `SETTINGS_FILE` | `data/settings.json` | Настройки панели (переопределяют env) |
-| `METRICS_INTERVAL_MS` | `10000` | Период сэмпла метрик |
-| `METRICS_FLUSH_SECONDS` | `120` | Период персиста метрик |
-| `METRICS_HOURS` | `24` | Глубина истории метрик (агрегация по мере роста) |
-| `PANEL_PASSWORD` | (пусто) | Пароль веб-панели; **пусто = панель отключена (503)** |
-| `PANEL_SESSION_TTL_MS` | `86400000` | TTL сессии панели |
-| `STALE_MS` | `180000` | Без heartbeat за это время устройство считается offline |
-| `MAX_DEVICES_PER_IP` | `3` | Максимум устройств с одного IP |
-| `RATE_LIMIT_WINDOW_MS` | `60000` | Окно rate-limit |
-| `RATE_LIMIT_*` | — | Лимиты register/heartbeat/write/read |
+| `PORT` | `3000` | РџРѕСЂС‚ HTTP |
+| `HOST` | `127.0.0.1` | РђРґСЂРµСЃ (РЅР°СЂСѓР¶Сѓ вЂ” С‡РµСЂРµР· РїСЂРѕРєСЃРё, `0.0.0.0` вЂ” РїСѓР±Р»РёС‡РЅРѕ) |
+| `API_PREFIX` | `/api/v1` | РџСЂРµС„РёРєСЃ API |
+| `REGISTER_TOKEN` | (РїСѓСЃС‚Рѕ) | РўРѕРєРµРЅ Р·Р°РїРёСЃРё; РїСЂРё Р·Р°РґР°РЅРёРё `register/delete/alerts` Рё `GET /devices` С‚СЂРµР±СѓСЋС‚ `Authorization: Bearer <token>` |
+| `REGISTRY_FILE` | `data/devices.json` | Р¤Р°Р№Р» СЂРµРµСЃС‚СЂР° СѓСЃС‚СЂРѕР№СЃС‚РІ |
+| `ALERTS_FILE` | `data/alerts.json` | Р¤Р°Р№Р» Р°Р»РµСЂС‚РѕРІ |
+| `RULES_FILE` | `data/rules.json` | Р¤Р°Р№Р» РїСЂР°РІРёР» |
+| `METRICS_FILE` | `data/metrics.json` | РСЃС‚РѕСЂРёСЏ РјРµС‚СЂРёРє СЃРµСЂРІРµСЂР° |
+| `STABILITY_FILE` | `data/stability.json` | Р–СѓСЂРЅР°Р» СЃС‚Р°С‚СѓСЃРѕРІ СѓСЃС‚СЂРѕР№СЃС‚РІ |
+| `SETTINGS_FILE` | `data/settings.json` | РќР°СЃС‚СЂРѕР№РєРё РїР°РЅРµР»Рё (РїРµСЂРµРѕРїСЂРµРґРµР»СЏСЋС‚ env) |
+| `METRICS_INTERVAL_MS` | `10000` | РџРµСЂРёРѕРґ СЃСЌРјРїР»Р° РјРµС‚СЂРёРє |
+| `METRICS_FLUSH_SECONDS` | `120` | РџРµСЂРёРѕРґ РїРµСЂСЃРёСЃС‚Р° РјРµС‚СЂРёРє |
+| `METRICS_HOURS` | `24` | Р“Р»СѓР±РёРЅР° РёСЃС‚РѕСЂРёРё РјРµС‚СЂРёРє (Р°РіСЂРµРіР°С†РёСЏ РїРѕ РјРµСЂРµ СЂРѕСЃС‚Р°) |
+| `PANEL_PASSWORD` | (РїСѓСЃС‚Рѕ) | РџР°СЂРѕР»СЊ РІРµР±-РїР°РЅРµР»Рё; **РїСѓСЃС‚Рѕ = РїР°РЅРµР»СЊ РѕС‚РєР»СЋС‡РµРЅР° (503)** |
+| `PANEL_SESSION_TTL_MS` | `86400000` | TTL СЃРµСЃСЃРёРё РїР°РЅРµР»Рё |
+| `STALE_MS` | `180000` | Р‘РµР· heartbeat Р·Р° СЌС‚Рѕ РІСЂРµРјСЏ СѓСЃС‚СЂРѕР№СЃС‚РІРѕ СЃС‡РёС‚Р°РµС‚СЃСЏ offline |
+| `MAX_DEVICES_PER_IP` | `3` | РњР°РєСЃРёРјСѓРј СѓСЃС‚СЂРѕР№СЃС‚РІ СЃ РѕРґРЅРѕРіРѕ IP |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | РћРєРЅРѕ rate-limit |
+| `RATE_LIMIT_*` | вЂ” | Р›РёРјРёС‚С‹ register/heartbeat/write/read |
 
-## Веб-панель
+## Р’РµР±-РїР°РЅРµР»СЊ
 
-Открывается на `GET {API host}/panel` (краткая форма — `/panel`). Требует
-`PANEL_PASSWORD` (в противном случае отдаёт 503). Вход — единый пароль, сессия —
-HMAC-cookie `iot_panel` (HttpOnly, SameSite=Lax, Secure при HTTPS).
+РћС‚РєСЂС‹РІР°РµС‚СЃСЏ РЅР° `GET {API host}/panel` (РєСЂР°С‚РєР°СЏ С„РѕСЂРјР° вЂ” `/panel`). РўСЂРµР±СѓРµС‚
+`PANEL_PASSWORD` (РІ РїСЂРѕС‚РёРІРЅРѕРј СЃР»СѓС‡Р°Рµ РѕС‚РґР°С‘С‚ 503). Р’С…РѕРґ вЂ” РµРґРёРЅС‹Р№ РїР°СЂРѕР»СЊ, СЃРµСЃСЃРёСЏ вЂ”
+HMAC-cookie `iot_panel` (HttpOnly, SameSite=Lax, Secure РїСЂРё HTTPS).
 
-- `POST /panel/api/auth/login` `{ password }` · `POST /panel/api/auth/logout`
-- `GET  /panel/api/session` — статус сессии, версия, путь панели
-- `GET  /panel/api/system` — сводка (devices/alerts/rules/cpu/mem/uptime)
-- `GET  /panel/api/system/history?points=120` — метрики для графиков
-- `GET/POST/PUT/DELETE /panel/api/devices[/:id]` — CRUD устройств (detail отдаёт
-  stability + связанные алерты/правила)
-- `GET  /panel/api/settings`, `PUT /panel/api/settings` — настройки рантайма
+- `POST /panel/api/auth/login` `{ password }` В· `POST /panel/api/auth/logout`
+- `GET  /panel/api/session` вЂ” СЃС‚Р°С‚СѓСЃ СЃРµСЃСЃРёРё, РІРµСЂСЃРёСЏ, РїСѓС‚СЊ РїР°РЅРµР»Рё
+- `GET  /panel/api/system` вЂ” СЃРІРѕРґРєР° (devices/alerts/rules/cpu/mem/uptime)
+- `GET  /panel/api/system/history?points=120` вЂ” РјРµС‚СЂРёРєРё РґР»СЏ РіСЂР°С„РёРєРѕРІ
+- `GET/POST/PUT/DELETE /panel/api/devices[/:id]` вЂ” CRUD СѓСЃС‚СЂРѕР№СЃС‚РІ (detail РѕС‚РґР°С‘С‚
+  stability + СЃРІСЏР·Р°РЅРЅС‹Рµ Р°Р»РµСЂС‚С‹/РїСЂР°РІРёР»Р°)
+- `GET  /panel/api/settings`, `PUT /panel/api/settings` вЂ” РЅР°СЃС‚СЂРѕР№РєРё СЂР°РЅС‚Р°Р№РјР°
   (`stale_ms`, `metrics_hours`, `max_devices_per_ip`, `session_ttl_ms`,
   `rate_limits`, `api_token`, `panel_password`)
-- `POST /panel/api/restart` — flush и перезапуск процесса
+- `POST /panel/api/restart` вЂ” flush Рё РїРµСЂРµР·Р°РїСѓСЃРє РїСЂРѕС†РµСЃСЃР°
 
-Все panel-эндпоинты требуют живую сессию (или Bearer-токен при его задании).
-API-контракт для приложения (`/api/v1/*`) не меняется.
+Р’СЃРµ panel-СЌРЅРґРїРѕРёРЅС‚С‹ С‚СЂРµР±СѓСЋС‚ Р¶РёРІСѓСЋ СЃРµСЃСЃРёСЋ (РёР»Рё Bearer-С‚РѕРєРµРЅ РїСЂРё РµРіРѕ Р·Р°РґР°РЅРёРё).
+API-РєРѕРЅС‚СЂР°РєС‚ РґР»СЏ РїСЂРёР»РѕР¶РµРЅРёСЏ (`/api/v1/*`) РЅРµ РјРµРЅСЏРµС‚СЃСЏ.
 
 ## API
 
 - `GET  /api/v1/health`
-- `GET  /api/v1/devices` (+ фильтры `status`/`online`, поиск `q`)
-- `POST /api/v1/devices/register` — регистрация устройства (rate-limit)
-- `POST /api/v1/devices/heartbeat` — обновление статуса (rate-limit)
+- `GET  /api/v1/devices` (+ С„РёР»СЊС‚СЂС‹ `status`/`online`, РїРѕРёСЃРє `q`)
+- `POST /api/v1/devices/register` вЂ” СЂРµРіРёСЃС‚СЂР°С†РёСЏ СѓСЃС‚СЂРѕР№СЃС‚РІР° (rate-limit)
+- `POST /api/v1/devices/heartbeat` вЂ” РѕР±РЅРѕРІР»РµРЅРёРµ СЃС‚Р°С‚СѓСЃР° (rate-limit)
 - `DELETE /api/v1/devices/:id`
 - `GET/POST /api/v1/alerts`, `PUT/DELETE /api/v1/alerts/:id`
 - `GET/POST /api/v1/rules`, `PUT/DELETE /api/v1/rules/:id`
 
-Формат правил (`models/smart_rule.dart` в приложении): `trigger = threshold_above |
+Р¤РѕСЂРјР°С‚ РїСЂР°РІРёР» (`models/smart_rule.dart` РІ РїСЂРёР»РѕР¶РµРЅРёРё): `trigger = threshold_above |
 threshold_below | online | offline | no_data`, `action = notify | mqtt_command |
 device_command`.
 
 ## Docker
 
 ```bash
-# конфигурация
+# РєРѕРЅС„РёРіСѓСЂР°С†РёСЏ
 REGISTER_TOKEN=... docker compose up -d --build
-# или напрямую
-docker build -t iot-signaling-server .
+# РёР»Рё РЅР°РїСЂСЏРјСѓСЋ
+docker build -t aeris-signaling-server .
 docker run -d -p 3100:3100 \
-  -e REGISTER_TOKEN=... -v "$PWD/data:/app/data" iot-signaling-server
+  -e REGISTER_TOKEN=... -v "$PWD/data:/app/data" aeris-signaling-server
 ```
 
-Полный self-hosted стек (node + mosquitto + nginx + certbot) описан в
-монориложении в `deploy/docker/README.md` — там этот сервер используется как
-контейнер `server` внутри сети `iot`.
+РџРѕР»РЅС‹Р№ self-hosted СЃС‚РµРє (node + mosquitto + nginx + certbot) РѕРїРёСЃР°РЅ РІ
+РјРѕРЅРѕСЂРёР»РѕР¶РµРЅРёРё РІ `deploy/docker/README.md` вЂ” С‚Р°Рј СЌС‚РѕС‚ СЃРµСЂРІРµСЂ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РєР°Рє
+РєРѕРЅС‚РµР№РЅРµСЂ `server` РІРЅСѓС‚СЂРё СЃРµС‚Рё `iot`.
 
-## Лицензия
+## Р›РёС†РµРЅР·РёСЏ
 
 MIT
