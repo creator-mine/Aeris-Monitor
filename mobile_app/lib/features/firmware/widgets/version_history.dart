@@ -186,7 +186,7 @@ class VersionHistory extends StatelessWidget {
       return;
     }
 
-    final dir = await FilePicker.platform.getDirectoryPath(
+    final dir = await FilePicker.getDirectoryPath(
       dialogTitle: 'Куда экспортировать прошивку?',
     );
     if (dir == null) return;

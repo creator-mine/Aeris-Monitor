@@ -158,7 +158,7 @@ class FirmwareScreen extends StatelessWidget {
                       else
                         OutlinedButton.icon(
                           onPressed: () async {
-                            final result = await FilePicker.platform.getDirectoryPath(
+                            final result = await FilePicker.getDirectoryPath(
                               dialogTitle: 'Выберите папку с прошивкой',
                             );
                             if (result != null) {
@@ -174,7 +174,7 @@ class FirmwareScreen extends StatelessWidget {
                           children: [
                             TextButton.icon(
                               onPressed: () async {
-                                final result = await FilePicker.platform.getDirectoryPath(
+                                final result = await FilePicker.getDirectoryPath(
                                   dialogTitle: 'Выберите папку с прошивкой',
                                 );
                                 if (result != null) {
@@ -362,12 +362,13 @@ class FirmwareScreen extends StatelessWidget {
     BuildContext context,
     FirmwareProvider provider,
   ) async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       dialogTitle: 'Выберите прошивку (.bin)',
       type: FileType.custom,
       allowedExtensions: ['bin'],
     );
-    final path = result?.files.single.path;
+    if (result.isEmpty) return;
+    final path = result.single.path;
     if (path == null || path.isEmpty) return;
 
     final version = await provider.importFirmware(path);

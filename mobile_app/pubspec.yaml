@@ -16,7 +16,7 @@ dependencies:
   # Network
   dio: ^5.4.0
   mqtt_client: ^10.2.0
-  web_socket_channel: ^2.4.5
+  web_socket_channel: 3.0.3
   
   # Serial (USB COM port for local device setup)
   flutter_libserialport: ^0.6.0
@@ -32,7 +32,7 @@ dependencies:
   
   # Firmware
   crypto: ^3.0.3
-  file_picker: ^8.0.7
+  file_picker: 13.3.3
   
   # UI
   google_fonts: ^6.1.0
@@ -49,7 +49,7 @@ dependencies:
   flutter_local_notifications: ^21.0.0
   flutter_foreground_task: ^11.0.3
   path_provider: ^2.1.6
-  share_plus: ^10.0.0
+  share_plus: 13.2.0
 
 dev_dependencies:
   flutter_test:

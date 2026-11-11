@@ -18,11 +18,13 @@ Future<String?> exportCsv(String suggestedName, String content) async {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}${Platform.pathSeparator}$suggestedName');
     await file.writeAsBytes(utf8.encode(content));
-    await Share.shareXFiles([XFile(file.path)], subject: suggestedName);
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(file.path)], subject: suggestedName),
+    );
     return file.path;
   }
 
-  final dir = await FilePicker.platform.getDirectoryPath(
+  final dir = await FilePicker.getDirectoryPath(
     dialogTitle: 'Куда сохранить $suggestedName?',
   );
   if (dir == null) return null;
