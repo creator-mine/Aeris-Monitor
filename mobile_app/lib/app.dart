@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'shared/theme/app_theme.dart';
@@ -11,6 +12,7 @@ import 'features/devices/devices_screen.dart';
 import 'features/device_config/device_config_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/firmware/firmware_screen.dart';
+import 'features/smart_home/smart_home_screen.dart';
 
 class IoTApp extends StatelessWidget {
   const IoTApp({Key? key}) : super(key: key);
@@ -20,7 +22,7 @@ class IoTApp extends StatelessWidget {
     return Consumer<SettingsProvider>(
       builder: (context, settings, child) {
         return MaterialApp(
-          title: 'IoT Modular System',
+          title: 'Aeris Monitor',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.getTheme(settings.accentColorIndex, settings.darkMode),
           home: const MainNavigation(),
@@ -47,14 +49,17 @@ class _MainNavigationState extends State<MainNavigation> {
     DeviceConfigScreen(),
     FirmwareScreen(),
     SettingsScreen(),
+    SmartHomeScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SettingsProvider>(
       builder: (context, settings, child) {
-        final hasBackground = settings.backgroundImagePath != null &&
-            File(settings.backgroundImagePath!).existsSync();
+        final hasBackground = kIsWeb
+            ? settings.backgroundImageBytes != null
+            : settings.backgroundImagePath != null &&
+                File(settings.backgroundImagePath!).existsSync();
 
         Widget scaffold = Scaffold(
           body: _screens[_currentIndex],
@@ -109,6 +114,11 @@ class _MainNavigationState extends State<MainNavigation> {
                 selectedIcon: Icon(Icons.settings),
                 label: 'Настройки',
               ),
+              NavigationDestination(
+                icon: Icon(Icons.smart_toy_outlined),
+                selectedIcon: Icon(Icons.smart_toy),
+                label: 'Умный дом',
+              ),
             ],
           ),
         );
@@ -119,10 +129,15 @@ class _MainNavigationState extends State<MainNavigation> {
               Positioned.fill(
                 child: Opacity(
                   opacity: settings.backgroundOpacity,
-                  child: Image.file(
-                    File(settings.backgroundImagePath!),
-                    fit: BoxFit.cover,
-                  ),
+                  child: kIsWeb
+                      ? Image.memory(
+                          settings.backgroundImageBytes!,
+                          fit: BoxFit.cover,
+                        )
+                      : Image.file(
+                          File(settings.backgroundImagePath!),
+                          fit: BoxFit.cover,
+                        ),
                 ),
               ),
               scaffold,

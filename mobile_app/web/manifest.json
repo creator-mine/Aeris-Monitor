@@ -1,11 +1,11 @@
 {
-    "name": "iot_modular_app",
-    "short_name": "iot_modular_app",
+    "name": "Aeris Monitor",
+    "short_name": "Aeris",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Aeris Monitor — modular environmental monitoring.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

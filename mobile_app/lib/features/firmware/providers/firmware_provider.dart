@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/firmware_version.dart';
@@ -11,9 +13,20 @@ import '../../../core/config/app_config.dart';
 import '../../../shared/helpers/chip_helper.dart';
 
 class FirmwareProvider extends ChangeNotifier {
-  final FirmwareService _service = FirmwareService();
+  final FirmwareService _service;
   final FirmwareStorage _storage = FirmwareStorage();
+  String? _otaBaseUrl;
   static const _uuid = Uuid();
+
+  FirmwareProvider({String? otaBaseUrl})
+      : _otaBaseUrl = otaBaseUrl,
+        _service = FirmwareService();
+
+  /// OTA host used for manifest checks. Updatable at runtime so the user can
+  /// point the app at a self-hosted server without restarting.
+  void setOtaBaseUrl(String? url) {
+    _otaBaseUrl = url;
+  }
 
   List<FirmwareVersion> _versions = [];
   String? _selectedPort;
@@ -21,6 +34,7 @@ class FirmwareProvider extends ChangeNotifier {
   String? _sourcePath;
   bool _isBuilding = false;
   bool _isUploading = false;
+  bool _isInstallingPlatformio = false;
   List<String> _buildLogs = [];
   bool _platformioAvailable = false;
   List<String> _availablePorts = [];
@@ -53,6 +67,7 @@ class FirmwareProvider extends ChangeNotifier {
   String? get sourcePath => _sourcePath;
   bool get isBuilding => _isBuilding;
   bool get isUploading => _isUploading;
+  bool get isInstallingPlatformio => _isInstallingPlatformio;
   List<String> get buildLogs => _buildLogs;
   bool get platformioAvailable => _platformioAvailable;
   List<String> get availablePorts => _availablePorts;
@@ -96,6 +111,13 @@ class FirmwareProvider extends ChangeNotifier {
       firmwareFreshness(_localVersion, _serverManifest?.version);
 
   static final RegExp _versionPattern = RegExp(r'^\d+\.\d+\.\d+$');
+
+  /// Extracts the semver (e.g. "1.2.2") from an external .bin file name like
+  /// "aeris-esp32c3-v1.2.2.bin". Returns null when absent.
+  static String? versionFromFilename(String name) {
+    final match = RegExp(r'(\d+\.\d+\.\d+)').firstMatch(name);
+    return match?.group(1);
+  }
 
   /// Sets a manual version for the next build. Empty/invalid input clears it.
   /// Returns whether the provided value was accepted.
@@ -154,24 +176,25 @@ class FirmwareProvider extends ChangeNotifier {
   Future<void> init() async {
     await _storage.init();
     _versions = _storage.getAll();
-    _platformioAvailable = await _service.isPlatformIOAvailable();
 
     final prefs = await SharedPreferences.getInstance();
     _selectedPort = prefs.getString('firmware_last_port');
     _selectedDeviceType = prefs.getString('firmware_last_device') ?? 'esp32-c3';
     _sourcePath = prefs.getString('firmware_last_path');
 
-    if (_sourcePath != null) {
+    if (!kIsWeb && !Platform.isAndroid && !Platform.isIOS) {
+      _platformioAvailable = await _service.isPlatformIOAvailable();
       await checkForUpdates();
+      await refreshPorts();
+      await loadProjectInfo();
     }
 
-    await refreshPorts();
-    await loadProjectInfo();
     await fetchServerManifest();
     notifyListeners();
   }
 
   Future<void> refreshPorts() async {
+    if (kIsWeb) return;
     final infos = await _service.getAvailablePortsWithInfo();
     _portInfos = infos;
     _availablePorts = infos.map((i) => i.port).toList();
@@ -182,6 +205,7 @@ class FirmwareProvider extends ChangeNotifier {
   }
 
   Future<void> selectFolder(String path) async {
+    if (kIsWeb) return;
     _sourcePath = path;
 
     final prefs = await SharedPreferences.getInstance();
@@ -204,7 +228,7 @@ class FirmwareProvider extends ChangeNotifier {
   }
 
   Future<void> detectChip() async {
-    if (_isDetectingChip || _selectedPort == null) return;
+    if (kIsWeb || _isDetectingChip || _selectedPort == null) return;
 
     _isDetectingChip = true;
     _detectedChip = null;
@@ -237,7 +261,7 @@ class FirmwareProvider extends ChangeNotifier {
   }
 
   Future<void> loadProjectInfo() async {
-    if (_sourcePath == null) {
+    if (_sourcePath == null || kIsWeb) {
       _projectInfo = <String, dynamic>{};
       _firmwareBinInfo = <String, dynamic>{};
       notifyListeners();
@@ -273,10 +297,11 @@ class FirmwareProvider extends ChangeNotifier {
     try {
       _serverManifest = await _service.fetchOtaManifest(
         deviceType: _selectedDeviceType,
+        baseUrl: _otaBaseUrl,
       );
       if (_serverManifest == null) {
         _serverCheckError = 'Не удалось получить данные с сайта '
-            '${AppConfig.apiBaseUrl} (нет интернета или не опубликован /fw/version.json). '
+            '${_otaBaseUrl ?? AppConfig.apiBaseUrl} (нет интернета или не опубликован /fw/version.json). '
             'Опубликуйте прошивку через deploy/fw.ps1.';
       }
     } catch (e) {
@@ -291,7 +316,7 @@ class FirmwareProvider extends ChangeNotifier {
   /// build of the selected device (i.e. whether a rebuild is needed).
   /// This is separate from the published-version check above.
   Future<void> checkForUpdates() async {
-    if (_sourcePath == null) return;
+    if (_sourcePath == null || kIsWeb) return;
 
     _updateCheckError = null;
     try {
@@ -329,7 +354,7 @@ class FirmwareProvider extends ChangeNotifier {
   }
 
   Future<void> build() async {
-    if (!canBuild || _sourcePath == null) return;
+    if (!canBuild || _sourcePath == null || _isInstallingPlatformio || kIsWeb) return;
 
     _isBuilding = true;
     _buildStartedAt = DateTime.now();
@@ -395,7 +420,7 @@ class FirmwareProvider extends ChangeNotifier {
   }
 
   Future<void> upload() async {
-    if (!canUpload || _sourcePath == null || _selectedPort == null) return;
+    if (!canUpload || _sourcePath == null || _selectedPort == null || _isInstallingPlatformio || kIsWeb) return;
 
     _isUploading = true;
     _buildLogs = ['Uploading to $_selectedPort...', ''];
@@ -432,18 +457,28 @@ class FirmwareProvider extends ChangeNotifier {
   }
 
   Future<void> uploadVersion(FirmwareVersion version) async {
-    if (_selectedPort == null) return;
+    if (_selectedPort == null || _isInstallingPlatformio || kIsWeb) return;
+    if (!version.isBuilt && version.firmwarePath == null) return;
 
     _isUploading = true;
-    _buildLogs = ['Uploading version ${version.version} to $_selectedPort...', ''];
+    _buildLogs = [
+      'Uploading ${version.isBuilt ? 'build' : 'firmware'} '
+          'v${version.version} to $_selectedPort...',
+      '',
+    ];
     notifyListeners();
 
     _buildSubscription?.cancel();
-    final stream = _service.uploadFirmware(
-      version.sourcePath,
-      version.pioEnvironment,
-      _selectedPort!,
-    );
+    final stream = version.isBuilt
+        ? _service.uploadFirmware(
+            version.sourcePath,
+            version.pioEnvironment,
+            _selectedPort!,
+          )
+        : _service.flashBinary(
+            version.firmwarePath!,
+            _selectedPort!,
+          );
 
     _buildSubscription = stream.listen(
       (line) {
@@ -465,6 +500,41 @@ class FirmwareProvider extends ChangeNotifier {
     );
   }
 
+  /// Registers an external .bin as a version of the selected device type so it
+  /// appears in history and can be flashed directly via esptool. Version is
+  /// derived from the file name (falling back to the next auto version).
+  Future<FirmwareVersion?> importFirmware(String binPath) async {
+    if (kIsWeb) return null;
+    final file = File(binPath);
+    if (!await file.exists() || await file.length() == 0) return null;
+
+    var version = versionFromFilename(p.basename(binPath));
+    if (version == null || !_versionPattern.hasMatch(version)) {
+      version = _storage.getNextVersion(_selectedDeviceType);
+    }
+
+    String? sha;
+    try {
+      sha = await _service.sha256OfFile(binPath);
+    } catch (_) {}
+
+    final record = FirmwareVersion(
+      id: _uuid.v4(),
+      version: version,
+      deviceType: _selectedDeviceType,
+      sourcePath: p.dirname(binPath),
+      buildDate: DateTime.now(),
+      buildHash: sha,
+      isBuilt: false,
+      firmwarePath: binPath,
+    );
+
+    await _storage.save(record);
+    _versions = _storage.getAll();
+    notifyListeners();
+    return record;
+  }
+
   Future<void> deleteVersion(String id) async {
     await _storage.delete(id);
     _versions = _storage.getAll();
@@ -477,12 +547,48 @@ class FirmwareProvider extends ChangeNotifier {
     _service.cancelActiveProcess();
     _isBuilding = false;
     _isUploading = false;
+    _isInstallingPlatformio = false;
     _buildLogs.add('[CANCELLED] Build cancelled');
     notifyListeners();
   }
 
+  /// Installs PlatformIO Core via pip and, on success, refreshes the
+  /// availability flag and serial ports so building becomes possible.
+  Future<void> installPlatformIO() async {
+    if (_isInstallingPlatformio || _isBuilding || _isUploading || kIsWeb) return;
+
+    _isInstallingPlatformio = true;
+    _buildLogs = [
+      'Установка PlatformIO Core через pip (может занять несколько минут)...',
+      '',
+    ];
+    notifyListeners();
+
+    _buildSubscription?.cancel();
+    final stream = _service.installPlatformIO();
+
+    _buildSubscription = stream.listen(
+      (line) {
+        _buildLogs.add(line);
+        notifyListeners();
+      },
+      onDone: () async {
+        _isInstallingPlatformio = false;
+
+        if (_buildLogs.any((l) => l.contains('[SUCCESS]'))) {
+          _platformioAvailable = await _service.isPlatformIOAvailable();
+          if (_platformioAvailable) {
+            await refreshPorts();
+          }
+        }
+
+        notifyListeners();
+      },
+    );
+  }
+
   Future<void> runPreflight() async {
-    if (_isPreflightChecking) return;
+    if (_isPreflightChecking || kIsWeb) return;
 
     _isPreflightChecking = true;
     _preflightItems = <PreflightItem>[];

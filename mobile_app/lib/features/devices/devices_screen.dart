@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/devices_provider.dart';
+import 'widgets/device_diagnostics_dialog.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/loading_indicator.dart';
 import '../../shared/widgets/error_widget.dart';
 import '../../shared/theme/app_theme.dart';
 import '../../shared/helpers/device_helper.dart';
 import '../../models/device.dart';
+import '../logs/logs_screen.dart';
 
 class DevicesScreen extends StatefulWidget {
   const DevicesScreen({Key? key}) : super(key: key);
@@ -99,8 +101,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
           height: 48,
           decoration: BoxDecoration(
             color: device.isOnline
-                ? AppTheme.successColor.withOpacity(0.1)
-                : Colors.grey.withOpacity(0.1),
+                ? AppTheme.successColor.withValues(alpha: 0.1)
+                : Colors.grey.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
@@ -155,15 +157,15 @@ class _DevicesScreenState extends State<DevicesScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppTheme.warningColor.withOpacity(0.15),
+                      color: AppTheme.warningColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.system_update_alt,
                             size: 12, color: AppTheme.warningColor),
-                        const SizedBox(width: 4),
+                        SizedBox(width: 4),
                         Text(
                           'обновление',
                           style: TextStyle(
@@ -193,6 +195,39 @@ class _DevicesScreenState extends State<DevicesScreen> {
                   ],
                 ),
               ),
+            if (device.isOnline && device.ip.isNotEmpty)
+              const PopupMenuItem(
+                value: 'diagnostics',
+                child: Row(
+                  children: [
+                    Icon(Icons.monitor_heart_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text('Диагностика'),
+                  ],
+                ),
+              ),
+            if (device.isOnline && device.ip.isNotEmpty)
+              const PopupMenuItem(
+                value: 'logs',
+                child: Row(
+                  children: [
+                    Icon(Icons.terminal, size: 20),
+                    SizedBox(width: 8),
+                    Text('Живые логи'),
+                  ],
+                ),
+              ),
+            if (device.isOnline)
+              const PopupMenuItem(
+                value: 'ota_rollback',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings_backup_restore, size: 20),
+                    SizedBox(width: 8),
+                    Text('Откатить прошивку'),
+                  ],
+                ),
+              ),
             const PopupMenuItem(
               value: 'delete',
               child: Row(
@@ -209,6 +244,16 @@ class _DevicesScreenState extends State<DevicesScreen> {
               _showDeleteConfirmation(context, device, provider);
             } else if (value == 'ota') {
               _showOtaDialog(context, device, provider);
+            } else if (value == 'ota_rollback') {
+              _showRollbackDialog(context, device, provider);
+            } else if (value == 'diagnostics') {
+              showDeviceDiagnostics(context, device);
+            } else if (value == 'logs') {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => LogsScreen(device: device),
+                ),
+              );
             }
           },
         ),
@@ -244,6 +289,40 @@ class _DevicesScreenState extends State<DevicesScreen> {
               );
             },
             child: const Text('Обновить'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showRollbackDialog(
+    BuildContext context,
+    Device device,
+    DevicesProvider provider,
+  ) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Откатить прошивку?'),
+        content: Text(
+          'Устройство "${device.name}" переключится на предыдущую версию '
+          'прошивки и перезагрузится.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              final message = await provider.sendOtaRollbackCommand(device);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(message)),
+              );
+            },
+            child: const Text('Откатить'),
           ),
         ],
       ),

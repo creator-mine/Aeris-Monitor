@@ -1,10 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/device_config_provider.dart';
+import '../../core/config/log_mode.dart';
+import '../../core/utils/log_translator.dart';
 import '../../core/utils/version.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/theme/app_theme.dart';
 import '../../models/log_entry.dart';
+import '../settings/providers/settings_provider.dart';
 
 class DeviceConfigScreen extends StatefulWidget {
   const DeviceConfigScreen({Key? key}) : super(key: key);
@@ -44,6 +48,11 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                if (!kIsWeb &&
+                    defaultTargetPlatform == TargetPlatform.android) ...[
+                  _buildAndroidNotice(),
+                  const SizedBox(height: 16),
+                ],
                 _buildConnectionSection(context, provider),
                 const SizedBox(height: 24),
                 if (provider.isConnected) ...[
@@ -60,6 +69,31 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildAndroidNotice() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.amber.shade800),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'На телефоне настройка по USB недоступна. Подключитесь к точке '
+              'доступа устройства (Aeris-Setup-XXXX) и откройте '
+              'http://192.168.4.1, либо настройте Wi-Fi с компьютера.',
+              style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -478,6 +512,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
   }
 
   Widget _buildLogsSection(BuildContext context, DeviceConfigProvider provider) {
+    final settings = context.watch<SettingsProvider>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -518,7 +553,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                   padding: const EdgeInsets.all(8),
                   itemCount: provider.logs.length,
                   itemBuilder: (context, index) {
-                    return _buildLogEntry(context, provider.logs[index]);
+                    return _buildLogEntry(context, provider.logs[index],
+                        settings.logMode, settings.language);
                   },
                 ),
         ),
@@ -526,7 +562,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     );
   }
 
-  Widget _buildLogEntry(BuildContext context, LogEntry entry) {
+  Widget _buildLogEntry(
+      BuildContext context, LogEntry entry, LogMode mode, String language) {
     final tagColor = switch (entry.tag) {
       'WiFi' => AppTheme.accentColors[2],
       'MQTT' => AppTheme.accentColors[0],
@@ -534,6 +571,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
       'Error' => AppTheme.errorColor,
       _ => AppTheme.primaryColor,
     };
+    final msg = LogTranslator.display(mode, language, entry.tag, entry.msg);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
@@ -567,7 +605,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              entry.msg,
+              msg,
               style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
             ),
           ),

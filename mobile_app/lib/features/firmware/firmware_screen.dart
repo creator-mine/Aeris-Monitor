@@ -1,16 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:iot_modular_app/features/firmware/providers/firmware_provider.dart';
-import 'package:iot_modular_app/features/firmware/widgets/device_selector.dart';
-import 'package:iot_modular_app/features/firmware/widgets/port_selector.dart';
-import 'package:iot_modular_app/features/firmware/widgets/build_log_widget.dart';
-import 'package:iot_modular_app/features/firmware/widgets/firmware_info_card.dart';
-import 'package:iot_modular_app/features/firmware/widgets/preflight_card.dart';
-import 'package:iot_modular_app/features/firmware/widgets/published_version_card.dart';
-import 'package:iot_modular_app/features/firmware/widgets/version_history.dart';
-import 'package:iot_modular_app/shared/widgets/app_scaffold.dart';
+import 'package:aeris/features/firmware/widgets/android_ota_card.dart';
+import 'package:aeris/features/firmware/providers/firmware_provider.dart';
+import 'package:aeris/features/firmware/widgets/device_selector.dart';
+import 'package:aeris/features/firmware/widgets/port_selector.dart';
+import 'package:aeris/features/firmware/widgets/build_log_widget.dart';
+import 'package:aeris/features/firmware/widgets/firmware_info_card.dart';
+import 'package:aeris/features/firmware/widgets/preflight_card.dart';
+import 'package:aeris/features/firmware/widgets/published_version_card.dart';
+import 'package:aeris/features/firmware/widgets/version_history.dart';
+import 'package:aeris/shared/widgets/app_scaffold.dart';
 
 class FirmwareScreen extends StatelessWidget {
   const FirmwareScreen({super.key});
@@ -21,9 +23,12 @@ class FirmwareScreen extends StatelessWidget {
       title: 'Прошивка',
       body: Consumer<FirmwareProvider>(
         builder: (context, provider, child) {
+          final isAndroid =
+              !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
           return ListView(
             children: [
-              if (!provider.platformioAvailable)
+              if (isAndroid) const AndroidOtaCard(),
+              if (!isAndroid && !provider.platformioAvailable)
                 Container(
                   margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(12),
@@ -48,8 +53,29 @@ class FirmwareScreen extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'Установите PlatformIO: pip install platformio',
+                              'Установите PlatformIO, чтобы собирать прошивки.',
                               style: TextStyle(fontSize: 12, color: Colors.red.shade600),
+                            ),
+                            const SizedBox(height: 10),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: FilledButton.icon(
+                                onPressed: provider.isInstallingPlatformio
+                                    ? null
+                                    : provider.installPlatformIO,
+                                icon: provider.isInstallingPlatformio
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.download, size: 18),
+                                label: Text(
+                                  provider.isInstallingPlatformio
+                                      ? 'Установка...'
+                                      : 'Установить PlatformIO',
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -57,12 +83,12 @@ class FirmwareScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-              DeviceSelector(),
-              PortSelector(),
+              if (!isAndroid) DeviceSelector(),
+              if (!isAndroid) PortSelector(),
               const SizedBox(height: 8),
               PublishedVersionCard(),
               const SizedBox(height: 8),
-              Card(
+              if (!isAndroid) Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -180,17 +206,18 @@ class FirmwareScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              FirmwareInfoCard(),
+              if (!isAndroid) FirmwareInfoCard(),
               const SizedBox(height: 8),
-              PreflightCard(),
+              if (!isAndroid) PreflightCard(),
               const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _promptVersion(context),
+              if (!isAndroid)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _promptVersion(context),
                         icon: Icon(
                           provider.pendingVersion != null ? Icons.tag : Icons.tag_outlined,
                           size: 18,
@@ -214,13 +241,14 @@ class FirmwareScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: provider.canBuild && !provider.isBuilding && !provider.isUploading
+              if (!isAndroid)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: provider.canBuild && !provider.isBuilding && !provider.isUploading
                             ? provider.build
                             : null,
                         icon: provider.isBuilding
@@ -253,7 +281,17 @@ class FirmwareScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              BuildLogWidget(),
+              if (!isAndroid)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: OutlinedButton.icon(
+                    onPressed: () => _importFirmware(context, provider),
+                  icon: const Icon(Icons.file_open, size: 18),
+                  label: const Text('Импортировать прошивку'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (!isAndroid) BuildLogWidget(),
               VersionHistory(),
               const SizedBox(height: 16),
             ],
@@ -318,5 +356,31 @@ class FirmwareScreen extends StatelessWidget {
         );
       }
     }
+  }
+
+  Future<void> _importFirmware(
+    BuildContext context,
+    FirmwareProvider provider,
+  ) async {
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: 'Выберите прошивку (.bin)',
+      type: FileType.custom,
+      allowedExtensions: ['bin'],
+    );
+    final path = result?.files.single.path;
+    if (path == null || path.isEmpty) return;
+
+    final version = await provider.importFirmware(path);
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          version != null
+              ? 'Импортирована v${version.version} для ${version.deviceType}'
+              : 'Не удалось импортировать прошивку',
+        ),
+      ),
+    );
   }
 }

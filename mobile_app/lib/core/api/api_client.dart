@@ -3,13 +3,16 @@ import '../config/app_config.dart';
 import '../../models/device.dart';
 import '../../models/sensor_data.dart';
 import '../../models/alert.dart';
+import '../../models/smart_rule.dart';
 
 class ApiClient {
   late final Dio _dio;
   String _baseUrl;
+  String _token;
 
-  ApiClient({String? baseUrl})
-      : _baseUrl = baseUrl ?? '${AppConfig.apiBaseUrl}${AppConfig.apiVersion}' {
+  ApiClient({String? baseUrl, String token = ''})
+      : _baseUrl = baseUrl ?? '${AppConfig.apiBaseUrl}${AppConfig.apiVersion}',
+        _token = token {
     _initDio();
   }
 
@@ -21,6 +24,8 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        if (_token.isNotEmpty)
+          'Authorization': 'Bearer $_token',
       },
     ));
 
@@ -33,6 +38,16 @@ class ApiClient {
   void setBaseUrl(String url) {
     _baseUrl = url;
     _dio.options.baseUrl = url;
+  }
+
+  /// Updates the bearer token at runtime (settings change). Empty clears it.
+  void setToken(String token) {
+    _token = token;
+    if (token.isNotEmpty) {
+      _dio.options.headers['Authorization'] = 'Bearer $token';
+    } else {
+      _dio.options.headers.remove('Authorization');
+    }
   }
 
   // Devices
@@ -151,6 +166,31 @@ class ApiClient {
 
   Future<void> deleteAlert(String id) async {
     await _dio.delete('/alerts/$id');
+  }
+
+  // Smart-home rules
+  Future<List<SmartRule>> getRules({String? deviceId}) async {
+    final response = await _dio.get(
+      '/rules',
+      queryParameters: deviceId != null ? {'device_id': deviceId} : null,
+    );
+    return (response.data as List)
+        .map((json) => SmartRule.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<SmartRule> createRule(Map<String, dynamic> data) async {
+    final response = await _dio.post('/rules', data: data);
+    return SmartRule.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<SmartRule> updateRule(String id, Map<String, dynamic> data) async {
+    final response = await _dio.put('/rules/$id', data: data);
+    return SmartRule.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<void> deleteRule(String id) async {
+    await _dio.delete('/rules/$id');
   }
 
   // Health

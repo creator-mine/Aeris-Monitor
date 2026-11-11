@@ -8,6 +8,7 @@ class AlertsProvider extends ChangeNotifier {
   List<Alert> _alerts = [];
   bool _isLoading = false;
   String? _error;
+  bool _disposed = false;
 
   AlertsProvider({required ApiClient apiClient}) : _apiClient = apiClient;
 
@@ -24,15 +25,17 @@ class AlertsProvider extends ChangeNotifier {
   Future<void> loadAlerts() async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       _alerts = await _apiClient.getAlerts();
     } catch (e) {
       _error = e.toString();
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (!_disposed) {
+        _isLoading = false;
+        _safeNotify();
+      }
     }
   }
 
@@ -49,12 +52,13 @@ class AlertsProvider extends ChangeNotifier {
         'type': type.name,
         'threshold': threshold,
       });
+      if (_disposed) return true;
       _alerts.add(alert);
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -62,34 +66,48 @@ class AlertsProvider extends ChangeNotifier {
   Future<bool> updateAlert(String id, Map<String, dynamic> data) async {
     try {
       final alert = await _apiClient.updateAlert(id, data);
+      if (_disposed) return true;
       final index = _alerts.indexWhere((a) => a.id == id);
       if (index != -1) {
         _alerts[index] = alert;
-        notifyListeners();
+        _safeNotify();
       }
       return true;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
 
   Future<bool> toggleAlert(String id) async {
-    final alert = _alerts.firstWhere((a) => a.id == id);
-    return updateAlert(id, {'is_active': !alert.isActive});
+    final index = _alerts.indexWhere((a) => a.id == id);
+    if (index == -1) return false;
+    return updateAlert(id, {'is_active': !_alerts[index].isActive});
   }
 
   Future<bool> deleteAlert(String id) async {
     try {
       await _apiClient.deleteAlert(id);
+      if (_disposed) return true;
       _alerts.removeWhere((a) => a.id == id);
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
+      _safeNotify();
       return false;
     }
+  }
+
+  void _safeNotify() {
+    if (_disposed) return;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

@@ -1,12 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:local_notifier/local_notifier.dart';
+import '../../../core/notifications/notification_service.dart';
 import '../../../models/sensor_data.dart';
 
-/// Returns true on desktop platforms where local notifications are supported.
-bool localNotificationsAvailable() =>
-    !kIsWeb && (defaultTargetPlatform == TargetPlatform.windows ||
-        defaultTargetPlatform == TargetPlatform.linux ||
-        defaultTargetPlatform == TargetPlatform.macOS);
+/// Local notifications are available on every platform except web.
+bool localNotificationsAvailable() => !kIsWeb;
 
 /// Throttle identical notifications for the same device+sensor so a
 /// continuous alarm state does not repeatedly spam the OS notification center.
@@ -14,7 +13,21 @@ class AlertNotifier {
   static final Map<String, DateTime> _lastSent = {};
   static const Duration _cooldown = Duration(minutes: 10);
 
-  /// Shows a desktop notification if the flagged sensor is reported.
+  /// Shows a notification for an arbitrary title/body, throttled by title.
+  /// No-op on web.
+  static void notify(String title, String body) {
+    if (!localNotificationsAvailable()) return;
+
+    final key = 'custom:$title';
+    final last = _lastSent[key];
+    final now = DateTime.now();
+    if (last != null && now.difference(last) < _cooldown) return;
+
+    _lastSent[key] = now;
+    unawaited(NotificationService.show(title, body));
+  }
+
+  /// Shows a notification if the flagged sensor is reported.
   static void maybeNotify(SensorData data) {
     if (!localNotificationsAvailable()) return;
 
@@ -37,13 +50,9 @@ class AlertNotifier {
     _lastSent[key] = now;
 
     final name = _name(sensorType);
-    final body =
-        'Показания: ${value.toStringAsFixed(1)} ${_unit(sensorType)}';
+    final body = 'Показания: ${value.toStringAsFixed(1)} ${_unit(sensorType)}';
 
-    LocalNotification(
-      title: 'IoT monitor · $name',
-      body: body,
-    ).show();
+    unawaited(NotificationService.show('Aeris Monitor · $name', body));
   }
 
   static String _name(String sensorType) => switch (sensorType) {

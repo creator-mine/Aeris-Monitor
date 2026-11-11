@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
@@ -130,7 +131,7 @@ class VersionHistory extends StatelessWidget {
                       if (version.lastUploadPort != null)
                         _MetaRow('Порт загрузки', version.lastUploadPort!),
                       if (version.buildHash != null)
-                        _MetaRow('Хэш исходников', version.buildHash!.substring(0, min(12, version.buildHash!.length)), monospace: true),
+                        _MetaRow(version.isBuilt ? 'Хэш исходников' : 'SHA-256', version.buildHash!.substring(0, min(12, version.buildHash!.length)), monospace: true),
                       _MetaRow('Источник', version.sourcePath, monospace: true),
                       if (version.firmwarePath != null)
                         _MetaRow('firmware.bin', version.firmwarePath!, monospace: true),
@@ -167,6 +168,12 @@ class VersionHistory extends StatelessWidget {
 
   Future<void> _export(BuildContext context, FirmwareVersion version) async {
     final messenger = ScaffoldMessenger.of(context);
+    if (kIsWeb) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Экспорт прошивки доступен только в настольной версии'),
+      ));
+      return;
+    }
     final path = version.firmwarePath;
     if (path == null) {
       messenger.showSnackBar(const SnackBar(content: Text('Путь к прошивке не сохранён')));
@@ -533,6 +540,7 @@ class _VersionTile extends StatelessWidget {
   }
 
   bool _binExists(FirmwareVersion version) {
+    if (kIsWeb) return false;
     final path = version.firmwarePath;
     if (path == null) return false;
     try {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:libserialport/libserialport.dart';
@@ -20,10 +21,18 @@ class SerialIo {
   bool get isConnected => _port?.isOpen ?? false;
   String? get portName => _port?.name;
 
-  static List<String> listPorts() => SerialPort.availablePorts;
+  static bool get _unsupportedMobile =>
+      Platform.isAndroid || Platform.isIOS;
+
+  static List<String> listPorts() =>
+      _unsupportedMobile ? const [] : SerialPort.availablePorts;
 
   /// Opens `name` for reading and writing and configures 8N1 at `baudRate`.
   bool connect(String name, int baudRate) {
+    if (_unsupportedMobile) {
+      _lastError = 'USB serial is not supported on this platform';
+      return false;
+    }
     disconnect();
 
     try {

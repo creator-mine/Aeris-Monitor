@@ -15,6 +15,7 @@ class DevicesProvider extends ChangeNotifier {
   List<Device> _devices = [];
   bool _isLoading = false;
   String? _error;
+  bool _disposed = false;
 
   /// Published manifests keyed by canonical device type ("esp32-c3",
   /// "esp32-s3"), each fetched from its own /fw/version*.json.
@@ -56,15 +57,17 @@ class DevicesProvider extends ChangeNotifier {
   Future<void> loadDevices() async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       _devices = await _signalingApi.getDevices();
     } catch (e) {
       _error = e.toString();
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (!_disposed) {
+        _isLoading = false;
+        _safeNotify();
+      }
     }
   }
 
@@ -94,6 +97,7 @@ class DevicesProvider extends ChangeNotifier {
     try {
       for (final type in types) {
         final manifest = await api.fetchManifest(deviceType: type);
+        if (_disposed) return;
         if (manifest != null) {
           _manifests[type] = manifest;
         }
@@ -105,8 +109,10 @@ class DevicesProvider extends ChangeNotifier {
     } catch (e) {
       _manifestError = e.toString();
     } finally {
-      _isLoadingManifest = false;
-      notifyListeners();
+      if (!_disposed) {
+        _isLoadingManifest = false;
+        _safeNotify();
+      }
     }
   }
 
@@ -157,26 +163,74 @@ class DevicesProvider extends ChangeNotifier {
     return 'Нет связи с устройством (MQTT не подключён, IP неизвестен)';
   }
 
+  /// Asks the device to reboot into the previously running app partition.
+  /// Returns a human-readable result to surface in the UI.
+  Future<String> sendOtaRollbackCommand(Device device) async {
+    if (!device.isOnline) {
+      return 'Устройство ${device.name} не в сети';
+    }
+
+    final mqtt = _mqtt;
+    if (mqtt != null && mqtt.isConnected) {
+      mqtt.publishCommand(device.id, {
+        'type': 'command',
+        'command': 'ota_rollback',
+      });
+      return 'Команда отката отправлена через MQTT — устройство загрузит предыдущую прошивку и перезагрузится';
+    }
+
+    final baseUrl = device.httpBaseUrl;
+    if (baseUrl != null) {
+      try {
+        final client = DirectDeviceClient(baseUrl: baseUrl);
+        final result = await client.sendCommand('ota_rollback');
+        client.dispose();
+        final started = result?['status'] == 'started' || result?['ok'] == true;
+        if (started) {
+          return 'Команда отката отправлена напрямую — устройство загрузит предыдущую прошивку и перезагрузится';
+        }
+        if (result?['error'] == 'rollback_failed') {
+          return 'Не удалось переключить на предыдущую прошивку';
+        }
+        return 'Устройство вернуло ошибку: ${result ?? 'нет ответа'}';
+      } catch (e) {
+        return 'Не удалось связаться с устройством напрямую: $e';
+      }
+    }
+
+    return 'Нет связи с устройством (MQTT не подключён, IP неизвестен)';
+  }
+
   Future<bool> deleteDevice(String id) async {
     try {
       final removed = await _signalingApi.removeDevice(id);
+      if (_disposed) return removed;
       if (removed) {
         _devices.removeWhere((d) => d.id == id);
       }
-      notifyListeners();
+      _safeNotify();
       return removed;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
 
   Device? getDeviceById(String id) {
-    try {
-      return _devices.firstWhere((d) => d.id == id);
-    } catch (e) {
-      return null;
-    }
+    final index = _devices.indexWhere((d) => d.id == id);
+    if (index == -1) return null;
+    return _devices[index];
+  }
+
+  void _safeNotify() {
+    if (_disposed) return;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

@@ -8,9 +8,11 @@ import '../../models/device.dart';
 class SignalingApi {
   late final Dio _dio;
   String _baseUrl;
+  String _token;
 
-  SignalingApi({String? baseUrl})
-      : _baseUrl = baseUrl ?? '${AppConfig.signalingUrl}${AppConfig.signalingApiVersion}' {
+  SignalingApi({String? baseUrl, String token = ''})
+      : _baseUrl = baseUrl ?? '${AppConfig.signalingUrl}${AppConfig.signalingApiVersion}',
+        _token = token {
     _dio = Dio(BaseOptions(
       baseUrl: _baseUrl,
       connectTimeout: AppConfig.connectionTimeout,
@@ -18,8 +20,8 @@ class SignalingApi {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        if (AppConfig.signalingToken.isNotEmpty)
-          'Authorization': 'Bearer ${AppConfig.signalingToken}',
+        if (_token.isNotEmpty)
+          'Authorization': 'Bearer $_token',
       },
     ));
   }
@@ -27,6 +29,16 @@ class SignalingApi {
   void setBaseUrl(String url) {
     _baseUrl = url;
     _dio.options.baseUrl = url;
+  }
+
+  /// Updates the bearer token at runtime (settings change). Empty clears it.
+  void setToken(String token) {
+    _token = token;
+    if (token.isNotEmpty) {
+      _dio.options.headers['Authorization'] = 'Bearer $token';
+    } else {
+      _dio.options.headers.remove('Authorization');
+    }
   }
 
   String get baseUrl => _baseUrl;

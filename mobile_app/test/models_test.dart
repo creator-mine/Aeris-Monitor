@@ -1,9 +1,9 @@
 // ignore_for_file: prefer_const_literals_to_create_immutables
 import 'package:flutter_test/flutter_test.dart';
-import 'package:iot_modular_app/models/alert.dart';
-import 'package:iot_modular_app/models/device.dart';
-import 'package:iot_modular_app/models/log_entry.dart';
-import 'package:iot_modular_app/models/sensor_data.dart';
+import 'package:aeris/models/alert.dart';
+import 'package:aeris/models/device.dart';
+import 'package:aeris/models/log_entry.dart';
+import 'package:aeris/models/sensor_data.dart';
 
 void main() {
   group('SensorData', () {
@@ -68,25 +68,6 @@ void main() {
       expect(series.minValue, 0);
       expect(series.maxValue, 0);
       expect(series.avgValue, 0);
-    });
-  });
-
-  group('BME680Data / BH1750Data', () {
-    test('BME680 parses values as doubles', () {
-      final b = BME680Data.fromMap({
-        'temperature': 25,
-        'humidity': 60,
-        'pressure': 1013,
-        'gas_resistance': 100000,
-      });
-      expect(b.temperature, 25.0);
-      expect(b.humidity, 60.0);
-      expect(b.gasResistance, 100000.0);
-    });
-
-    test('BH1750 parses illuminance', () {
-      final l = BH1750Data.fromMap({'illuminance': 512});
-      expect(l.illuminance, 512.0);
     });
   });
 

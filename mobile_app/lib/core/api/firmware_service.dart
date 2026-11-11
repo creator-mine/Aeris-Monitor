@@ -32,18 +32,236 @@ class ChipDetectionResult {
 class FirmwareService {
   Process? _activeProcess;
 
-  Future<bool> isPlatformIOAvailable() async {
-    try {
-      final result = await Process.run('python', ['-m', 'platformio', '--version']);
-      return result.exitCode == 0;
-    } catch (_) {
+  Map<String, String> _pythonEnv() {
+    return {
+      ...Platform.environment,
+      'PYTHONIOENCODING': 'utf-8',
+      'PYTHONUTF8': '1',
+    };
+  }
+
+  /// Python interpreters bundled in the PlatformIO isolated environment
+  /// (created by the official installer) — checked before system Python.
+  List<String> _penvPythonCandidates() {
+    final root = _platformioRoot();
+    if (root == null) return const [];
+    return [
+      p.join(root, 'penv', 'Scripts', 'python.exe'),
+      p.join(root, 'penv', 'bin', 'python'),
+      p.join(root, 'penv', 'bin', 'python3'),
+    ];
+  }
+
+  /// Direct `platformio` launchers (penv + ~/.local/bin from the installer).
+  List<String> _pioExecutableCandidates() {
+    final list = <String>[];
+    final root = _platformioRoot();
+    if (root != null) {
+      list.add(p.join(root, 'penv', 'Scripts', 'platformio.exe'));
+      list.add(p.join(root, 'penv', 'bin', 'platformio'));
+    }
+    final home = Platform.isWindows
+        ? Platform.environment['USERPROFILE']
+        : Platform.environment['HOME'];
+    if (home != null && home.isNotEmpty) {
+      list.add(p.join(home, '.local', 'bin', 'platformio'));
+    }
+    return list;
+  }
+
+  /// First Python interpreter that answers `--version`.
+  Future<String?> _resolvePython() async {
+    final candidates = Platform.isWindows
+        ? ['python', 'py', 'python3']
+        : ['python3', 'python'];
+    for (final candidate in candidates) {
       try {
-        final result = await Process.run('platformio', ['--version']);
-        return result.exitCode == 0;
+        final r = await Process.run(candidate, ['--version']);
+        if (r.exitCode == 0) return candidate;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  /// Whether [python] can create virtual environments (needs the `venv`
+  /// and `ensurepip` modules, which Debian/Ubuntu ship separately).
+  Future<bool> _hasVenv(String python) async {
+    try {
+      final r = await Process.run(python, ['-c', 'import venv, ensurepip']);
+      return r.exitCode == 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Localized venv package name for the given interpreter, e.g.
+  /// `python3.14-venv`, falling back to the generic `python3-venv`.
+  Future<String> _venvPackageName(String python) async {
+    try {
+      final r = await Process.run(
+        python,
+        ['-c', 'import sys; print("%d.%d" % sys.version_info[:2])'],
+      );
+      if (r.exitCode == 0) {
+        final v = r.stdout.toString().trim();
+        if (v.isNotEmpty) return 'python$v-venv';
+      }
+    } catch (_) {}
+    return 'python3-venv';
+  }
+
+  Future<String?> _tryPlatformio(String exe, List<String> args) async {
+    try {
+      final r = await Process.run(exe, args, environment: _pythonEnv());
+      if (r.exitCode == 0) {
+        final out = r.stdout.toString().trim();
+        final line = out.isEmpty ? '' : out.split('\n').first.trim();
+        return line.isNotEmpty ? line : 'platformio';
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Detects PlatformIO from the isolated env, launchers or system Python.
+  /// Returns the version string, or null when it is not installed.
+  Future<String?> _detectPlatformioVersion() async {
+    for (final py in _penvPythonCandidates()) {
+      if (!File(py).existsSync()) continue;
+      final v = await _tryPlatformio(py, ['-m', 'platformio', '--version']);
+      if (v != null) return v;
+    }
+    for (final exe in _pioExecutableCandidates()) {
+      if (!File(exe).existsSync()) continue;
+      final v = await _tryPlatformio(exe, ['--version']);
+      if (v != null) return v;
+    }
+    for (final py in ['python', 'python3']) {
+      final v = await _tryPlatformio(py, ['-m', 'platformio', '--version']);
+      if (v != null) return v;
+    }
+    return _tryPlatformio('platformio', ['--version']);
+  }
+
+  Future<bool> isPlatformIOAvailable() async =>
+      (await _detectPlatformioVersion()) != null;
+
+  static const _platformioInstallerUrl =
+      'https://raw.githubusercontent.com/platformio/platformio-core-installer/'
+      'master/get-platformio.py';
+
+  /// Downloads [url] to [dest] using curl, wget or Python's urllib.
+  Future<bool> _downloadFile(String url, String dest) async {
+    Future<bool> tryRun(String exe, List<String> args) async {
+      try {
+        final r = await Process.run(exe, args);
+        return r.exitCode == 0 &&
+            File(dest).existsSync() &&
+            File(dest).lengthSync() > 0;
       } catch (_) {
         return false;
       }
     }
+
+    if (await tryRun('curl', ['-fsSL', '-o', dest, url])) return true;
+    if (await tryRun('wget', ['-q', '-O', dest, url])) return true;
+    final python = await _resolvePython();
+    if (python != null) {
+      const code = 'import sys, urllib.request\n'
+          'urllib.request.urlretrieve(sys.argv[1], sys.argv[2])';
+      if (await tryRun(python, ['-c', code, url, dest])) return true;
+    }
+    return false;
+  }
+
+  /// Installs PlatformIO Core with the official installer script, which sets
+  /// up an isolated `~/.platformio/penv` environment (used later for esptool).
+  /// On Debian/Ubuntu it may require `python3-venv`/`python3-pip`.
+  Stream<String> installPlatformIO() async* {
+    final controller = StreamController<String>();
+
+    () async {
+      Directory? tmpDir;
+      try {
+        controller.add('Поиск Python...');
+        final python = await _resolvePython();
+        if (python == null) {
+          controller.add('[ERROR] Python 3 не найден. Установите Python 3 '
+              '(например: sudo apt install python3) и повторите.');
+          return;
+        }
+        controller.add('Python: $python');
+
+        if (!Platform.isWindows && !await _hasVenv(python)) {
+          final pkg = await _venvPackageName(python);
+          controller.add('');
+          controller.add('[ERROR] В Python отсутствует модуль venv — без него '
+              'PlatformIO установить нельзя.');
+          controller.add('Установите его один раз (нужны права администратора) '
+              'и нажмите кнопку снова:');
+          controller.add('    sudo apt install $pkg python3-pip');
+          return;
+        }
+
+        tmpDir = await Directory.systemTemp.createTemp('pio_install_');
+        final scriptPath = p.join(tmpDir.path, 'get-platformio.py');
+
+        controller.add('Загрузка официального установщика PlatformIO...');
+        final downloaded = await _downloadFile(_platformioInstallerUrl, scriptPath);
+        if (!downloaded) {
+          controller.add('[ERROR] Не удалось скачать установщик. '
+              'Проверьте подключение к интернету и повторите.');
+          return;
+        }
+        controller.add('Файл: $scriptPath');
+        controller.add('');
+
+        final process = await Process.start(
+          python,
+          [scriptPath],
+          environment: _pythonEnv(),
+        );
+        _activeProcess = process;
+
+        final stderrFilter = _InstallerStderrFilter(controller.add);
+
+        process.stdout
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .listen(controller.add);
+
+        process.stderr
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .listen(stderrFilter.add, onDone: stderrFilter.finish);
+
+        final exitCode = await process.exitCode;
+        _activeProcess = null;
+        stderrFilter.finish();
+
+        controller.add('');
+        if (exitCode == 0) {
+          controller.add('[SUCCESS] PlatformIO установлен');
+        } else {
+          controller.add('[ERROR] Установка не удалась (код: $exitCode)');
+          if (!Platform.isWindows) {
+            controller.add('Если не хватает зависимостей, установите их: '
+                'sudo apt install python3-venv python3-pip');
+          }
+        }
+      } catch (e) {
+        _activeProcess = null;
+        controller.add('[ERROR] $e');
+      } finally {
+        if (tmpDir != null) {
+          try {
+            await tmpDir.delete(recursive: true);
+          } catch (_) {}
+        }
+        await controller.close();
+      }
+    }();
+
+    yield* controller.stream;
   }
 
   void cancelActiveProcess() {
@@ -244,7 +462,12 @@ class FirmwareService {
     () async {
       try {
         final args = ['-m', 'platformio', 'run', '-e', environment];
-        final process = await Process.start('python', args, workingDirectory: projectPath);
+        final process = await Process.start(
+          'python',
+          args,
+          workingDirectory: projectPath,
+          environment: _pythonEnv(),
+        );
         _activeProcess = process;
 
         process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
@@ -290,7 +513,12 @@ class FirmwareService {
           '--target', 'upload',
           '--upload-port', port,
         ];
-        final process = await Process.start('python', args, workingDirectory: projectPath);
+        final process = await Process.start(
+          'python',
+          args,
+          workingDirectory: projectPath,
+          environment: _pythonEnv(),
+        );
         _activeProcess = process;
 
         process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
@@ -309,6 +537,76 @@ class FirmwareService {
           controller.add('[SUCCESS] Upload completed');
         } else {
           controller.add('[ERROR] Upload failed (code: $exitCode)');
+        }
+      } catch (e) {
+        _activeProcess = null;
+        controller.add('[ERROR] $e');
+      } finally {
+        await controller.close();
+      }
+    }();
+
+    yield* controller.stream;
+  }
+
+  /// sha256 hex of any binary file (used when importing an external firmware).
+  Future<String> sha256OfFile(String path) async {
+    final bytes = await File(path).readAsBytes();
+    return sha256.convert(bytes).toString();
+  }
+
+  /// Flashes a standalone firmware binary with esptool directly (no project).
+  /// The app is written at the standard factory slot offset (0x10000).
+  Stream<String> flashBinary(String binPath, String port) async* {
+    final controller = StreamController<String>();
+
+    () async {
+      try {
+        final python = _penvPythonPath();
+        final esptool = _esptoolScriptPath();
+        if (python == null || esptool == null) {
+          controller.add('[ERROR] esptool не найден. Установите PlatformIO '
+              'или соберите проект хотя бы один раз.');
+          return;
+        }
+        if (!File(binPath).existsSync()) {
+          controller.add('[ERROR] Файл не найден: $binPath');
+          return;
+        }
+
+        final args = [
+          esptool,
+          '--chip', 'auto',
+          '--port', port,
+          '--baud', '460800',
+          'write_flash',
+          '0x10000', binPath,
+        ];
+        final process = await Process.start(
+          python,
+          args,
+          environment: _pythonEnv(),
+        );
+        _activeProcess = process;
+
+        process.stdout
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .listen(controller.add);
+
+        process.stderr
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .listen((line) => controller.add('[STDERR] $line'));
+
+        final exitCode = await process.exitCode;
+        _activeProcess = null;
+
+        controller.add('');
+        if (exitCode == 0) {
+          controller.add('[SUCCESS] Flash completed');
+        } else {
+          controller.add('[ERROR] Flash failed (code: $exitCode)');
         }
       } catch (e) {
         _activeProcess = null;
@@ -388,8 +686,12 @@ class FirmwareService {
 
   /// Fetches the published firmware manifest from the OTA site
   /// for the given device type (defaults to the legacy esp32-c3 manifest).
-  Future<FirmwareManifest?> fetchOtaManifest({String? deviceType}) async {
-    return OtaApi().fetchManifest(deviceType: deviceType);
+  /// [baseUrl] overrides the default OTA host (self-hosting).
+  Future<FirmwareManifest?> fetchOtaManifest({
+    String? deviceType,
+    String? baseUrl,
+  }) async {
+    return OtaApi(baseUrl: baseUrl).fetchManifest(deviceType: deviceType);
   }
 
   /// Parses [platformio.ini] and returns the settings of the selected env
@@ -501,23 +803,7 @@ class FirmwareService {
     }
   }
 
-  Future<String?> getPlatformIOVersion() async {
-    try {
-      final result = await Process.run('python', ['-m', 'platformio', '--version']);
-      if (result.exitCode == 0) {
-        final line = result.stdout.toString().trim().split('\n').first;
-        if (line.isNotEmpty) return line;
-      }
-    } catch (_) {}
-    try {
-      final result = await Process.run('platformio', ['--version']);
-      if (result.exitCode == 0) {
-        final line = result.stdout.toString().trim().split('\n').first;
-        if (line.isNotEmpty) return line;
-      }
-    } catch (_) {}
-    return null;
-  }
+  Future<String?> getPlatformIOVersion() => _detectPlatformioVersion();
 
   /// Lists installed packages (platforms/frameworks/tools) for an env.
   Future<List<Map<String, dynamic>>> platformioPkgList(
@@ -529,6 +815,7 @@ class FirmwareService {
         'python',
         ['-m', 'platformio', 'pkg', 'list', '--environment', environment, '--json-output'],
         workingDirectory: projectPath,
+        environment: _pythonEnv(),
       );
       if (result.exitCode == 0) {
         final data = jsonDecode(result.stdout.toString());
@@ -581,5 +868,69 @@ class FirmwareService {
     } catch (_) {
       return {'isRepo': false};
     }
+  }
+}
+
+/// Drops the harmless multiprocessing/shutil finalizer traceback that the
+/// PlatformIO installer prints on some Python versions (3.12+/3.14) while it
+/// removes its own temporary directory. Any other stderr is passed through
+/// unchanged, prefixed with `[STDERR] `.
+class _InstallerStderrFilter {
+  _InstallerStderrFilter(this._emit);
+
+  final void Function(String line) _emit;
+
+  static const _benignMarkers = <String>[
+    '/multiprocessing/',
+    'multiprocessing/util.py',
+    '_run_finalizers',
+    '_remove_temp_dir',
+    '_rmtree',
+    'orig_st = os.lstat',
+    'finalizer()',
+    'self._callback(',
+    'res = self._callback',
+    'pymp-',
+    '.piocore-installer-',
+    'FileNotFoundError: [Errno 2] No such file or directory:',
+  ];
+
+  final List<String> _buffer = [];
+  bool _inTraceback = false;
+  bool _benign = false;
+
+  void add(String line) {
+    if (!_inTraceback) {
+      if (line.trimLeft().startsWith('Traceback (most recent call last):')) {
+        _inTraceback = true;
+        _benign = false;
+        _buffer
+          ..clear()
+          ..add(line);
+        return;
+      }
+      _emit('[STDERR] $line');
+      return;
+    }
+
+    _buffer.add(line);
+    if (_benignMarkers.any(line.contains)) _benign = true;
+
+    // A traceback block ends with the exception line, which is not indented.
+    final startsIndented = line.startsWith(' ') || line.startsWith('\t');
+    if (!startsIndented) _flush();
+  }
+
+  void finish() => _flush();
+
+  void _flush() {
+    if (_buffer.isNotEmpty && !_benign) {
+      for (final line in _buffer) {
+        _emit('[STDERR] $line');
+      }
+    }
+    _buffer.clear();
+    _inTraceback = false;
+    _benign = false;
   }
 }

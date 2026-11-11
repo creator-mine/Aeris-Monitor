@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,7 +8,15 @@ import 'providers/settings_provider.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/theme/app_theme.dart';
 import '../../core/api/mqtt_client.dart';
+import '../../core/api/signaling_api.dart';
+import '../../core/background/background_service.dart';
+import '../../core/api/api_client.dart';
 import '../../core/config/app_config.dart';
+import '../../core/config/log_mode.dart';
+import '../devices/providers/devices_provider.dart';
+import '../alerts/providers/alerts_provider.dart';
+import '../dashboard/providers/dashboard_provider.dart';
+import '../firmware/providers/firmware_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -30,6 +40,14 @@ class SettingsScreen extends StatelessWidget {
                     provider.apiUrl,
                     (value) => provider.setApiUrl(value),
                     icon: Icons.link,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    context,
+                    'OTA URL (прошивки)',
+                    provider.otaUrl,
+                    (value) => provider.setOtaUrl(value),
+                    icon: Icons.system_update_alt,
                   ),
                   const SizedBox(height: 12),
                   _buildTextField(
@@ -70,13 +88,26 @@ class SettingsScreen extends StatelessWidget {
                     icon: Icons.key,
                     obscureText: true,
                   ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    context,
+                    'Токен записи (API)',
+                    provider.signalingToken,
+                    (value) {
+                      provider.setSignalingToken(value);
+                      context.read<SignalingApi>().setToken(value);
+                      context.read<ApiClient>().setToken(value);
+                    },
+                    icon: Icons.key,
+                    obscureText: true,
+                  ),
                   const SizedBox(height: 16),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
-                      onPressed: () => _reconnectMqtt(context, provider),
+                      onPressed: () => _applyAndReconnect(context, provider),
                       icon: const Icon(Icons.sync, size: 18),
-                      label: const Text('Переподключить MQTT'),
+                      label: const Text('Применить и переподключиться'),
                     ),
                   ),
                 ],
@@ -100,6 +131,56 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: 24),
               _buildSection(
                 context,
+                'Логирование',
+                [
+                  SegmentedButton<LogMode>(
+                    segments: const [
+                      ButtonSegment(
+                        value: LogMode.standard,
+                        label: Text('Стандартный'),
+                        icon: Icon(Icons.article_outlined, size: 18),
+                      ),
+                      ButtonSegment(
+                        value: LogMode.lightweight,
+                        label: Text('Облегчённый'),
+                        icon: Icon(Icons.translate, size: 18),
+                      ),
+                    ],
+                    selected: {provider.logMode},
+                    onSelectionChanged: (selection) =>
+                        provider.setLogMode(selection.first),
+                    showSelectedIcon: false,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: provider.language,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Язык логов',
+                      prefixIcon: const Icon(Icons.language),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'ru', child: Text('Русский')),
+                      DropdownMenuItem(value: 'en', child: Text('English')),
+                    ],
+                    onChanged: (lang) {
+                      if (lang != null) provider.setLanguage(lang);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'В облегчённом режиме известные системные события '
+                    'показываются краткими переведёнными фразами.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _buildSection(
+                context,
                 'Фон приложения',
                 [
                   _buildBackgroundSelector(context, provider),
@@ -113,14 +194,14 @@ class SettingsScreen extends StatelessWidget {
                   _buildInfoTile(
                     context,
                     'Версия',
-                    '1.0.0',
+                    AppConfig.appVersion,
                     icon: Icons.info,
                   ),
                   const SizedBox(height: 12),
                   _buildInfoTile(
                     context,
                     'Разработчик',
-                    'IoT Modular System',
+                    'Aeris Monitor',
                     icon: Icons.code,
                   ),
                 ],
@@ -186,34 +267,29 @@ class SettingsScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (provider.backgroundImagePath != null) ...[
+        if (provider.backgroundImagePath != null ||
+            provider.backgroundImageBytes != null) ...[
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.file(
-              File(provider.backgroundImagePath!),
-              height: 180,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(12),
+            child: kIsWeb
+                ? Image.memory(
+                    provider.backgroundImageBytes!,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _brokenImage();
+                    },
+                  )
+                : Image.file(
+                    File(provider.backgroundImagePath!),
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _brokenImage();
+                    },
                   ),
-                  child: const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                        SizedBox(height: 8),
-                        Text('Файл не найден', style: TextStyle(color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -244,7 +320,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               OutlinedButton.icon(
-                onPressed: () => provider.setBackgroundImagePath(null),
+                onPressed: () => provider.clearBackgroundImage(),
                 icon: const Icon(Icons.delete_outline, size: 18),
                 label: const Text('Сбросить'),
                 style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
@@ -287,19 +363,51 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _reconnectMqtt(BuildContext context, SettingsProvider provider) async {
+  Future<void> _applyAndReconnect(
+      BuildContext context, SettingsProvider provider) async {
+    if (!context.mounted) return;
+
+    // Apply the API base URL + bearer token at runtime (no restart needed).
+    final apiUrl = '${provider.apiUrl}/api/v1';
+    context.read<SignalingApi>()..setBaseUrl(apiUrl)..setToken(provider.signalingToken);
+    context.read<ApiClient>()..setBaseUrl(apiUrl)..setToken(provider.signalingToken);
+
+    // The background SSE isolate reads api_url/signaling_token only on start,
+    // so restart it to pick up a rotated token or a new host immediately.
+    unawaited(startBackgroundMonitor());
+
+    // Reconnect MQTT with the new broker/port/credentials.
     final mqtt = context.read<MqttService>();
+    final mqttPort = kIsWeb ? AppConfig.mqttWssPort : provider.mqttPort;
     final ok = await mqtt.reconnect(
       broker: provider.mqttBroker,
-      port: provider.mqttPort,
-      useWebSocket: provider.mqttPort == AppConfig.mqttPort,
+      port: mqttPort,
+      useWebSocket: kIsWeb ||
+          mqttPort == 9001 ||
+          mqttPort == AppConfig.mqttWssPort,
+      secure: mqttPort == AppConfig.mqttPort ||
+          mqttPort == AppConfig.mqttWssPort,
       username: provider.mqttUsername,
       password: provider.mqttPassword,
     );
+
+    // Refresh data from the newly configured endpoints.
+    context.read<DevicesProvider>().refreshDevices();
+    context.read<AlertsProvider>().loadAlerts();
+    context.read<DashboardProvider>().loadDevices();
+
+    // Point the OTA/firmware checker at the configured host.
+    context
+        .read<FirmwareProvider>()
+      ..setOtaBaseUrl(provider.effectiveOtaUrl)
+      ..fetchServerManifest();
+
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok ? 'MQTT переподключён' : 'Не удалось подключиться к MQTT'),
+        content: Text(
+          ok ? 'Настройки применены, MQTT переподключён' : 'Настройки применены, MQTT не подключился',
+        ),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -312,9 +420,33 @@ class SettingsScreen extends StatelessWidget {
       maxWidth: 1920,
       maxHeight: 1080,
     );
-    if (xFile != null) {
+    if (xFile == null) return;
+    if (kIsWeb) {
+      final bytes = await xFile.readAsBytes();
+      await provider.setBackgroundImageBytes(bytes);
+    } else {
       await provider.setBackgroundImagePath(xFile.path);
     }
+  }
+
+  Widget _brokenImage() {
+    return Container(
+      height: 180,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.broken_image, size: 48, color: Colors.grey),
+            SizedBox(height: 8),
+            Text('Файл не найден', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildSection(BuildContext context, String title, List<Widget> children) {

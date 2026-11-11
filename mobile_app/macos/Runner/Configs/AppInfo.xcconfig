@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = iot_modular_app
+PRODUCT_NAME = aeris
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.iot.iotModularApp
+PRODUCT_BUNDLE_IDENTIFIER = online.spe4naz.aeris
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.iot. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Aeris. All rights reserved.

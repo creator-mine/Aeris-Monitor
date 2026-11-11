@@ -17,6 +17,7 @@ class DeviceWsClient {
   Timer? _reconnectTimer;
   String? _wsUrl;
   bool _manuallyClosed = false;
+  int _generation = 0;
 
   void Function(Map<String, dynamic> sensorData)? onSensorUpdate;
   void Function(Map<String, dynamic> status)? onStatusUpdate;
@@ -28,13 +29,15 @@ class DeviceWsClient {
   bool get isConnected => _channel != null;
 
   Future<void> connect(Device device) async {
+    final gen = ++_generation;
     await disconnect();
     _wsUrl = device.wsUrl;
     _manuallyClosed = false;
-    await _openSocket();
+    await _openSocket(gen);
   }
 
-  Future<void> _openSocket() async {
+  Future<void> _openSocket([int? expectedGen]) async {
+    final gen = expectedGen ?? _generation;
     final url = _wsUrl;
     if (url == null || _manuallyClosed) return;
 
@@ -46,6 +49,17 @@ class DeviceWsClient {
         onDone: _handleDisconnect,
         cancelOnError: true,
       );
+      if (gen != _generation || _manuallyClosed) {
+        // Superseded by a newer connect()/disconnect() while opening:
+        // tear down immediately without notifying the (stale) device.
+        _subscription?.cancel();
+        _subscription = null;
+        try {
+          _channel?.sink.close();
+        } catch (_) {}
+        _channel = null;
+        return;
+      }
       onConnected?.call();
     } catch (_) {
       _handleDisconnect();

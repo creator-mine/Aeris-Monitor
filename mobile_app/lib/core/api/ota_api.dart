@@ -10,13 +10,20 @@ import '../../models/firmware_manifest.dart';
 /// Unknown/other types fall back to the legacy esp32-c3 files.
 class OtaApi {
   final Dio _dio;
+  final String _baseUrl;
 
-  OtaApi({Dio? dio})
-      : _dio = dio ??
+  OtaApi({Dio? dio, String? baseUrl})
+      : _baseUrl = (baseUrl?.trim().isEmpty ?? true)
+            ? AppConfig.apiBaseUrl
+            : baseUrl!.trim().replaceAll(RegExp(r'/+$'), ''),
+        _dio = dio ??
             Dio(BaseOptions(
               connectTimeout: AppConfig.connectionTimeout,
               receiveTimeout: AppConfig.receiveTimeout,
             ));
+
+  /// Normalized OTA host (trailing slashes removed, empty/blank -> default).
+  String get baseUrl => _baseUrl;
 
   /// Manifest path for a device type (accepts any spelling:
   /// "esp32-c3", "esp32s3", device.type from the registry).
@@ -46,7 +53,7 @@ class OtaApi {
   Future<FirmwareManifest?> fetchManifest({String? deviceType}) async {
     try {
       final response = await _dio.get(
-        '${AppConfig.apiBaseUrl}${manifestPathFor(deviceType)}',
+        '$_baseUrl${manifestPathFor(deviceType)}',
       );
       return FirmwareManifest.tryParse(response.data);
     } catch (_) {

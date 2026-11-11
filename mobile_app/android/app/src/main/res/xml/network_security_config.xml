@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The app talks to ESP32 devices directly over http://<lan-ip> and to the
+  MQTT broker over plain ws:// on the local network, so cleartext must be
+  allowed. Public traffic (API, OTA) still uses HTTPS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

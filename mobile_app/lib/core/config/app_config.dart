@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AppConfig {
-  static const String appName = 'IoT Modular System';
-  static const String appVersion = '1.0.0';
+  static const String appName = 'Aeris Monitor';
+  static const String appVersion = '1.2.0';
   
   // API Configuration
   static const String apiBaseUrl = 'https://spe4naz.online';
@@ -18,13 +18,17 @@ class AppConfig {
 
   // MQTT Configuration (primary remote transport via VPS broker)
   static const String mqttBroker = 'spe4naz.online';
-  static const int mqttPort = 9001; // mosquitto WebSocket listener
+  static const int mqttPort = 8883; // MQTT over TLS (native clients)
+  static const int mqttWssPort = 9002; // secure WebSocket (web clients)
   static const String mqttTopicPrefix = 'iot';
   static const String mqttUsername = 'app';
-  static const String mqttPassword = '20e1fd207e9d20c2e981d1cc415b7df4';
+  // MQTT password is a live credential — never baked into the bundle.
+  // The user enters it once in Настройки; it persists in local storage.
+  static const String mqttPassword = '';
 
-  // Signaling server write-token (register/delete/alerts require it)
-  static const String signalingToken = '296a5ec2b5987baec785771bed971d30158859796bf1ee04f575e6db52f710cf';
+  // Signaling server write/read-token (register/delete/devices require it).
+  // Live credential — entered by the user in Настройки, never baked in.
+  static const String signalingToken = '';
   
   // Timeouts
   static const Duration connectionTimeout = Duration(seconds: 30);

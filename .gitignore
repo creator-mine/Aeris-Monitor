@@ -16,6 +16,7 @@ mobile_app/.flutter-plugins*
 mobile_app/.packages
 mobile_app/ios/Pods/
 mobile_app/android/.gradle/
+mobile_app/android/build/
 *.iml
 
 # --- Node / server ---
@@ -26,6 +27,7 @@ npm-debug.log*
 # --- Secrets / credentials ---
 deploy/.ssh_creds
 secrets*
+!firmware/main_controller/include/secrets.h.example
 *.pem
 *.key
 *.p12
@@ -35,6 +37,16 @@ Temp/
 # --- VPS snapshot (contains passwd, certs, tokens) ---
 vps-backup/
 
+# --- Docker self-host runtime + secrets ---
+deploy/docker/runtime/
+deploy/docker/.env
+deploy/docker/.env.bak.*
+
+# --- Android signing ---
+mobile_app/android/key.properties
+mobile_app/android/app/*.jks
+mobile_app/android/app/*.keystore
+
 # --- OS / editor ---
 Thumbs.db
 Desktop.ini
@@ -43,6 +55,9 @@ Desktop.ini
 .vscode/
 *.swp
 .~lock*
+
+# --- Installer build output (APK/DEB/EXE, firmware staging) ---
+deploy/installer/output/
 
 # --- Misc junk ---
 4

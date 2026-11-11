@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:iot_modular_app/app.dart';
-import 'package:iot_modular_app/core/api/api_client.dart';
-import 'package:iot_modular_app/core/api/mqtt_client.dart';
-import 'package:iot_modular_app/core/api/signaling_api.dart';
-import 'package:iot_modular_app/features/dashboard/providers/dashboard_provider.dart';
-import 'package:iot_modular_app/features/settings/providers/settings_provider.dart';
+import 'package:aeris/app.dart';
+import 'package:aeris/core/api/api_client.dart';
+import 'package:aeris/core/api/mqtt_client.dart';
+import 'package:aeris/core/api/signaling_api.dart';
+import 'package:aeris/features/dashboard/providers/dashboard_provider.dart';
+import 'package:aeris/features/settings/providers/settings_provider.dart';
 
 void main() {
   testWidgets('App should render', (WidgetTester tester) async {

@@ -5,6 +5,10 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    - android/**
+    # Vendored plugin copy (see pubspec dependency_overrides); its example/
+    # app is not part of this project and does not need to analyze.
+    - third_party/**
 include: package:flutter_lints/flutter.yaml
 
 linter:

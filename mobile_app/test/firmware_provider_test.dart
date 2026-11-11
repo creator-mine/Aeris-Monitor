@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:iot_modular_app/features/firmware/providers/firmware_provider.dart';
-import 'package:iot_modular_app/shared/helpers/chip_helper.dart';
+import 'package:aeris/features/firmware/providers/firmware_provider.dart';
+import 'package:aeris/shared/helpers/chip_helper.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -59,6 +59,29 @@ void main() {
       expect(p.expectedChipName, 'ESP32-C6');
       p.selectDeviceType('esp32-s3');
       expect(p.expectedChipName, 'ESP32-S3');
+    });
+  });
+
+  group('versionFromFilename', () {
+    test('extracts semver from release-style name', () {
+      expect(
+        FirmwareProvider.versionFromFilename('iot-modular-esp32c3-v1.2.2.bin'),
+        '1.2.2',
+      );
+      expect(
+        FirmwareProvider.versionFromFilename('iot-modular-esp32s3-v1.0.0.bin'),
+        '1.0.0',
+      );
+    });
+
+    test('extracts semver from plain names', () {
+      expect(FirmwareProvider.versionFromFilename('firmware_2.1.0.bin'), '2.1.0');
+      expect(FirmwareProvider.versionFromFilename('esp32c6-0.9.1.bin'), '0.9.1');
+    });
+
+    test('returns null when no semver present', () {
+      expect(FirmwareProvider.versionFromFilename('firmware.bin'), isNull);
+      expect(FirmwareProvider.versionFromFilename('main'), isNull);
     });
   });
 }

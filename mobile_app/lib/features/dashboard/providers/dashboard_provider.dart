@@ -7,6 +7,7 @@ import '../../../core/api/mqtt_client.dart';
 import '../../../core/config/connection_mode.dart';
 import '../../../models/device.dart';
 import '../../../models/sensor_data.dart';
+import '../../../core/parsers/sensor_frame_parser.dart';
 import '../../alerts/services/alert_notifier.dart';
 
 class DashboardProvider extends ChangeNotifier {
@@ -18,10 +19,16 @@ class DashboardProvider extends ChangeNotifier {
 
   ConnectionMode _mode;
   ActiveChannel _activeChannel = ActiveChannel.none;
+  bool _disposed = false;
+  int _connectionSeq = 0;
+
+  /// Optional sink for LAN-direct sensor readings (used by the smart-home
+  /// rule engine). Set from main() after both providers exist.
+  void Function(SensorData data)? onSensorReading;
 
   List<Device> _devices = [];
   Device? _selectedDevice;
-  Map<String, SensorData> _latestSensorData = {};
+  final Map<String, SensorData> _latestSensorData = {};
   bool _isLoading = false;
   String? _error;
   bool _isConnected = false;
@@ -75,57 +82,63 @@ class DashboardProvider extends ChangeNotifier {
   Future<void> loadDevices() async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       _devices = await _signalingApi.getDevices();
+      if (_disposed) return;
       if (_devices.isNotEmpty && _selectedDevice == null) {
-        selectDevice(_devices.first);
+        await selectDevice(_devices.first);
       }
     } catch (e) {
       _error = e.toString();
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (!_disposed) {
+        _isLoading = false;
+        _safeNotify();
+      }
     }
   }
 
   Future<void> selectDevice(Device device) async {
+    final seq = ++_connectionSeq;
     _selectedDevice = device;
     _latestSensorData.clear();
     _lastUpdate = null;
     _isConnected = false;
-    await _applyConnection(device);
+    _safeNotify();
+    await _applyConnection(device, seq);
   }
 
   /// Switches the data channel and re-applies the connection for the
   /// currently selected device.
   Future<void> setConnectionMode(ConnectionMode mode) async {
     if (mode == _mode) return;
+    final seq = ++_connectionSeq;
     _mode = mode;
     _activeChannel = ActiveChannel.none;
-    notifyListeners();
+    _safeNotify();
     final device = _selectedDevice;
     if (device != null) {
-      await _applyConnection(device);
+      await _applyConnection(device, seq);
     }
   }
 
-  Future<void> _applyConnection(Device device) async {
+  Future<void> _applyConnection(Device device, int seq) async {
     await _wsClient.disconnect();
     _deviceClient?.dispose();
     _deviceClient = null;
 
-    _mqtt?.unsubscribeFromDevice(_selectedDevice?.id ?? '');
+    _mqtt?.unsubscribeFromDevice(device.id);
     _isConnected = false;
 
     final wantsDirect = _mode != ConnectionMode.mqtt;
     if (wantsDirect) {
       final baseUrl = device.httpBaseUrl;
       if (baseUrl != null) {
-        notifyListeners();
         _deviceClient = DirectDeviceClient(baseUrl: baseUrl);
         await _wsClient.connect(device);
+        if (seq != _connectionSeq || _disposed) return;
       }
     }
 
@@ -134,8 +147,9 @@ class DashboardProvider extends ChangeNotifier {
       _mqtt?.subscribeToDevice(device.id);
     }
 
+    if (seq != _connectionSeq || _disposed) return;
     _updateActiveChannel();
-    notifyListeners();
+    _safeNotify();
   }
 
   void _updateActiveChannel() {
@@ -153,29 +167,25 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   void _handleSensorUpdate(Map<String, dynamic> data) {
-    final modules = data['modules'];
-    if (modules is! Map) return;
-
+    if (_disposed) return;
     final now = DateTime.now();
-    modules.forEach((moduleId, metrics) {
-      if (metrics is! Map) return;
-      metrics.forEach((key, value) {
-        if (value is num) {
-          _latestSensorData[key.toString()] = SensorData(
-            deviceId: _selectedDevice?.id ?? '',
-            sensorType: key.toString(),
-            timestamp: now,
-            data: {key.toString(): value.toDouble()},
-          );
-        }
-      });
-    });
+    final parsed = SensorFrameParser.parse(
+      data,
+      now,
+      deviceId: _selectedDevice?.id ?? '',
+    );
+    if (parsed.isEmpty) return;
 
+    _latestSensorData.addAll(parsed);
     _lastUpdate = now;
-    notifyListeners();
+    for (final reading in parsed.values) {
+      onSensorReading?.call(reading);
+    }
+    _safeNotify();
   }
 
   void _handleModulesUpdate(List<dynamic> modulesJson) {
+    if (_disposed) return;
     final modules = modulesJson
         .map((json) => Module.fromJson(json as Map<String, dynamic>))
         .toList();
@@ -183,30 +193,38 @@ class DashboardProvider extends ChangeNotifier {
     final device = _selectedDevice;
     if (device != null) {
       _selectedDevice = device.copyWith(modules: modules);
-      notifyListeners();
+      _safeNotify();
     }
   }
 
   void _handleStatusUpdate(Map<String, dynamic> status) {
-    notifyListeners();
+    _safeNotify();
   }
 
   void _handleConnected() {
+    if (_disposed) return;
     _isConnected = true;
     _updateActiveChannel();
-    notifyListeners();
+    _safeNotify();
   }
 
   void _handleDisconnected() {
+    if (_disposed) return;
     _isConnected = false;
     _updateActiveChannel();
-    notifyListeners();
+    _safeNotify();
   }
 
   void updateSensorData(SensorData data) {
+    if (_disposed) return;
     _latestSensorData[data.sensorType] = data;
     _lastUpdate = DateTime.now();
     AlertNotifier.maybeNotify(data);
+    _safeNotify();
+  }
+
+  void _safeNotify() {
+    if (_disposed) return;
     notifyListeners();
   }
 
@@ -242,9 +260,19 @@ class DashboardProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _connectionSeq++;
     _mqttSensorSub?.cancel();
+    _mqttSensorSub = null;
     _mqtt?.unsubscribeFromDevice(_selectedDevice?.id ?? '');
-    _wsClient.disconnect();
+    _wsClient
+      ..onSensorUpdate = null
+      ..onModulesUpdate = null
+      ..onStatusUpdate = null
+      ..onConnected = null
+      ..onDisconnected = null
+      ..disconnect();
     _deviceClient?.dispose();
     super.dispose();
   }

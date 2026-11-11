@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.iot" "\0"
-            VALUE "FileDescription", "iot_modular_app" "\0"
+            VALUE "CompanyName", "Aeris" "\0"
+            VALUE "FileDescription", "Aeris Monitor" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "iot_modular_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.iot. All rights reserved." "\0"
-            VALUE "OriginalFilename", "iot_modular_app.exe" "\0"
-            VALUE "ProductName", "iot_modular_app" "\0"
+            VALUE "InternalName", "aeris" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Aeris. All rights reserved." "\0"
+            VALUE "OriginalFilename", "aeris.exe" "\0"
+            VALUE "ProductName", "Aeris Monitor" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

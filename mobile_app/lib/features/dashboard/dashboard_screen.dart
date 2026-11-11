@@ -218,7 +218,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SnackBar(
                     content: Text(
                       'Устройство перейдёт в режим настройки Wi-Fi. '
-                      'Подключитесь к его сети IoT-Setup-XXXX и откройте http://192.168.4.1',
+                      'Подключитесь к его сети Aeris-Setup-XXXX и откройте http://192.168.4.1',
                     ),
                     duration: Duration(seconds: 6),
                   ),

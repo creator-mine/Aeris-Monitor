@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:iot_modular_app/core/utils/version.dart';
-import 'package:iot_modular_app/models/firmware_manifest.dart';
+import 'package:aeris/core/utils/version.dart';
+import 'package:aeris/models/firmware_manifest.dart';
 
 void main() {
   group('parseVersion', () {

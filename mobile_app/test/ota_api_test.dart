@@ -1,7 +1,27 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:iot_modular_app/core/api/ota_api.dart';
+import 'package:aeris/core/api/ota_api.dart';
+import 'package:aeris/core/config/app_config.dart';
 
 void main() {
+  group('OtaApi baseUrl normalization', () {
+    test('defaults to the built-in host', () {
+      expect(OtaApi().baseUrl, AppConfig.apiBaseUrl);
+    });
+    test('blank/whitespace falls back to the default', () {
+      expect(OtaApi(baseUrl: '').baseUrl, AppConfig.apiBaseUrl);
+      expect(OtaApi(baseUrl: '   ').baseUrl, AppConfig.apiBaseUrl);
+    });
+    test('trims trailing slashes for self-hosting', () {
+      expect(
+        OtaApi(baseUrl: 'https://iot.example.com///').baseUrl,
+        'https://iot.example.com',
+      );
+      expect(
+        OtaApi(baseUrl: 'http://192.168.1.10').baseUrl,
+        'http://192.168.1.10',
+      );
+    });
+  });
   group('OtaApi.normalizeDeviceType', () {
     test('maps app selector esp32-c3', () {
       expect(OtaApi.normalizeDeviceType('esp32-c3'), 'esp32-c3');
