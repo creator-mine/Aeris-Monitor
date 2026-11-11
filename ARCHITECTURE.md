@@ -157,56 +157,63 @@ scanI2CBus()
 
 ### 2.3 Реестр драйверов (Driver Registry)
 
-Модули регистрируются статически при старте прошивки:
+Реестр лежит в общей библиотеке `firmware/shared/sensor_modules` и используется
+обоими проектами (контроллер и сенсорный модуль). На каждый обнаруженный адрес
+создаётся **собственный клон драйвера**, поэтому два одинаковых датчика на
+разных адресах не делят состояние драйвера.
 
 ```cpp
-// sensor_registry.h
+struct ActiveModule {
+    SensorModule* driver;   // клон, принадлежит реестру
+    uint8_t address;
+    uint8_t muxAddress;     // 0 = прямая шина, 0x70..0x77 = за TCA9548A
+    uint8_t muxChannel;
+    unsigned long lastSeen; // последний успешный ответ на шине
+    unsigned long nextReadAt;
+    bool online;            // false = offline, модуль НЕ удаляется
+    std::vector<Metric> cached;
+};
+
 class SensorRegistry {
-public:
-    static SensorRegistry& instance();
-
-    void registerDriver(SensorModule* driver);
-    void scanAll();          // полное сканирование I2C
-    void readAll();          // опрос всех активных модулей
-    void removeInactive();   // удалить пропавшие модули
-
-    std::vector<SensorModule*> activeModules();
-    JsonDocument toJson();   // для REST/WS ответа
-
-private:
-    std::vector<SensorModule*> _drivers;     // все известные драйверы
-    std::vector<SensorModule*> _active;      // обнаруженные модули
-    std::map<uint8_t, uint8_t> _addrMap;     // I2C addr → индекс в _active
+    void registerDriver(SensorModule*);       // прототип драйвера
+    void setMuxAddresses(const uint8_t*, size_t);
+    void scanI2CBus(int sda, int scl);         // прямая шина + каналы мультиплексора
+    void checkLiveness();                     // каждые 10 с, online/offline + re-init
+    void poll();                              // чтение по readInterval() каждого модуля
+    void forceRead();                         // чтение по требованию (команда read_sensor)
+    unsigned long compositionRevision();      // растёт при смене состава модулей
+    String modulesToJson();                   // status, address, mux, metrics
+    String sensorsToJson();                   // только кэш, шину не трогает
 };
 ```
 
-**Регистрация драйверов:**
+**Саморегистрация драйвера** — фабрика сохраняется в `.cpp` драйвера, экземпляр
+создаётся на первом сканировании, а не во время статической инициализации:
 
 ```cpp
-// modules/bme680_module.h
-class BME680Module : public SensorModule { ... };
-
-// modules/bh1750_module.h
-class BH1750Module : public SensorModule { ... };
-
-// setup()
-SensorRegistry::instance().registerDriver(new BME680Module());
-SensorRegistry::instance().registerDriver(new BH1750Module());
-// добавление нового модуля = 1 файл + 1 строка регистрации
-// или макрос для авторегистрации
+// shared/sensor_modules/src/bme680_module.cpp
+REGISTER_SENSOR(BME680Module)   // в конце файла драйвера
 ```
 
-**Или ещё проще — макрос авторегистрации:**
+Добавление датчика = 2 файла в `shared/sensor_modules` + строка в `lib_deps` и
+`library.json`. Ни `setup()`, ни приложение, ни панель, ни сервер не меняются.
 
-```cpp
-// modules/bme680_module.cpp
-REGISTER_SENSOR(BME680Module);
+**Идентификация датчиков.** `detect()` обязан проверять chip ID, а не только
+ACK, если адрес делится с другим драйвером: BME680 (0x60) и BMP280 (0x58) сидят
+на одних 0x76/0x77. Иначе первый зарегистрированный драйвер заберёт адрес у
+второго. У SCD30 и INA219 chip ID нет, используется ACK (адреса 0x61 и 0x40).
 
-// modules/bh1750_module.cpp
-REGISTER_SENSOR(BH1750Module);
+**Мультиплексор TCA9548A.** Каналы включаются по одному байту перед
+сканированием и перед каждым чтением; адреса мультиплексоров задаются в
+`config.h`:
+
+```c
+#define I2C_MUX_ADDRESSES { 0x70, 0x00 }   // 0 = конец списка, {0x00} = без мультиплексора
 ```
 
-Макрос использует статическую инициализацию для автоматической регистрации в `SensorRegistry` без единой правки `setup()`.
+Адреса 0x70–0x77 зарезервированы под мультиплексоры и всегда пропускаются при
+сканировании. A0–A2 можно не разводить на пины: восемь адресов дают до 8
+мультиплексоров, то есть до 64 датчиков на тех же двух проводах.
 
 ### 2.4 UART-протокол для модульных устройств
 
@@ -370,44 +377,88 @@ for (final module in modules) {
 }
 ```
 
-### 2.8 Добавление нового сенсорного модуля (пример)
+### 2.8 Добавление нового сенсорного модуля
 
-Хотим добавить датчик **SCD30 (CO₂)**:
+**Таблица `type_id`** (выдаётся один раз, не переиспользуется):
 
-**Шаг 1 — Создать класс драйвера:**
+| type_id | Драйвер | Адреса | Метрики | readInterval |
+|---|---|---|---|---|
+| 0x01 | BME680 | 0x76, 0x77 | `temperature`, `humidity`, `pressure`, `gas_resistance` | 5000 мс |
+| 0x02 | BH1750 | 0x23, 0x5C | `illuminance` | 5000 мс |
+| 0x03 | SCD30 | 0x61 | `scd30_co2`, `scd30_temperature`, `scd30_humidity` | 2000 мс |
+| 0x04 | INA219 | 0x40 | `ina219_voltage`, `ina219_current`, `ina219_power` | 5000 мс |
+| 0x05 | BMP280 | 0x76, 0x77 | `bmp280_temperature`, `bmp280_pressure` | 5000 мс |
+
+**Правило именования метрик:** ключ = `<type>_<метрика>` в нижнем регистре
+(`scd30_co2`, `bmp280_pressure`). Ключ становится темой MQTT
+`iot/<device>/sensors/<key>` и колонкой CSV на SD, поэтому два модуля не должны
+выдавать одинаковый ключ. Уже существующие ключи BME680 и BH1750 остаются
+без префикса — переименование сломало бы историю в БД и приложении.
+
+**Правило длины ключа:** ≤ 23 символов, единица измерения ≤ 7 символов
+(ограничения приёмника UART-протокола).
+
+**Порядок добавления датчика:**
+
+1. `shared/sensor_modules/include/<name>_module.h` — класс, `typeId()`, `moduleName()`, `i2cAddresses()`, `metrics()`, `readInterval()`, `clone()`
+2. `shared/sensor_modules/src/<name>_module.cpp` — `detect()`, `init()`, `read()`, `clone()` и `REGISTER_SENSOR(<Name>Module)` в конце файла
+3. `shared/sensor_modules/library.json` — зависимость
+4. `lib_deps` в **обоих** `platformio.ini` (контроллер и сенсорный модуль)
+
+Пример минимального драйвера:
 
 ```cpp
-// firmware/modules/scd30_module.h
-class SCD30Module : public SensorModule {
-    uint8_t typeId() override { return 0x03; }
-    const char* moduleName() override { return "SCD30"; }
-    std::vector<uint8_t> i2cAddresses() override { return {0x61}; }
-    bool detect(uint8_t addr) override { /* прочитать chip ID */ }
-    bool init(uint8_t addr) override { /* инициализация SCD30 */ }
-    std::vector<Metric> read() override { /* CO₂ + T + RH */ }
-    std::vector<MetricDef> metrics() override {
-        return {
-            {"co2", "CO₂", "ppm"},
-            {"temperature", "Температура", "°C"},
-            {"humidity", "Влажность", "%"}
-        };
-    }
-    uint32_t readInterval() override { return 2000; }
-};
-```
+bool SCD30Module::detect(uint8_t address) {   // нет chip ID -> только ACK
+    Wire.beginTransmission(address);
+    return Wire.endTransmission() == 0;
+}
 
-**Шаг 2 — Зарегистрировать драйвер:**
-
-```cpp
-// setup() или через REGISTER_SENSOR макрос
-SensorRegistry::instance().registerDriver(new SCD30Module());
+std::vector<Metric> SCD30Module::read() {
+    std::vector<Metric> result;
+    if (!_scdReady) return result;
+    if (!_scd.dataReady()) return result;     // нет свежего замера
+    if (!_scd.read()) return result;
+    result.push_back({"scd30_co2", _scd.CO2, "ppm"});
+    return result;
+}
 ```
 
 **Всё.** Система автоматически:
-- Найдёт SCD30 на I2C при следующем сканировании
-- Начнёт опрашивать и публиковать данные
+- Найдёт датчик на I2C при следующем сканировании (или за TCA9548A)
+- Начнёт опрашивать с его `readInterval()` и публиковать данные
 - Отобразит метрики в мобильном приложении и на веб-сайте
+- Покажет `status: "offline"`, если датчик отвалится, не удаляя карточку
 - Без единого изменения в других частях системы
+
+### 2.9 Ограничения, которые нужно учитывать
+
+| Ограничение | Значение | Где задано |
+|---|---|---|
+| Метрик на UART-модуль | 24 | `REMOTE_MODULE_MAX_METRICS` в `main_controller/src/main.cpp` |
+| Модулей на контроллер | 8 | `REMOTE_MODULE_COUNT` |
+| Регистрационный кадр | 512 байт | `REGISTER_PAYLOAD_MAX` в `sensor_module/src/main.cpp` |
+| Кадр UART | < 1024 байт | `UART_BUFFER_SIZE` в `config.h` |
+| Периодичность данных модуля | 5000 мс | `SENSOR_READ_INTERVAL_MS` |
+| Каналов на TCA9548A | 8 | `SENSOR_MUX_CHANNEL_COUNT` |
+| Частота опроса liveness | 10 с | `SENSOR_LIVENESS_INTERVAL_MS` |
+
+Скорость публикации: MQTT и SD получают значение только при изменении больше
+0.01 или раз в 60 секунд, иначе 13 метрик × 5 датчиков забивали бы SD-карту
+за сутки.
+
+**Инвариант позиционного протокола.** Контроллер сопоставляет значения с
+ключами строго по порядку, поэтому все три источника обязаны совпадать:
+`metrics()` драйвера, кэш `ActiveModule::cached` и `CMD_SENSOR_DATA`. Реестр
+поэтому всегда держит в кэше ровно одну запись на каждую объявленную метрику
+(в порядке `metrics()`), подставляя NAN, если значения пока нет — например,
+SCD30 первые ~15 секунд после включения. Отправляющая сторона пишет float на
+каждую объявленную метрику, поэтому появление шестого датчика не может сдвинуть
+значения остальных на чужие ключи.
+
+**Политика нечисловых значений.** NAN/INF не попадают ни в JSON (там был бы
+невалидный `nan`), ни в MQTT, ни в CSV: `sensorsToJson()` пропускает метрику, а
+контроллер при публикации и разборе UART-кадра проверяет `std::isfinite`.
+Метрика без чтения просто отсутствует до первого корректного замера.
 
 ---
 

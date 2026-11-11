@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мобильное приложение · Aeris Monitor</title>
+<meta name="description" content="Flutter-приложение системы: режимы подключения, экраны дашборда и графиков, аварии, smart rules, сборка и прошивка устройств прямо с телефона.">
+<link rel="canonical" href="https://spe4naz.online/wiki/app.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Aeris Monitor">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://spe4naz.online/wiki/app.html">
+<meta property="og:title" content="Мобильное приложение">
+<meta property="og:description" content="Flutter-приложение системы: режимы подключения, экраны дашборда и графиков, аварии, smart rules, сборка и прошивка устройств прямо с телефона.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/wiki.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+</head>
+<body data-page="app.html">
+
+<div id="progress"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="../index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Aeris Monitor</span>
+      <span class="sep">/</span>
+      <span class="sub" data-ru="Вики" data-en="Wiki">Вики</span>
+    </a>
+    <button class="icon-btn side-toggle" id="sideToggle" type="button" title="Меню" data-ru-attr="title" data-en-attr="Title" data-ru="Меню" data-en="Menu">☰</button>
+    <div class="top-search">
+      <span class="ico">🔍</span>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" title="Тема / Theme">🌙</button>
+      <button class="lang-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <main class="content">
+    <div class="crumbs">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <span>/</span>
+      <a href="index.html" data-ru="Вики" data-en="Wiki">Вики</a>
+      <span>/</span>
+      <span class="cur" data-ru="Приложение" data-en="Mobile app">Приложение</span>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow"><span>📱</span> <span data-ru="Раздел 6" data-en="Section 6">Раздел 6</span></div>
+      <h1 data-ru="Мобильное приложение" data-en="Mobile application">Мобильное приложение</h1>
+      <p class="lede" data-ru="На Flutter приложение умеет работать напрямую с устройством и через MQTT, показывать графики, поднимать аварии и даже собирать и заливать прошивки через USB." data-en="Built in Flutter, the app talks to a device directly and over MQTT, draws charts, raises alerts, and can even build and flash firmware over USB.">Приложение на Flutter.</p>
+    </div>
+
+    <div class="prose">
+
+      <h2 id="vozmozhnosti" data-ru="Возможности" data-en="Features">Возможности</h2>
+
+      <div class="grid g3">
+        <div class="card">
+          <span class="c-ic">📊</span>
+          <h3 data-ru="Дашборд" data-en="Dashboard">Дашборд</h3>
+          <p data-ru="Плитки с текущими значениями по всем метрикам всех устройств, с отметкой времени последнего обновления." data-en="Tiles with the current value of every metric on every device, stamped with the last update time.">Плитки с текущими значениями.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">📈</span>
+          <h3 data-ru="Графики" data-en="Charts">Графики</h3>
+          <p data-ru="Динамика за час, сутки, неделю или месяц с минимальным, средним и максимальным значением." data-en="History over an hour, a day, a week or a month, with minimum, average and maximum.">Динамика за период.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">🔔</span>
+          <h3 data-ru="Аварии" data-en="Alerts">Аварии</h3>
+          <p data-ru="Пороговые правила на конкретный тип датчика и локальные уведомления на телефон." data-en="Threshold rules per sensor type, with local notifications on the phone.">Пороговые правила.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">⚡</span>
+          <h3 data-ru="Управление" data-en="Control">Управление</h3>
+          <p data-ru="Перезагрузка, повторное сканирование датчиков, чтение по запросу, включение и выключение MQTT." data-en="Reboot, rescan sensors, on-demand read, MQTT on and off.">Команды устройству.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">🔌</span>
+          <h3 data-ru="Прошивки" data-en="Firmware">Прошивки</h3>
+          <p data-ru="Сборка и заливка прошивки прямо с телефона через USB: выбрал папку, устройство и порт — и готово." data-en="Build and flash firmware from the phone over USB: pick a folder, a board and a port, and you are done.">Сборка и прошивка по USB.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">🧠</span>
+          <h3 data-ru="Smart rules" data-en="Smart rules">Smart rules</h3>
+          <p data-ru="Сценарии вроде «уведомить меня» или «отправить команду устройству» при пересечении порога." data-en="Scenarios such as “notify me” or “send a device command” when a threshold is crossed.">Сценарии по порогам.</p>
+        </div>
+      </div>
+
+      <h2 id="rezhimy" data-ru="Режимы подключения" data-en="Connection modes">Режимы подключения</h2>
+
+      <p data-ru="Приложение умеет общаться с устройством тремя способами и по умолчанию выбирает лучший из доступных." data-en="The app can talk to a device three ways and picks the best available one by default.">Три способа общения с устройством.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Режим" data-en="Mode">Режим</th>
+              <th data-ru="Как работает" data-en="How it works">Как работает</th>
+              <th data-ru="Когда выбирать" data-en="When to pick it">Когда выбирать</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Авто" data-en="Auto">Авто</td>
+              <td data-ru="Пробует прямое подключение по локальной сети, при неудаче переходит на MQTT" data-en="Tries a direct local connection, falls back to MQTT on failure">Пробует LAN, затем MQTT</td>
+              <td data-ru="Обычный выбор: приложение само разберётся" data-en="The usual choice: the app works it out">Обычный выбор</td>
+            </tr>
+            <tr>
+              <td data-ru="Прямое LAN" data-en="Direct LAN">Прямое LAN</td>
+              <td data-ru="Обращается к устройству напрямую по HTTP и WebSocket, без сервера и без брокера" data-en="Talks to the device directly over HTTP and WebSocket, no server and no broker">HTTP и WebSocket напрямую</td>
+              <td data-ru="Устройство в той же сети, сервер недоступен или не нужен" data-en="The device is on the same network and the server is unreachable or unwanted">Устройство в той же сети</td>
+            </tr>
+            <tr>
+              <td data-ru="Только MQTT" data-en="MQTT only">Только MQTT</td>
+              <td data-ru="Получает поток значений через брокер, сенсорные команды — по тем же топикам" data-en="Receives the value stream through the broker and sends commands on the same topics">Поток через брокер</td>
+              <td data-ru="Устройство далеко или находится за NAT" data-en="The device is far away or behind NAT">Устройство за NAT</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru="Активный канал виден в интерфейсе постоянно: приложение показывает, по какому соединению сейчас идут данные, и переключается на другой автоматически, если текущий отвалился." data-en="The active channel is always visible: the app shows which link is carrying the data and switches to another automatically if the current one drops.">Приложение показывает активный канал и переключается само.</p>
+
+      <div class="callout info">
+        <div class="co-ic">🔐</div>
+        <div class="co-body">
+          <p data-ru="Пароль от MQTT-брокера и токен сигнального сервера в приложение не вшиты: пользователь вводит их один раз в настройках, и они хранятся в локальном хранилище устройства. В бандле их нет." data-en="The MQTT broker password and the signaling server token are not baked into the app: the user enters them once in settings and they stay in the device's local storage. They are absent from the bundle.">Пароли не вшиты в приложение.</p>
+        </div>
+      </div>
+
+      <h2 id="ekrany" data-ru="Экраны" data-en="Screens">Экраны</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Экран" data-en="Screen">Экран</th>
+              <th data-ru="Что делает" data-en="What it does">Что делает</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Дашборд" data-en="Dashboard">Дашборд</td>
+              <td data-ru="Плитки по всем устройствам и метрикам, цвет меняется при выходе за порог" data-en="Tiles for every device and metric, colour changing when a threshold is crossed">Плитки по всем устройствам и метрикам</td>
+            </tr>
+            <tr>
+              <td data-ru="Устройства" data-en="Devices">Устройства</td>
+              <td data-ru="Список устройств с диагностикой: каналы, прошивка, память, состояние датчиков" data-en="Device list with diagnostics: channels, firmware, memory, sensor state">Список устройств с диагностикой</td>
+            </tr>
+            <tr>
+              <td data-ru="Графики" data-en="Charts">Графики</td>
+              <td data-ru="История метрики за выбранный период с минимумом, средним и максимумом" data-en="Metric history over the selected period with min, average and max">История метрики за период</td>
+            </tr>
+            <tr>
+              <td data-ru="Аварии" data-en="Alerts">Аварии</td>
+              <td data-ru="Пороги выше и ниже, список сработавших, отметки о подтверждении" data-en="Above and below thresholds, the triggered list, acknowledgement marks">Пороги и список сработавших</td>
+            </tr>
+            <tr>
+              <td data-ru="Умный дом" data-en="Smart home">Умный дом</td>
+              <td data-ru="Сценарии и правила автоматизации" data-en="Scenarios and automation rules">Сценарии автоматизации</td>
+            </tr>
+            <tr>
+              <td data-ru="Прошивки" data-en="Firmware">Прошивки</td>
+              <td data-ru="Сборка, прошивка по USB, публикация на сервер и история версий" data-en="Build, USB flash, publish to the server and version history">Сборка, прошивка, публикация</td>
+            </tr>
+            <tr>
+              <td data-ru="Журнал" data-en="Logs">Журнал</td>
+              <td data-ru="События устройства с переводом технических сообщений на человеческий язык" data-en="Device events with technical messages translated into plain language">События устройства на человеческом языке</td>
+            </tr>
+            <tr>
+              <td data-ru="Конфигурация" data-en="Device config">Конфигурация</td>
+              <td data-ru="Настройки устройства: сеть, имя, MQTT" data-en="Device settings: network, name, MQTT">Настройки устройства</td>
+            </tr>
+            <tr>
+              <td data-ru="Настройки" data-en="Settings">Настройки</td>
+              <td data-ru="Адреса сервера и брокера, учётные данные, тема, язык" data-en="Server and broker addresses, credentials, theme, language">Адреса, учётные данные, тема</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="grafiki" data-ru="Графики и статистика" data-en="Charts &amp; statistics">Графики и статистика</h2>
+
+      <p data-ru="Период выбирается из готового набора: час, шесть часов, сутки, неделя, месяц. За выбранный период приложение считает три величины и рисует их вместе с кривой." data-en="The period is picked from a fixed set: an hour, six hours, a day, a week, a month. For the chosen period the app computes three figures and draws them alongside the curve.">Период выбирается из готового набора.</p>
+
+      <ul>
+        <li data-ru="Минимум и максимум показывают границы, в которых метрика гуляла за период." data-en="Minimum and maximum show the range the metric covered.">Минимум и максимум показывают границы.</li>
+        <li data-ru="Среднее показывает типичное значение — по нему удобно сравнивать дни между собой." data-en="The average shows the typical value, which makes day-to-day comparison easy.">Среднее показывает типичное значение.</li>
+        <li data-ru="Пробелы в данных не заполняются выдуманными значениями: там, где показания не приходили, на графике будет разрыв." data-en="Gaps are not filled in with invented values: where readings never arrived, the chart shows a break.">Пробелы не заполняются.</li>
+      </ul>
+
+      <p data-ru="История приходит из двух источников: из кольцевого буфера устройства для коротких отрезков и из CSV на SD-карте за более длинные периоды. Приложение выбирает источник по длине запроса." data-en="History comes from two sources: the device's ring buffer for short windows and the SD card CSV for longer periods. The app picks the source according to the length of the request.">История берётся из буфера устройства или с SD-карты.</p>
+
+      <h2 id="avarii" data-ru="Аварии и пороги" data-en="Alerts &amp; thresholds">Аварии и пороги</h2>
+
+      <p data-ru="Порог задаётся на пару «устройство + тип датчика» и на одно из трёх условий: выше значения, ниже значения или равно значению." data-en="A threshold is set on a device plus sensor-type pair and one of three conditions: above, below or equals.">Порог задаётся на пару «устройство + тип датчика».</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Условие" data-en="Condition">Условие</th>
+              <th data-ru="Типичный сценарий" data-en="Typical scenario">Типичный сценарий</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">above</td>
+              <td data-ru="Температура выше нормы, содержание CO₂ выросло" data-en="Temperature above setpoint, CO₂ climbing">Температура выше нормы</td>
+            </tr>
+            <tr>
+              <td class="mono">below</td>
+              <td data-ru="Влажность упала ниже комфортной" data-en="Humidity dropped below the comfort level">Влажность упала</td>
+            </tr>
+            <tr>
+              <td class="mono">equals</td>
+              <td data-ru="Датчик перестал обновляться или потерял связь" data-en="A sensor stopped updating or lost contact">Датчик молчит</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru="Сработавшая авария сохраняется с датой и временем, отметкой о значении в момент срабатывания и признаком подтверждения. Список аварий живёт на сервере, поэтому он виден с любого устройства." data-en="A triggered alert is stored with its date and time, the value at the moment it fired and an acknowledgement flag. The alert list lives on the server, so it is visible from any device.">Аварии хранятся на сервере.</p>
+
+      <h2 id="pravila" data-ru="Smart rules" data-en="Smart rules">Smart rules</h2>
+
+      <p data-ru="Правило — это связка условия и действия. Проверка выполняется на стороне приложения: тот, кто видит поток данных, тот и решает." data-en="A rule pairs a trigger with an action. Evaluation happens in the app: whoever sees the data stream decides.">Проверка выполняется на стороне приложения.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Поле" data-en="Field">Поле</th>
+              <th data-ru="Значения" data-en="Values">Значения</th>
+              <th data-ru="Смысл" data-en="Meaning">Смысл</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">trigger</td>
+              <td class="mono">threshold_above<br>threshold_below<br>online<br>offline<br>no_data</td>
+              <td data-ru="Что считается поводом" data-en="What counts as a trigger">Что считается поводом</td>
+            </tr>
+            <tr>
+              <td class="mono">action</td>
+              <td class="mono">notify<br>mqtt_command<br>device_command</td>
+              <td data-ru="Уведомление, публикация в MQTT или команда устройству" data-en="A notification, an MQTT publish or a device command">Действие при срабатывании</td>
+            </tr>
+            <tr>
+              <td class="mono">threshold</td>
+              <td data-ru="число" data-en="number">число</td>
+              <td data-ru="Порог, обязателен только для пороговых условий" data-en="The threshold, required for threshold triggers only">Порог</td>
+            </tr>
+            <tr>
+              <td class="mono">cooldown_seconds</td>
+              <td data-ru="0 … 604800" data-en="0 … 604800">0 … 604800</td>
+              <td data-ru="Пауза перед повторным срабатыванием, чтобы не спамить" data-en="Quiet period before it can fire again">Пауза перед повтором</td>
+            </tr>
+            <tr>
+              <td class="mono">enabled</td>
+              <td class="mono">true / false</td>
+              <td data-ru="Выключенное правило не проверяется" data-en="A disabled rule is not evaluated">Выключено правило</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout ok">
+        <div class="co-ic">🔁</div>
+        <div class="co-body">
+          <p data-ru="Пауза — важная деталь: без неё условие, висящее на границе порога, будет срабатывать десятки раз в минуту. Разумное значение по умолчанию — от 60 секунд." data-en="The cooldown matters: without it a condition hovering at the threshold would fire dozens of times a minute. A sensible default is 60 seconds.">Без паузы правило будет срабатывать слишком часто.</p>
+        </div>
+      </div>
+
+      <h2 id="sborka-proshivok" data-ru="Сборка прошивок из приложения" data-en="Building firmware from the app">Сборка прошивок из приложения</h2>
+
+      <p data-ru="Отдельная особенность приложения: оно умеет собирать прошивку и заливать её по USB, без компьютера. Это снимает необходимость ставить PlatformIO тому, кто просто хочет прошить плату." data-en="A notable capability: the app builds firmware and flashes it over USB without a computer, so nobody has to install PlatformIO just to flash a board.">Сборка и прошивка без компьютера.</p>
+
+      <div class="steps">
+        <div class="step">
+          <h3 data-ru="Укажите папку с проектом" data-en="Point at the project folder">Укажите папку с проектом</h3>
+          <p data-ru="Приложение открывает системный выбор файлов и запоминает путь к каталогу с прошивкой." data-en="The app opens the system file picker and remembers the path to the firmware folder.">Приложение открывает выбор файлов.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Выберите устройство и порт" data-en="Pick the board and port">Выберите устройство и порт</h3>
+          <p data-ru="Кнопка определения чипа читает реальную модель платы, чтобы выбранная среда сборки совпала с железом." data-en="A chip-detection button reads the real board model so that the chosen build environment matches the hardware.">Кнопка определения чипа читает модель платы.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Проверьте предварительные условия" data-en="Check the preflight">Проверьте предварительные условия</h3>
+          <p data-ru="Блок проверки заранее покажет, есть ли каталог проекта, выбран ли порт и доступны ли зависимости — до начала долгой сборки." data-en="A preflight card shows up front whether the project folder exists, whether a port is chosen and whether dependencies are available — before a long build starts.">Блок проверки покажет проблемы до начала сборки.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Соберите" data-en="Build">Соберите</h3>
+          <p data-ru="Журоль сборки выводится построчно в реальном времени, так что видно, на чём именно остановилось." data-en="The build log streams line by line in real time, so you can see exactly where it stopped.">Журоль сборки идёт в реальном времени.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Залейте и опубликуйте" data-en="Flash and publish">Залейте и опубликуйте</h3>
+          <p data-ru="Готовый бинарник можно записать на плату или опубликовать на сервере, чтобы устройства обновились по воздуху. Обе операции сохраняются в истории версий." data-en="The finished binary can be written to the board or published to the server so that devices update over the air. Both actions are recorded in the version history.">Записать на плату или опубликовать для OTA.</p>
+        </div>
+      </div>
+
+      <h2 id="nastroyki" data-ru="Настройки и учётные данные" data-en="Settings &amp; credentials">Настройки и учётные данные</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Параметр" data-en="Setting">Параметр</th>
+              <th data-ru="Значение по умолчанию" data-en="Default">Значение по умолчанию</th>
+              <th data-ru="Комментарий" data-en="Note">Комментарий</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Версия приложения" data-en="App version">Версия приложения</td>
+              <td class="mono">1.2.0</td>
+              <td data-ru="Показывается в настройках" data-en="Shown in settings">Показывается в настройках</td>
+            </tr>
+            <tr>
+              <td data-ru="Адрес API" data-en="API address">Адрес API</td>
+              <td class="mono">https://spe4naz.online/api/v1</td>
+              <td data-ru="Сигнальный сервер и REST-эндпоинты" data-en="Signaling server and REST endpoints">Сигнальный сервер и REST</td>
+            </tr>
+            <tr>
+              <td data-ru="Брокер MQTT" data-en="MQTT broker">Брокер MQTT</td>
+              <td class="mono">spe4naz.online:9001</td>
+              <td data-ru="Порт 9001 — веб-сокеты, для телефонов и браузеров" data-en="Port 9001 is the WebSocket listener for phones and browsers">Порт 9001 — веб-сокеты</td>
+            </tr>
+            <tr>
+              <td data-ru="Публикация данных" data-en="Data publishing">Публикация данных</td>
+              <td class="mono">iot</td>
+              <td data-ru="Префикс топиков, общий для всех устройств" data-en="Topic prefix shared by all devices">Префикс топиков</td>
+            </tr>
+            <tr>
+              <td data-ru="Учётная запись MQTT" data-en="MQTT username">Учётная запись MQTT</td>
+              <td class="mono">app</td>
+              <td data-ru="Пароль вводится пользователем" data-en="The password is entered by the user">Пароль вводится пользователем</td>
+            </tr>
+            <tr>
+              <td data-ru="Токен сервера" data-en="Server token">Токен сервера</td>
+              <td data-ru="вводится пользователем" data-en="entered by the user">вводится пользователем</td>
+              <td data-ru="Нужен для регистрации и чтения устройств" data-en="Required for registration and device reads">Нужен для регистрации</td>
+            </tr>
+            <tr>
+              <td data-ru="Порты устройства" data-en="Device ports">Порты устройства</td>
+              <td class="mono">80 / 80</td>
+              <td data-ru="HTTP и WebSocket при прямом подключении" data-en="HTTP and WebSocket when connecting directly">HTTP и WebSocket</td>
+            </tr>
+            <tr>
+              <td data-ru="Таймаут соединения" data-en="Connection timeout">Таймаут соединения</td>
+              <td class="mono">30 с</td>
+              <td data-ru="Один и тот же для установления и приёма данных" data-en="Same value for establishing and receiving">Для соединения и приёма</td>
+            </tr>
+            <tr>
+              <td data-ru="Точек на графике" data-en="Points per chart">Точек на графике</td>
+              <td class="mono">1000</td>
+              <td data-ru="Больше точек телефон не потянет плавно" data-en="More than that and the phone cannot render smoothly">Больше телефон не потянет</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">🏷️</div>
+        <div class="co-body">
+          <p data-ru="Названия и единицы метрик приходят с устройства. Запасные значения в приложении есть лишь на случай, если модуль не прислал описание метрик, — тогда подставляется типичное имя вроде «температура»." data-en="Metric names and units come from the device. The app keeps fallback values only for the case where a module sent no metric description — a typical name such as “temperature” is then used.">Названия метрик приходят с устройства.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+
+  <aside class="toc" id="toc"></aside>
+</div>
+
+<footer class="bottom">
+  <div class="foot-inner">
+    <div>Aeris Monitor · <span class="mono">spe4naz.online</span></div>
+    <div class="foot-links">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <a href="server.html" data-ru="Сервер" data-en="Server">Сервер</a>
+      <a href="api.html">API</a>
+      <a href="faq.html">FAQ</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/wiki.js"></script>
+</body>
+</html>

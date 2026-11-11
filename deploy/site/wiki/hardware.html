@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Железо и схемы · Aeris Monitor</title>
+<meta name="description" content="Пины контроллера и сенсорного модуля, питание, схемы UART и I²C, расширение шины через TCA9548A, bill of materials и частые ошибки подключения.">
+<link rel="canonical" href="https://spe4naz.online/wiki/hardware.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Aeris Monitor">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://spe4naz.online/wiki/hardware.html">
+<meta property="og:title" content="Железо и схемы">
+<meta property="og:description" content="Пины контроллера и сенсорного модуля, питание, схемы UART и I²C, расширение шины через TCA9548A, bill of materials и частые ошибки подключения.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/wiki.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+</head>
+<body data-page="hardware.html">
+
+<div id="progress"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="../index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Aeris Monitor</span>
+      <span class="sep">/</span>
+      <span class="sub" data-ru="Вики" data-en="Wiki">Вики</span>
+    </a>
+    <button class="icon-btn side-toggle" id="sideToggle" type="button" title="Меню" data-ru-attr="title" data-en-attr="Title" data-ru="Меню" data-en="Menu">☰</button>
+    <div class="top-search">
+      <span class="ico">🔍</span>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" title="Тема / Theme">🌙</button>
+      <button class="lang-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <main class="content">
+    <div class="crumbs">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <span>/</span>
+      <a href="index.html" data-ru="Вики" data-en="Wiki">Вики</a>
+      <span>/</span>
+      <span class="cur" data-ru="Железо" data-en="Hardware">Железо</span>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow"><span>🔌</span> <span data-ru="Раздел 3" data-en="Section 3">Раздел 3</span></div>
+      <h1 data-ru="Железо и схемы" data-en="Hardware &amp; schematics">Железо и схемы</h1>
+      <p class="lede" data-ru="Распиновка обеих плат, требования к питанию, схемы связи и шины, список покупок и ошибки, которые встречаются чаще всего." data-en="Pinouts of both boards, power requirements, link and bus schematics, the shopping list and the mistakes that happen most often.">Распиновка обеих плат и схемы.</p>
+    </div>
+
+    <div class="prose">
+
+      <h2 id="komplekt" data-ru="Комплект оборудования" data-en="Hardware kit">Комплект оборудования</h2>
+
+      <p data-ru="Минимальная рабочая схема — это две платы. Всё остальное наращивается по мере надобности." data-en="The minimal working setup is two boards. Everything else is added as needed.">Минимальная рабочая схема — это две платы.</p>
+
+      <div class="grid g2">
+        <div class="card">
+          <span class="c-ic">🧠</span>
+          <h3 data-ru="Главный контроллер" data-en="Main controller">Главный контроллер</h3>
+          <p data-ru-html="ESP32-C3 на плате LOLIN C3 mini либо ESP32-S3 N16R8 (16 МБ флеша, 8 МБ PSRAM). Весь вариант S3 собирается той же прошивкой: отличаются только флаги сборки." data-en-html="An ESP32-C3 on a LOLIN C3 mini board, or an ESP32-S3 N16R8 (16 MB flash, 8 MB PSRAM). Both S3 variants build from the same firmware — only the build flags differ.">ESP32-C3 (LOLIN C3 mini) или ESP32-S3 N16R8.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">🌡️</span>
+          <h3 data-ru="Сенсорный модуль" data-en="Sensor module">Сенсорный модуль</h3>
+          <p data-ru-html="ESP32-C6 DevKitC-1. Wi-Fi не используется: модуль только читает датчики и отдаёт кадры по UART." data-en-html="An ESP32-C6 DevKitC-1. No Wi-Fi is used: the module only reads sensors and sends frames over UART.">ESP32-C6 DevKitC-1.</p>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">ℹ️</div>
+        <div class="co-body">
+          <p data-ru="Контроллер работает и вообще без сенсорного модуля: у него своя шина I²C, свои датчики, MQTT и история на SD. Модуль нужен там, где сенсор должен стоять далеко от платы с Wi-Fi — в другой комнате, на другой высоте, в другом корпусе." data-en="The controller works with no sensor module at all: it has its own I²C bus, its own sensors, MQTT and SD history. A module is needed where the sensor must sit away from the Wi-Fi board — another room, another height, another enclosure.">Контроллер работает и без сенсорного модуля.</p>
+        </div>
+      </div>
+
+      <h2 id="piny" data-ru="Сводная таблица пинов" data-en="Pin reference">Сводная таблица пинов</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Назначение" data-en="Purpose">Назначение</th>
+              <th data-ru="ESP32-C3 (контроллер)" data-en="ESP32-C3 (controller)">ESP32-C3 (контроллер)</th>
+              <th data-ru="ESP32-S3 (контроллер)" data-en="ESP32-S3 (controller)">ESP32-S3 (контроллер)</th>
+              <th data-ru="ESP32-C6 (модуль)" data-en="ESP32-C6 (module)">ESP32-C6 (модуль)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="I²C SDA" data-en="I²C SDA">I²C SDA</td>
+              <td class="mono">GPIO6</td>
+              <td class="mono">GPIO8</td>
+              <td class="mono">GPIO6</td>
+            </tr>
+            <tr>
+              <td data-ru="I²C SCL" data-en="I²C SCL">I²C SCL</td>
+              <td class="mono">GPIO7</td>
+              <td class="mono">GPIO9</td>
+              <td class="mono">GPIO7</td>
+            </tr>
+            <tr>
+              <td data-ru="UART RX (приём от модуля)" data-en="UART RX (from module)">UART RX (приём от модуля)</td>
+              <td class="mono">GPIO4</td>
+              <td class="mono">GPIO4</td>
+              <td class="mono">GPIO4</td>
+            </tr>
+            <tr>
+              <td data-ru="UART TX (отправка в модуль)" data-en="UART TX (to module)">UART TX (отправка в модуль)</td>
+              <td class="mono">GPIO5</td>
+              <td class="mono">GPIO5</td>
+              <td class="mono">GPIO5</td>
+            </tr>
+            <tr>
+              <td data-ru="SD card CS" data-en="SD card CS">SD card CS</td>
+              <td class="mono">GPIO10</td>
+              <td class="mono">GPIO10</td>
+              <td data-ru="не используется" data-en="not used">не используется</td>
+            </tr>
+            <tr>
+              <td data-ru="Светодиод активности" data-en="Activity LED">Светодиод активности</td>
+              <td data-ru="встроенный" data-en="onboard">встроенный</td>
+              <td data-ru="встроенный" data-en="onboard">встроенный</td>
+              <td class="mono">GPIO8</td>
+            </tr>
+            <tr>
+              <td data-ru="Частота шины I²C" data-en="I²C bus speed">Частота шины I²C</td>
+              <td class="mono">100 кГц</td>
+              <td class="mono">100 кГц</td>
+              <td class="mono">100 кГц</td>
+            </tr>
+            <tr>
+              <td data-ru="Скорость UART" data-en="UART speed">Скорость UART</td>
+              <td class="mono">115200</td>
+              <td class="mono">115200</td>
+              <td class="mono">115200</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn">
+        <div class="co-ic">⚠️</div>
+        <div class="co-body">
+          <p data-ru="Пины ESP32-S3 выбраны так, чтобы не пересекаться со служебными: GPIO0, 3, 45, 46 — стриппинг, GPIO19 и 20 — нативный USB, GPIO26–37 — под восьмиканальную PSRAM и флеш. Если собираете плату на S3, не назначайте ничего из этого списка." data-en="The ESP32-S3 pins were chosen to avoid the reserved ones: GPIO0, 3, 45 and 46 are strapping pins, GPIO19 and 20 are native USB, GPIO26–37 carry the octal PSRAM and flash. If you build on S3, do not assign anything from that list.">Пины ESP32-S3 выбраны так, чтобы не пересекаться со служебными.</p>
+        </div>
+      </div>
+
+      <p data-ru-html="Значения по умолчанию для C3 и C6 лежат в их файлах <code>config.h</code>, а вариант S3 переопределяет их флагами сборки в <code>platformio.ini</code>. Всё это сделано через <code>#ifndef</code>, поэтому любой параметр можно переопределить снаружи, не правя код." data-en-html="The C3 and C6 defaults live in their own <code>config.h</code> files, while the S3 variant overrides them with build flags in <code>platformio.ini</code>. Everything is guarded with <code>#ifndef</code>, so any setting can be overridden from outside without editing code.">Значения по умолчанию лежат в config.h и переопределяются флагами сборки.</p>
+
+      <h2 id="pitaniya" data-ru="Питание" data-en="Power">Питание</h2>
+
+      <ul>
+        <li data-ru="Обе платы питаются от USB или от общего блока 5 В. Ток потребления сенсорного модуля без передачи по UART — десятки миллиампер." data-en="Both boards run from USB or a shared 5 V rail. The sensor module draws tens of milliamps when it is not streaming over UART.">Обе платы питаются от USB или общего блока 5 В.</li>
+        <li data-ru="Датчики на шине I²C питаются от 3,3 V. Подключение к 5 V в большинстве случаев недопустимо." data-en="Sensors on the I²C bus are powered from 3.3 V. Wiring them to 5 V is invalid in most cases.">Датчики питаются от 3,3 V.</li>
+        <li data-ru="Общий провод GND обязателен: без него UART не работает, даже если провода данных подключены верно." data-en="A shared GND is mandatory: without it UART will not work even when the data wires are correct.">Общий провод GND обязателен.</li>
+        <li data-ru="Мощные датчики, вроде SCD30 с его собственным нагревателем, требуют отдельной линии питания и запаса по току." data-en="Power-hungry sensors such as the SCD30, with its heater, need their own supply rail and headroom.">Мощные датчики требуют отдельной линии питания.</li>
+      </ul>
+
+      <h2 id="uart" data-ru="Схема UART-связи" data-en="UART link schematic">Схема UART-связи</h2>
+
+      <p data-ru="TX каждой платы соединяется с RX другой, перекрёстно. Это самая частая ошибка при первом подключении." data-en="Each board's TX goes to the other board's RX, crossed. This is the most common first-connection mistake.">TX каждой платы соединяется с RX другой, перекрёстно.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Контроллер · ESP32-C3" data-en="Controller · ESP32-C3">Контроллер · ESP32-C3</th>
+              <th class="center" data-ru="Направление" data-en="Direction">Направление</th>
+              <th data-ru="Модуль · ESP32-C6" data-en="Module · ESP32-C6">Модуль · ESP32-C6</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">GPIO5 · TX</td>
+              <td class="center mono">→</td>
+              <td class="mono">GPIO4 · RX</td>
+            </tr>
+            <tr>
+              <td class="mono">GPIO4 · RX</td>
+              <td class="center mono">←</td>
+              <td class="mono">GPIO5 · TX</td>
+            </tr>
+            <tr>
+              <td class="mono">GND</td>
+              <td class="center mono">—</td>
+              <td class="mono">GND</td>
+            </tr>
+            <tr>
+              <td class="mono">3V3</td>
+              <td class="center mono">—</td>
+              <td class="mono">5V или 3V3</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout ok">
+        <div class="co-ic">💡</div>
+        <div class="co-body">
+          <p data-ru="Проверьте связь до подачи питания датчикам: на модуле должен мигать светодиод на GPIO8 при передаче кадров, а в Serial-выводе контроллера — строки регистрации. Если светодиод молчит, дело в UART, а не в датчиках." data-en="Verify the link before powering the sensors: the module's GPIO8 LED should blink while frames go out, and the controller's serial output should show registration lines. If the LED is silent, the problem is UART, not the sensors.">Светодиод GPIO8 мигает при передаче кадров.</p>
+        </div>
+      </div>
+
+      <h2 id="i2c" data-ru="Схема шины I²C" data-en="I²C bus schematic">Схема шины I²C</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Контакт" data-en="Contact">Контакт</th>
+              <th data-ru="Куда подключать" data-en="Where to connect">Куда подключать</th>
+              <th data-ru="Примечание" data-en="Note">Примечание</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">SDA</td>
+              <td class="mono">GPIO6</td>
+              <td data-ru="Параллельно ко всем датчикам" data-en="In parallel to every sensor">Параллельно ко всем датчикам</td>
+            </tr>
+            <tr>
+              <td class="mono">SCL</td>
+              <td class="mono">GPIO7</td>
+              <td data-ru="Параллельно ко всем датчикам" data-en="In parallel to every sensor">Параллельно ко всем датчикам</td>
+            </tr>
+            <tr>
+              <td class="mono">3V3</td>
+              <td class="mono">3.3 V</td>
+              <td data-ru="Питание датчиков" data-en="Sensor supply">Питание датчиков</td>
+            </tr>
+            <tr>
+              <td class="mono">GND</td>
+              <td class="mono">GND</td>
+              <td data-ru="Общий с платой" data-en="Shared with the board">Общий с платой</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru-html="Скорость шины — 100 кГц. Адреса датчиков: BME680 и BMP280 — <code>0x76</code> или <code>0x77</code>, BH1750 — <code>0x23</code> или <code>0x5C</code>, SCD30 — <code>0x61</code>, INA219 — <code>0x40</code>. Подтягивающие резисторы обычно уже распаяны на модулях датчиков; если датчик один, добавлять ничего не нужно." data-en-html="Bus speed is 100 kHz. Sensor addresses: BME680 and BMP280 — <code>0x76</code> or <code>0x77</code>; BH1750 — <code>0x23</code> or <code>0x5C</code>; SCD30 — <code>0x61</code>; INA219 — <code>0x40</code>. Pull-up resistors are usually already fitted on the sensor modules; with a single sensor there is nothing to add.">Скорость шины — 100 кГц.</p>
+
+      <div class="callout warn">
+        <div class="co-ic">⚠️</div>
+        <div class="co-body">
+          <p data-ru="BME680 и BMP280 используют одни и те же адреса 0x76 и 0x77. Поставить оба на одной шине нельзя: система определит один из них, а второй останется в тени. Нужен мультиплексор." data-en="BME680 and BMP280 share addresses 0x76 and 0x77. You cannot put both on one bus: the system will recognise one and the other will stay in the shadows. You need a mux.">BME680 и BMP280 делят адреса 0x76 и 0x77.</p>
+        </div>
+      </div>
+
+      <h2 id="mux" data-ru="Расширение I²C: TCA9548A" data-en="Expanding I²C with TCA9548A">Расширение I²C: TCA9548A</h2>
+
+      <p data-ru="Мультиплексор добавляет на ту же шину восемь независимых каналов по два провода каждый. Каждый канал — это отдельный сегмент шины I²C, а значит, на нём может висеть датчик с любым адресом, включая уже занятый на другом канале." data-en="A mux adds eight independent channels of two wires each to the same bus. Each channel is a separate I²C segment, so a sensor of any address can sit on it — including one already taken on another channel.">Мультиплексор добавляет восемь независимых каналов.</p>
+
+      <ol class="seq">
+        <li>
+          <b data-ru="Включение в конфигурацию" data-en="Enable it in configuration">Включение в конфигурацию</b>
+          <p data-ru-html="В списке адресов мультиплексоров вместо 0x00 указывается реальный адрес, например <code>{ 0x70, 0x00 }</code>. Список обязательно завершается нулём. Значение 0x00 означает «мультиплексоров нет»." data-en-html="In the mux address list replace the 0x00 with the real address, for example <code>{ 0x70, 0x00 }</code>. The list must end with a zero. A 0x00 entry means “no mux”.">В списке адресов мультиплексоров указывается реальный адрес.</p>
+        </li>
+        <li>
+          <b data-ru="Общие провода" data-en="Shared wires">Общие провода</b>
+          <p data-ru="SDA, SCL, питание и земля идут к мультиплексору и дальше ко всем каналам. Отдельно каждому каналу нужны собственные SDA и SCL до датчика." data-en="SDA, SCL, power and ground run to the mux and on to every channel. Each channel then needs its own SDA and SCL wires to the sensor.">SDA, SCL, питание и земля — общие, остальное у каждого канала своё.</p>
+        </li>
+        <li>
+          <b data-ru="Выбор канала перед обращением" data-en="Channel selection before access">Выбор канала перед обращением</b>
+          <p data-ru="Перед каждой транзакцией реестр записывает номер канала в управляющий регистр мультиплексора, а затем работает с датчиком как с обычным устройством на шине." data-en="Before every transaction the registry writes the channel number into the mux control register, then talks to the sensor as if it were an ordinary bus device.">Реестр выбирает канал перед каждой транзакцией.</p>
+        </li>
+        <li>
+          <b data-ru="Идентификатор с каналом" data-en="ID carries the channel">Идентификатор с каналом</b>
+          <p data-ru-html="Датчик за мультиплексором получает идентификатор с суффиксом канала: <code>BME680_0x76_c0</code>, <code>BME680_0x76_c1</code> и так далее. Поэтому одинаковые датчики на разных каналах не сливаются в один." data-en-html="A muxed sensor gets an ID with a channel suffix: <code>BME680_0x76_c0</code>, <code>BME680_0x76_c1</code> and so on. Identical sensors on different channels therefore never merge into one.">Датчик за мультиплексором получает идентификатор с суффиксом канала.</p>
+        </li>
+      </ol>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Комбинация" data-en="Combination">Комбинация</th>
+              <th data-ru="Результат" data-en="Result">Результат</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">BME680_0x76 + BMP280_0x76</td>
+              <td data-ru="Конфликт адресов, один из датчиков не будет виден" data-en="Address clash, one of the two stays invisible">Конфликт адресов</td>
+            </tr>
+            <tr>
+              <td class="mono">BME680_0x76_c0 + BMP280_0x76_c1</td>
+              <td data-ru="Работают оба, показываются как два отдельных датчика" data-en="Both work and appear as two separate sensors">Работают оба</td>
+            </tr>
+            <tr>
+              <td class="mono">INA219_0x40 + INA219_0x40_c1</td>
+              <td data-ru="Работают: у первого библиотечный адрес, у второго — за мультиплексором" data-en="Both work: the first on the library address, the second behind the mux">Работают оба</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="bom" data-ru="Bill of materials" data-en="Bill of materials">Bill of materials</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Позиция" data-en="Item">Позиция</th>
+              <th data-ru="Что это" data-en="What it is">Что это</th>
+              <th data-ru="Кол-во" data-en="Qty">Кол-во</th>
+              <th data-ru="Примечание" data-en="Note">Примечание</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Главный контроллер" data-en="Main controller">Главный контроллер</td>
+              <td class="mono">LOLIN C3 mini</td>
+              <td class="center">1</td>
+              <td data-ru="либо ESP32-S3 N16R8" data-en="or ESP32-S3 N16R8">либо ESP32-S3 N16R8</td>
+            </tr>
+            <tr>
+              <td data-ru="Сенсорный модуль" data-en="Sensor module">Сенсорный модуль</td>
+              <td class="mono">ESP32-C6 DevKitC-1</td>
+              <td class="center">0–N</td>
+              <td data-ru="по числу удалённых точек" data-en="one per remote location">по числу удалённых точек</td>
+            </tr>
+            <tr>
+              <td data-ru="Датчик температуры и влажности" data-en="Temperature and humidity sensor">Датчик температуры и влажности</td>
+              <td class="mono">BME680</td>
+              <td class="center">0–N</td>
+              <td data-ru="адрес 0x76 или 0x77" data-en="address 0x76 or 0x77">адрес 0x76 или 0x77</td>
+            </tr>
+            <tr>
+              <td data-ru="Датчик освещённости" data-en="Illuminance sensor">Датчик освещённости</td>
+              <td class="mono">BH1750</td>
+              <td class="center">0–N</td>
+              <td data-ru="адрес 0x23 или 0x5C" data-en="address 0x23 or 0x5C">адрес 0x23 или 0x5C</td>
+            </tr>
+            <tr>
+              <td data-ru="Датчик CO₂" data-en="CO₂ sensor">Датчик CO₂</td>
+              <td class="mono">SCD30</td>
+              <td class="center">0–1</td>
+              <td data-ru="адрес 0x61, отдельное питание" data-en="address 0x61, own supply rail">адрес 0x61, отдельное питание</td>
+            </tr>
+            <tr>
+              <td data-ru="Измеритель потребления" data-en="Power monitor">Измеритель потребления</td>
+              <td class="mono">INA219</td>
+              <td class="center">0–1</td>
+              <td data-ru="адрес только 0x40" data-en="address 0x40 only">адрес только 0x40</td>
+            </tr>
+            <tr>
+              <td data-ru="Мультиплексор шины" data-en="Bus mux">Мультиплексор шины</td>
+              <td class="mono">TCA9548A</td>
+              <td class="center">0–8</td>
+              <td data-ru="до 8 каналов на модуль" data-en="up to 8 channels per chip">до 8 каналов на модуль</td>
+            </tr>
+            <tr>
+              <td data-ru="Карта памяти" data-en="Memory card">Карта памяти</td>
+              <td class="mono">microSD, 8–32 ГБ</td>
+              <td class="center">1</td>
+              <td data-ru="только для контроллера" data-en="controller only">только для контроллера</td>
+            </tr>
+            <tr>
+              <td data-ru="Провода и клеммы" data-en="Wires and terminals">Провода и клеммы</td>
+              <td class="mono">Dupont, WAGO, витая пара</td>
+              <td class="center">—</td>
+              <td data-ru="витая пара с землёй для длинных линий I²C" data-en="twisted pair with ground for long I²C runs">витая пара с землёй</td>
+            </tr>
+            <tr>
+              <td data-ru="Блок питания" data-en="Power supply">Блок питания</td>
+              <td class="mono">5 В USB</td>
+              <td class="center">1–N</td>
+              <td data-ru="по числу плат" data-en="one per board">по числу плат</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="oshibki-montazha" data-ru="Частые ошибки подключения" data-en="Common wiring mistakes">Частые ошибки подключения</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Симптом" data-en="Symptom">Симптом</th>
+              <th data-ru="Причина" data-en="Cause">Причина</th>
+              <th data-ru="Что делать" data-en="Fix">Что делать</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Датчик не находится вообще" data-en="Sensor is not found at all">Датчик не находится вообще</td>
+              <td data-ru="TX и RX соединены напрямую, а не перекрёстно" data-en="TX and RX wired straight instead of crossed">TX и RX соединены напрямую</td>
+              <td data-ru="Перекрестить провода и проверить общий GND" data-en="Cross the wires and check the shared GND">Перекрестить провода</td>
+            </tr>
+            <tr>
+              <td data-ru="UART не работает" data-en="UART does not work">UART не работает</td>
+              <td data-ru="Разная скорость, земля не соединена" data-en="Mismatched baud rate or no shared ground">Разная скорость или нет земли</td>
+              <td data-ru="115200 на обеих платах, общий GND обязателен" data-en="115200 on both boards, shared GND mandatory">115200 и общий GND</td>
+            </tr>
+            <tr>
+              <td data-ru="Один датчик из двух виден" data-en="Only one of two sensors appears">Один датчик из двух виден</td>
+              <td data-ru="Одинаковый адрес на одной шине" data-en="Same address on one bus">Одинаковый адрес</td>
+              <td data-ru="Развести по каналам мультиплексора" data-en="Move one behind a mux channel">Развести по мультиплексору</td>
+            </tr>
+            <tr>
+              <td data-ru="Значения есть, но не меняются" data-en="Values arrive but never change">Значения есть, но не меняются</td>
+              <td data-ru="Датчик прогревается или завис в другом режиме" data-en="The sensor is self-heating or stuck in another mode">Датчик прогревается или завис в другом режиме</td>
+              <td data-ru="Проверить режим работы датчика и его питание" data-en="Check the sensor mode and its supply">Проверить режим и питание</td>
+            </tr>
+            <tr>
+              <td data-ru="Показания ниже, чем у эталонного прибора" data-en="Readings below a reference instrument">Показания ниже, чем у эталонного прибора</td>
+              <td data-ru="Датчик рядом с греющейся платой" data-en="The sensor sits next to the warm board">Датчик рядом с греющейся платой</td>
+              <td data-ru="Вынести датчик на расстояние и вентилировать корпус" data-en="Move the sensor away and ventilate the enclosure">Вынести датчик подальше</td>
+            </tr>
+            <tr>
+              <td data-ru="Карта не определяется" data-en="SD card is not detected">Карта не определяется</td>
+              <td data-ru="Неверный CS или карта в неподдерживаемом формате" data-en="Wrong CS pin or an unsupported card format">Неверный CS или формат карты</td>
+              <td data-ru="Проверить CS и отформатировать карту в FAT" data-en="Check CS and format the card as FAT">Проверить CS и формат FAT</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">📖</div>
+        <div class="co-body">
+          <p data-ru-html="Что подключать по адресам и какой у каждого датчика интервал опроса — в разделе <a href=\"sensors.html\">Датчики и драйверы</a>." data-en-html="What to attach by address and what polling interval each sensor uses — see <a href=\"sensors.html\">Sensors &amp; drivers</a>.">Что подключать по адресам.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+
+  <aside class="toc" id="toc"></aside>
+</div>
+
+<footer class="bottom">
+  <div class="foot-inner">
+    <div>Aeris Monitor · <span class="mono">spe4naz.online</span></div>
+    <div class="foot-links">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <a href="sensors.html" data-ru="Датчики" data-en="Sensors">Датчики</a>
+      <a href="api.html">API</a>
+      <a href="faq.html">FAQ</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/wiki.js"></script>
+</body>
+</html>

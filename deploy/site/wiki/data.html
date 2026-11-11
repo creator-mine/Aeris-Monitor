@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Архитектура данных · Aeris Monitor</title>
+<meta name="description" content="Как данные проходят через систему: MQTT-топики и форматы, JSONL-хранилище с почасовыми точками, роллапы, живой поток SSE, история и движок правил.">
+<link rel="canonical" href="https://spe4naz.online/wiki/data.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Aeris Monitor">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://spe4naz.online/wiki/data.html">
+<meta property="og:title" content="Архитектура данных">
+<meta property="og:description" content="Как данные проходят через систему: MQTT-топики и форматы, JSONL-хранилище с почасовыми точками, роллапы, живой поток SSE, история и движок правил.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/wiki.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+</head>
+<body data-page="data.html">
+
+<div id="progress"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="../index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Aeris Monitor</span>
+      <span class="sep">/</span>
+      <span class="sub" data-ru="Вики" data-en="Wiki">Вики</span>
+    </a>
+    <button class="icon-btn side-toggle" id="sideToggle" type="button" title="Меню" data-ru-attr="title" data-en-attr="Title" data-ru="Меню" data-en="Menu">☰</button>
+    <div class="top-search">
+      <span class="ico">🔍</span>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" title="Тема / Theme">🌙</button>
+      <button class="lang-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <main class="content">
+    <div class="crumbs">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <span>/</span>
+      <a href="index.html" data-ru="Вики" data-en="Wiki">Вики</a>
+      <span>/</span>
+      <span class="cur" data-ru="Архитектура данных" data-en="Data architecture">Архитектура данных</span>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow"><span>📊</span> <span data-ru="Данные" data-en="Data">Данные</span></div>
+      <h1 data-ru="Архитектура данных" data-en="Data architecture">Архитектура данных</h1>
+      <p class="lede" data-ru="От датчика до графика: как выглядит отдельная точка, по каким топикам она приходит, где хранится и как возвращается в живом потоке, истории и правилах." data-en="From the sensor to the chart: what a sample looks like, over which topics it arrives, where it is stored and how it comes back in the live stream, history and rules.">От датчика до графика.</p>
+    </div>
+
+    <div class="prose">
+
+      <h2 id="obzor" data-ru="Поток данных сверху вниз" data-en="The data flow, top to bottom">Поток данных сверху вниз</h2>
+
+      <p data-ru="Путь метрики короткий. Контроллер публикует её в брокер MQTT; сервер подписан на все топики и на каждое сообщение: пишет точку в файловое хранилище, обновляет кэш последних значений, отдаёт её в живой SSE-поток и проверяет правила. История читается обратно из тех же файлов." data-en="The metric path is short. The controller publishes it to the MQTT broker; the server is subscribed to every topic and for each message: appends the sample to file storage, updates the latest-value cache, pushes it into the live SSE stream and evaluates the rules. History is read back from the same files.">Путь метрики короткий.</p>
+
+      <div class="steps">
+        <div class="step">
+          <h3 data-ru="1. Датчик → контроллер" data-en="1. Sensor → controller">1. Датчик → контроллер</h3>
+          <p data-ru="Сенсорный модуль опрашивается по UART, данные собирает главный контроллер." data-en="The sensor module is polled over UART and the main controller collects the data.">Опрос по UART.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="2. Контроллер → Mosquitto" data-en="2. Controller → Mosquitto">2. Контроллер → Mosquitto</h3>
+          <p data-ru="Контроллер публикует JSON-сообщение в топик <code>iot/&lt;deviceId&gt;/sensors/&lt;key&gt;</code> при изменении значения или раз в 60 секунд." data-en="The controller publishes a JSON message to <code>iot/&lt;deviceId&gt;/sensors/&lt;key&gt;</code> whenever a value changes or once a minute.">Публикация в топик датчика.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="3. Брокер → сервер" data-en="3. Broker → server">3. Брокер → сервер</h3>
+          <p data-ru="Сервер подписан на <code>iot/+/#</code> и получает каждое сообщение соединением на порт 1883." data-en="The server is subscribed to <code>iot/+/#</code> and receives every message over the port 1883 connection.">Подписка на все топики.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="4. Сервер: запись + поток + правила" data-en="4. Server: store + stream + rules">4. Сервер: запись + поток + правила</h3>
+          <p data-ru="Каждая метрика попадает в JSONL-файл, кэш последних значений, SSE-поток на сайт и движок правил." data-en="Every metric goes into a JSONL file, the latest-value cache, the site SSE stream and the rules engine.">Запись, поток и правила.</p>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">ℹ️</div>
+        <div class="co-body">
+          <p data-ru="MQTT-мост и хранилище включаются веточно: MQTT-движок требует MQTT_ENABLED=1 и учётные данные, хранилище лежит в INGEST_DIR. Без них сервер работает как раньше — только реестр, аварии и правила." data-en="The MQTT bridge and storage are opt-in: the MQTT engine needs MQTT_ENABLED=1 and credentials, storage lives in INGEST_DIR. Without them the server behaves as before — registry, alerts and rules only.">Мост и хранилище включаются опционально.</p>
+        </div>
+      </div>
+
+      <h2 id="mqtt" data-ru="Топики и форматы MQTT" data-en="MQTT topics & formats">Топики и форматы MQTT</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Топик" data-en="Topic">Топик</th>
+              <th data-ru="Что публикуется" data-en="Published">Что публикуется</th>
+              <th data-ru="Кто пишет" data-en="Writer">Кто пишет</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">iot/&lt;deviceId&gt;/sensors/&lt;key&gt;</td>
+              <td data-ru="Показание датчика" data-en="A sensor reading">Показание датчика</td>
+              <td data-ru="Контроллер" data-en="Controller">Контроллер</td>
+            </tr>
+            <tr>
+              <td class="mono">iot/&lt;deviceId&gt;/status</td>
+              <td data-ru="Жизненные показатели устройства" data-en="Device health">Жизненные показатели устройства</td>
+              <td data-ru="Контроллер" data-en="Controller">Контроллер</td>
+            </tr>
+            <tr>
+              <td class="mono">iot/&lt;deviceId&gt;/cmd</td>
+              <td data-ru="Команда устройству (правило или панель)" data-en="A command for the device (rule or panel)">Команда устройству</td>
+              <td data-ru="Сервер" data-en="Server">Сервер</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 data-ru="Показание датчика" data-en="Sensor reading">Показание датчика</h3>
+
+      <pre><code>{
+  "device_id": "esp32c3_001",
+  "sensor": "bmp280_temperature",
+  "timestamp": 1727985000000,
+  "value": 23.45,
+  "unit": "degC"
+}</code></pre>
+
+      <p data-ru="timestamp — миллисекунды в UTC, value — число с двумя знаками после точки. Cервер пропускает только разборчивые числовые значения; пустые или мусорные payload не сохраняются." data-en="timestamp is milliseconds in UTC, value is a number with two decimals. The server only keeps parseable numeric values; empty or junk payloads are not stored.">timestamp в миллисекундах UTC, value — число.</p>
+
+      <h3 data-ru="Команда устройству" data-en="Device command">Команда устройству</h3>
+
+      <pre><code>iot/esp32c3_001/cmd&gt; {"cmd":"relay","state":1}</code></pre>
+
+      <p data-ru="Payload команды — произвольная короткая строка (до 512 символов), которую понимает прошивка устройства. Её задаёт правило или ручная команда из команды сервера." data-en="The command payload is an arbitrary short string (up to 512 characters) that the device firmware understands. It comes from a rule or from the manual server command.">Короткая строка, которую понимает прошивка.</p>
+
+      <h2 id="hranilishche" data-ru="Хранилище: JSONL и роллапы" data-en="Storage: JSONL &amp; rollups">Хранилище: JSONL и роллапы</h2>
+
+      <p data-ru="Точки хранятся построчно в файлах JSONL — одна строка, одна точка. Имена файлов по часам, поэтому чтение истории за промежуток читает только файлы этих часов." data-en="Samples are stored line by line in JSONL files — one line, one point. Files are named by the hour, so a history read only opens the files of the requested hours.">Каждая точка — строка в JSONL.</p>
+
+      <pre><code>data/ingest/
+├── raw/
+│   └── esp32c3_001/
+│       └── bmp280_temperature/
+│           ├── 2026-10-07T14.jsonl   {"t":1727984700000,"v":23.41,"u":"degC"}
+│           ├── 2026-10-07T15.jsonl   {"t":1727988300000,"v":23.52,"u":"degC"}
+│           └── ...
+└── rollup/
+    └── esp32c3_001/
+        ├── bmp280_temperature.jsonl  {"h":"2026-10-07T14","count":60,"min":23.1,"max":24.0,
+        │                              "sum":1395.2,"avg":23.25,"first_t":...,"last_t":...}
+        └── temperature.jsonl         ...</code></pre>
+
+      <p data-ru="Когда час закрывается, его точки сворачиваются в одну строку роллапа — статистику этого часа: счётчик, минимум, максимум, сумму, среднее и первое/последнее значение. Файлы raw и rollup кладутся рядом, в одну директорию INGEST_DIR." data-en="When the hour ends its samples are folded into one rollup line — statistics of that hour: count, min, max, sum, average and first/last value. Raw and rollup files live together under INGEST_DIR.">Роллап — статистика закрытого часа.</p>
+
+      <p data-ru="Запись синхронная и дописывает строку целиком: оборванный процесс не теряет уже принятую точку. Кэш последних значений (latest.json) переписывается раз в две секунды и восстанавливается при старте." data-en="Writes are synchronous appends; a crashed process never loses an accepted point. The latest-value cache (latest.json) is rewritten every two seconds and restored on startup.">Синхронная допись, кэш последних значений.</p>
+
+      <div class="callout warn">
+        <div class="co-ic">🧠</div>
+        <div class="co-body">
+          <p data-ru="Роллапы не дают полной истории навсегда: они сворачивают отдельные точки. Точечная выборка за старые часы доступна только из raw-файлов; для долгого хранения их можно архивировать и переносить отдельно." data-en="Rollups do not give full history forever: they fold individual points. Point-level pick over old hours is only possible from the raw files; archive and move those separately for long-term retention.">Точечная история старых часов — из raw-файлов.</p>
+        </div>
+      </div>
+
+      <h2 id="sse" data-ru="Живой поток: SSE /api/v1/stream" data-en="Live stream: SSE /api/v1/stream">Живой поток: SSE /api/v1/stream</h2>
+
+      <p data-ru="Сайт получает метрики по Server-Sent Events — одно открытое соединение, лёгкие текстовые события. Транспорт сам себя переподключает, события приходят по типам." data-en="The site receives metrics over Server-Sent Events — one open connection and lightweight text events. The transport reconnects by itself, events arrive typed.">Метрики сайту отдаёт SSE.</p>
+
+      <pre><code>event: hello      data: {"version":"0.4.0","telemetry":{"esp32c3_001":{"temp":{"t":...}}}}
+event: metric     data: {"deviceId":"esp32c3_001","sensor":"temp","t":...,"v":23.45,"u":"degC"}
+event: status     data: {"deviceId":"esp32c3_001","status":"online","rssi":-61}
+event: rule       data: {"rule":{...},"action":"mqtt_command","topic":"iot/esp32c3_001/cmd"}
+event: cmd        data: {"deviceId":"esp32c3_001","command":"relay:on","ts":...}</code></pre>
+
+      <p data-ru="При подключении сервер шлёт событие hello со снимком последних значений, дальше — только живые события. Чтобы поток шёл через nginx без задержек, для /api/v1/stream отключена буферизация прокси." data-en="On connect the server sends a hello event with a snapshot of the latest values, then only live events. To keep the stream flowing through nginx without delay, proxy buffering is disabled for /api/v1/stream.">hello со снимком, потом только живые события.</p>
+
+      <div class="callout info">
+        <div class="co-ic">🔌</div>
+        <div class="co-body">
+          <p data-ru="Поток публичный и отдаётся без токена — ровно то, что нужно лендингу. Чтение истории и панель требуют авторизацию." data-en="The stream is public and served without a token — exactly what the landing page needs. Reading history and the panel require authentication.">SSE — публичный эндпоинт.</p>
+        </div>
+      </div>
+
+      <h2 id="istoriya" data-ru="История: /api/v1/sensors" data-en="History: /api/v1/sensors">История: /api/v1/sensors</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Метод и путь" data-en="Method & path">Метод и путь</th>
+              <th data-ru="Что возвращает" data-en="Returns">Что возвращает</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">GET /api/v1/sensors/latest</td>
+              <td data-ru="Кэш последних значений всех устройств" data-en="Latest-value cache for all devices">Последние значения</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /api/v1/sensors/&lt;deviceId&gt;/&lt;sensor&gt;/history</td>
+              <td data-ru="Временной ряд за [from, to] с понижением частоты до points точек" data-en="Time series over [from, to], downsampled to points samples">Временной ряд</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <pre><code>GET /api/v1/sensors/esp32c3_001/temp/history?from=1727982000000&to=1728014400000&points=200
+
+{
+  "ok": true,
+  "deviceId": "esp32c3_001",
+  "sensor": "temp",
+  "series": [ { "t": 1727982000000, "v": 23.41, "u": "degC" }, ... ]
+}</code></pre>
+
+      <p data-ru="По умолчанию окно — 24 часа, до 120 точек. Если точек больше запрошенного, ряд понижается в частоте (усреднение по корзинам) — график остаётся читаемым, а ответ маленьким. Оба эндпоинта требуют токен или сессию панели." data-en="By default the window is 24 hours and up to 120 points. When there are more, the series is downsampled (average per bucket) so the chart stays readable and the response small. Both endpoints require the token or a panel session.">24 часа, до 120 точек, понижение частоты.</p>
+
+      <h2 id="rules" data-ru="Движок правил" data-en="Rules engine">Движок правил</h2>
+
+      <p data-ru="Правила, которыми раньше управляло только приложение, теперь оцениваются и на сервере — прямо на входящей телеметрии." data-en="Rules that used to be acted on only in the app are now also evaluated on the server — right on the incoming telemetry.">Правила оцениваются и на сервере.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Триггер" data-en="Trigger">Триггер</th>
+              <th data-ru="Когда срабатывает" data-en="Fires when">Когда срабатывает</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">threshold_above / threshold_below</td>
+              <td data-ru="Значение датчика (sensor_type или '*') пересекает порог" data-en="The sensor value (sensor_type or '*') crosses the threshold">Значение пересекает порог</td>
+            </tr>
+            <tr>
+              <td class="mono">online / offline</td>
+              <td data-ru="Устройство присылает статусную метку" data-en="The device reports the matching status">Статус устройства</td>
+            </tr>
+            <tr>
+              <td class="mono">no_data</td>
+              <td data-ru="От устройства нет данных дольше порога (секунды)" data-en="No data from the device longer than the threshold (seconds)">Тишина устройства</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru="Действия: mqtt_command и device_command публикуют action_payload в топик iot/&lt;deviceId&gt;/cmd; notify отдаёт событие rule в SSE-поток, чтобы клиенты показали уведомление. Перед повторным срабатыванием всегда действует кулдаун cooldown_seconds." data-en="Actions: mqtt_command and device_command publish action_payload to iot/&lt;deviceId&gt;/cmd; notify pushes a rule event into the SSE stream so clients can show a notification. cooldown_seconds always delays the next firing.">Команда или уведомление, кулдаун по умолчанию.</p>
+
+      <p data-ru="Команду можно отправить и вручную: POST /api/v1/devices/&lt;deviceId&gt;/command с телом {"command":"relay:on"}. Оно опубликуется в тот же топик iot/&lt;deviceId&gt;/cmd и появится в SSE как событие cmd." data-en="A command can also be sent by hand: POST /api/v1/devices/&lt;deviceId&gt;/command with body {"command":"relay:on"}. It is published to the same iot/&lt;deviceId&gt;/cmd topic and surfaces in SSE as a cmd event.">Ручная команда через API.</p>
+
+      <h2 id="nastroyka" data-ru="Настройка" data-en="Configuration">Настройка</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Переменная" data-en="Variable">Переменная</th>
+              <th data-ru="По умолчанию" data-en="Default">По умолчанию</th>
+              <th data-ru="Что задаёт" data-en="Purpose">Что задаёт</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">MQTT_ENABLED</td>
+              <td class="mono">0</td>
+              <td data-ru="Включить мост (1) — подключение к брокеру на 1883" data-en="Enable the bridge (1) — connect to the broker on 1883">Включает MQTT-мост</td>
+            </tr>
+            <tr>
+              <td class="mono">MQTT_HOST / MQTT_PORT</td>
+              <td class="mono">127.0.0.1 / 1883</td>
+              <td data-ru="Адрес брокера Mosquitto" data-en="Mosquitto broker address">Адрес брокера</td>
+            </tr>
+            <tr>
+              <td class="mono">MQTT_USER / MQTT_PASSWORD</td>
+              <td class="mono">—</td>
+              <td data-ru="Учётная запись брокера (read/write iot/#)" data-en="Broker account (read/write iot/#)">Учётные данные брокера</td>
+            </tr>
+            <tr>
+              <td class="mono">MQTT_TOPIC</td>
+              <td class="mono">iot/+/#</td>
+              <td data-ru="Фильтр подписки на метрики" data-en="Subscription filter for metrics">Фильтр подписки</td>
+            </tr>
+            <tr>
+              <td class="mono">INGEST_DIR</td>
+              <td class="mono">data/ingest</td>
+              <td data-ru="Где живут raw/rollup/latest" data-en="Where raw/rollup/latest live">Директория хранилища</td>
+            </tr>
+            <tr>
+              <td class="mono">INGEST_FLUSH_SECONDS</td>
+              <td class="mono">60</td>
+              <td data-ru="Как часто закрывать завершённые часы и сохранять latest" data-en="How often to close finished hours and save latest">Частота сброса</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn">
+        <div class="co-ic">🔑</div>
+        <div class="co-body">
+          <p data-ru="MQTT_PASSWORD — секрет. Его задают в файле окружения и никогда не держат в репозитории; тот же принцип действует для REGISTER_TOKEN, PANEL_PASSWORD и SIGNALING_TOKEN." data-en="MQTT_PASSWORD is a secret. Set it in the environment file and never keep it in the repository; the same applies to REGISTER_TOKEN, PANEL_PASSWORD and SIGNALING_TOKEN.">Пароль брокера — секрет.</p>
+        </div>
+      </div>
+
+      <div class="feedback">
+        <span>💬</span>
+        <span data-ru="Нашли неточность? Исходники вики лежат в репозитории проекта — правки приветствуются." data-en="Found an inaccuracy? The wiki sources live in the project repository — contributions welcome.">Нашли неточность?</span>
+      </div>
+
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+
+  <aside class="toc" id="toc"></aside>
+</div>
+
+<footer class="bottom">
+  <div class="foot-inner">
+    <div>Aeris Monitor · <span class="mono">spe4naz.online</span></div>
+    <div class="foot-links">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <a href="firmware.html" data-ru="Сборка" data-en="Build">Сборка</a>
+      <a href="api.html">API</a>
+      <a href="faq.html">FAQ</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/wiki.js"></script>
+</body>
+</html>

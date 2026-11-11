@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Частые вопросы · Aeris Monitor</title>
+<meta name="description" content="Ответы на частые вопросы: зачем нужен модульный подход, как подключить датчик, почему нет данных, как обновить прошивку, где хранятся данные и как защитить развёртывание.">
+<link rel="canonical" href="https://spe4naz.online/wiki/faq.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Aeris Monitor">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://spe4naz.online/wiki/faq.html">
+<meta property="og:title" content="Частые вопросы">
+<meta property="og:description" content="Ответы на частые вопросы: зачем нужен модульный подход, как подключить датчик, почему нет данных, как обновить прошивку, где хранятся данные и как защитить развёртывание.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/wiki.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+</head>
+<body data-page="faq.html">
+
+<div id="progress"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="../index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Aeris Monitor</span>
+      <span class="sep">/</span>
+      <span class="sub" data-ru="Вики" data-en="Wiki">Вики</span>
+    </a>
+    <button class="icon-btn side-toggle" id="sideToggle" type="button" title="Меню" data-ru-attr="title" data-en-attr="Title" data-ru="Меню" data-en="Menu">☰</button>
+    <div class="top-search">
+      <span class="ico">🔍</span>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" title="Тема / Theme">🌙</button>
+      <button class="lang-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <main class="content">
+    <div class="crumbs">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <span>/</span>
+      <a href="index.html" data-ru="Вики" data-en="Wiki">Вики</a>
+      <span>/</span>
+      <span class="cur">FAQ</span>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow"><span>❓</span> <span data-ru="Раздел 9" data-en="Section 9">Раздел 9</span></div>
+      <h1 data-ru="Частые вопросы" data-en="Frequently asked questions">Частые вопросы</h1>
+      <p class="lede" data-ru="Короткие ответы на то, что спрашивают чаще всего. Если чего-то не хватает — напишите, раздел будет дополнен." data-en="Short answers to what gets asked most often. If something is missing, say so and the page will grow.">Короткие ответы на частые вопросы.</p>
+    </div>
+
+    <div class="prose">
+
+      <h2 id="obshchie" data-ru="Общие вопросы" data-en="General">Общие вопросы</h2>
+
+      <details class="faq">
+        <summary data-ru="Зачем модульная архитектура, если можно подключить датчики напрямую?" data-en="Why a modular architecture if sensors can be wired directly?">Зачем модульная архитектура?</summary>
+        <div class="faq-body">
+          <p data-ru="Прямое подключение вынуждает переделывать плату под каждый набор датчиков. Модульный подход переносит эту работу в прошивку: контроллер один и тот же, а набор датчиков задаётся прошивкой и обнаруживается автоматически." data-en="Wiring sensors directly means redesigning the board for every sensor set. The modular approach moves that work into firmware: the controller stays the same and the sensor set is defined by firmware and discovered automatically.">Модульность переносит работу из железа в прошивку.</p>
+          <p data-ru="Второе следствие — масштабируемость по числу датчиков. Больше шести I2C-устройств на одной шине не помещается, а с мультиплексором добавляются ещё четыре-пять, и всё это не требует правок в железе." data-en="The second consequence is scaling in sensor count. More than six I2C devices do not fit on one bus, while a multiplexer adds four or five more — and none of that requires hardware changes.">Больше датчиков без правок в железе.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Можно ли использовать только контроллер, без отдельного модуля?" data-en="Can the controller work alone, with no separate module?">Можно ли работать без отдельного модуля?</summary>
+        <div class="faq-body">
+          <p data-ru="Да. Собственные датчики контроллера на его же шине работают полностью независимо: каждый драйвер сам регистрирует себя, и добавление нового датчика не требует правок в коде инициализации." data-en="Yes. The controller's own sensors on its own bus work fully independently: every driver registers itself, so adding a new sensor needs no change to the initialisation code.">Да, драйверы регистрируют себя сами.</p>
+          <p data-ru="Модуль при этом остаётся полезным: он выносит датчики на длинном кабеле туда, где до них физически не дотянуться." data-en="A module still helps: it moves sensors out over a long cable to where they cannot physically reach.">Модуль выносит датчики на длинном кабеле.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Можно ли прошивать и настраивать устройство без компьютера?" data-en="Can the device be flashed and configured without a computer?">Можно ли без компьютера?</summary>
+        <div class="faq-body">
+          <p data-ru="Да, из приложения. Оно собирает прошивку и заливает её по USB, определяет модель платы и публикует готовый образ на сервер для обновления по воздуху." data-en="Yes, from the app. It builds firmware and flashes it over USB, detects the board model and publishes the finished image to the server for over-the-air updates.">Да, из приложения.</p>
+          <p data-ru="Первый раз, когда сети ещё нет, проще настроить через точку доступа: при старте без сохранённой сети устройство поднимает свою точку и ждёт настройки около пяти минут." data-en="The very first time, before there is a network, it is easier to configure through the access point: with no stored network the device raises its own hotspot and waits about five minutes.">При первой настройке — через точку доступа.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Что даёт подписка на проект?" data-en="What does the project subscription give?">Что даёт подписка?</summary>
+        <div class="faq-body">
+          <p data-ru="Подписка — это поддержка разработки: она покрывает работу над новыми драйверами, совместимостью и обновлениями. Технические подробности и условия лучше смотреть на странице проекта." data-en="The subscription supports development: it covers new drivers, compatibility work and updates. For the technical details and terms, see the project page.">Подробности — на странице проекта.</p>
+        </div>
+      </details>
+
+      <h2 id="podklyuchenie" data-ru="Подключение и настройка" data-en="Wiring &amp; setup">Подключение и настройка</h2>
+
+      <details class="faq">
+        <summary data-ru="Датчик не появляется в списке после подключения" data-en="A sensor does not show up after wiring">Датчик не появляется в списке</summary>
+        <div class="faq-body">
+          <p data-ru-html="Сначала отправьте команду <code>rescan</code> — она пересканирует шину и пришлёт обновлённый список модулей. Если датчик так и не появился, проверьте четыре вещи по порядку:" data-en-html="First send the <code>rescan</code> command — it rescans the bus and returns an updated module list. If the sensor still does not appear, check these four things in order:"></p>
+          <ul>
+            <li data-ru="Правильный ли адрес: у большинства модулей он не один, а переключается перемычками или пинами." data-en="Is the address right: most modules have more than one and it is selected by jumpers or pins.">Правильный ли адрес.</li>
+            <li data-ru="Не занята ли шина другим устройством: тот же адрес у двух модулей заставляет их молчать." data-en="Is the bus taken by another device: the same address on two modules silences both.">Нет ли конфликта адресов.</li>
+            <li data-ru="Хватает ли питания: датчики с нагревателем потребляют заметно больше в момент измерения." data-en="Is the power enough: sensors with a heater draw noticeably more while measuring.">Хватает ли питания.</li>
+            <li data-ru="Для мультиплексора — верно ли выставлен канал перемычкой." data-en="For a multiplexer — is the channel selected by jumper correct.">Верно ли выбран канал мультиплексора.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Один и тот же датчик виден дважды" data-en="The same sensor is visible twice">Один датчик виден дважды</summary>
+        <div class="faq-body">
+          <p data-ru="Обычно это один физический датчик, но с двумя разными адресами — так ведёт себя BME680 и BMP280, если перемычками включены оба адреса одновременно. Уберите лишний адрес, и второе появление исчезнет." data-en="Usually it is one physical sensor exposing two addresses — that is how BME680 and BMP280 behave when jumpers enable both addresses at once. Remove the extra address and the duplicate disappears.">Один датчик с двумя адресами.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Приложение не видит устройство" data-en="The app does not see the device">Приложение не видит устройство</summary>
+        <div class="faq-body">
+          <p data-ru="Проверьте режим подключения. При прямом подключении телефон и устройство должны быть в одной сети; если это не так, переключитесь на MQTT. Отдельно стоит проверить, опубликовано ли устройство в реестре сервера." data-en="Check the connection mode. In direct mode the phone and the device must share a network; if not, switch to MQTT. Also check whether the device has been published to the server registry.">Проверьте режим и сеть.</p>
+          <p data-ru="Если устройство только что зарегистрировано, подождите до минуты: сервер считает молчащим то, что не подтверждало присутствие три минуты." data-en="If the device has just registered, give it up to a minute: the server treats as stale whatever has not checked in for three minutes.">Подождите до минуты после регистрации.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Куда вводить пароль от MQTT и токен сервера" data-en="Where do the MQTT password and the server token go">Куда вводить пароль и токен</summary>
+        <div class="faq-body">
+          <p data-ru="В настройки приложения. В бандле их нет намеренно: одна и та же сборка работает у всех, а учётные данные вводятся пользователем и хранятся локально на устройстве." data-en="Into the app settings. They are deliberately absent from the bundle: one and the same build works for everyone, and the credentials are entered by the user and stored locally on the device.">Только в настройках приложения.</p>
+        </div>
+      </details>
+
+      <h2 id="dannye" data-ru="Данные и история" data-en="Data &amp; history">Данные и история</h2>
+
+      <details class="faq">
+        <summary data-ru="Где хранятся показания?" data-en="Where are the readings stored?">Где хранятся показания</summary>
+        <div class="faq-body">
+          <p data-ru="На трёх уровнях, и это стоит понимать: брокер держит только последнее значение по каждому топику, карта в устройстве хранит историю в CSV, а сервер — вообще ничего из измерений. Сервер знает только то, какие устройства есть и какие у них аварии и правила." data-en="At three levels, and it helps to understand them: the broker keeps only the latest value per topic, the card in the device holds history as CSV, and the server stores nothing from the measurements at all. The server only knows which devices exist and what alerts and rules they have.">Брокер, карта и сервер.</p>
+          <p data-ru="Практический вывод: если сервер потерян, история никуда не денется, а вот список устройств и правила придётся восстанавливать из резервной копии." data-en="The practical consequence: if the server is lost, no history is lost, but the device list and rules have to be restored from backup.">История не зависит от сервера.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Почему график идёт вразнобой, а не по одной точке в цикл" data-en="Why do the points look unevenly spaced?">Почему точки на графике неравномерны</summary>
+        <div class="faq-body">
+          <p data-ru="Значение публикуется только при изменении и как минимум раз в минуту. Если датчик стоит на месте, изменений нет и точки отстоят друг от друга на минуту. Для датчиков с медленным изменением это экономит и трафик, и запись на карту." data-en="A value is published only when it changes and at least once a minute. If the sensor is steady there is nothing to report, so consecutive points sit a minute apart. For slow-changing sensors this saves both traffic and card writes.">Публикация только при изменении.</p>
+          <p data-ru="Значения, для которых нет корректного показания, — в первую очередь содержание CO₂ во время прогрева, — не попадают в поток вовсе, поэтому на графике в этом месте будет разрыв. Это честнее, чем рисовать нули." data-en="Values with no valid reading — CO₂ during warm-up above all — never enter the stream, so the chart has a break there. That is more honest than drawing zeroes.">Разрывы вместо нулей.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Время на графике сдвинуто или неверно" data-en="Times on the chart are shifted or wrong">Время на графике неверно</summary>
+        <div class="faq-body">
+          <p data-ru-html="Скорее всего, устройство ещё не синхронизировало часы: метки времени в данных отсчитываются от старта, а не от эпохи. Признак — в состоянии <code>time_synced</code> стоит <code>false</code>. Синхронизация занимает несколько секунд после подключения к сети." data-en-html="Most likely the device has not synced its clock yet: timestamps then count from boot rather than from the epoch. The tell is <code>false</code> in <code>time_synced</code>. Syncing takes a few seconds after the network comes up.">Проверьте time_synced.</p>
+          <p data-ru="Если после синхронизации время всё ещё неверно, проверьте часовой пояс: по умолчанию в прошивке стоит UTC, и для московского времени нужно выставить смещение." data-en="If the time is still wrong after syncing, check the time zone offset: firmware defaults to UTC, and Moscow time needs the offset set.">Проверьте часовой пояс.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="История не открывается или обрывается" data-en="History fails or cuts off">История обрывается</summary>
+        <div class="faq-body">
+          <p data-ru-html="История читается с карты, и чтение ограничено: просматривается не больше 4096 строк за запрос. На медленной карте или за большой период этого не хватает. Уменьшите период или увеличьте <code>limit</code>." data-en-html="History is read from the card and reading is bounded: at most 4096 lines are scanned per request. On a slow card or over a long period that is not enough. Shorten the period or raise <code>limit</code>.">Ограничение 4096 строк.</p>
+          <p data-ru-html="Если история недоступна совсем, проверьте, смонтирована ли карта: поле <code>mounted</code> в ответе должно быть <code>true</code>. Заодно посмотрите, сколько места осталось: при заполнении более чем на 90 процентов старые файлы начинают удаляться." data-en-html="If history is unavailable at all, check whether the card is mounted: <code>mounted</code> in the response should be <code>true</code>. Also check the free space: past 90 percent full the oldest files start being removed.">Проверьте карту и место.</p>
+        </div>
+      </details>
+
+      <h2 id="obnovleniya" data-ru="Прошивки и обновления" data-en="Firmware &amp; updates">Прошивки и обновления</h2>
+
+      <details class="faq">
+        <summary data-ru="Устройство не обновляется по воздуху" data-en="The device does not update over the air">Не обновляется по воздуху</summary>
+        <div class="faq-body">
+          <p data-ru-html="Обычная причина — в манифесте опубликована та же или более старая версия, чем установленная. Сравнение числовое: <code>1.10.0</code> считается новее, чем <code>1.9.0</code>, хотя строки различаются. Чтобы обновиться принудительно, отправьте команду <code>ota</code> с <code>force: true</code>." data-en-html="The usual cause is that the manifest holds the same or an older version than the installed one. Comparison is numeric: <code>1.10.0</code> counts as newer than <code>1.9.0</code> even though the strings differ. To update forcibly, send the <code>ota</code> command with <code>force: true</code>.">Сравнение версий числовое.</p>
+          <p data-ru="Если версия новее, но обновление не началось, проверьте, что манифест и образ доступны по HTTPS и что контрольная сумма в манифесте совпадает с образом." data-en="If the version is newer but nothing happens, check that the manifest and the image are reachable over HTTPS and that the manifest checksum matches the image.">Проверьте манифест и контрольную сумму.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Обновление сорвалось, устройство не стартует" data-en="An update failed and the device will not boot">Обновление сорвалось</summary>
+        <div class="faq-body">
+          <p data-ru-html="Прошивка пишется во второй раздел, поэтому текущая остаётся нетронутой до самого конца. Если что-то пошло не так, отправьте команду <code>ota_rollback</code> — устройство перезагрузится на предыдущую рабочую версию." data-en-html="The new firmware is written to the second slot, so the running one stays untouched until the very end. If something went wrong, send the <code>ota_rollback</code> command and the device will reboot into the previous working version.">Откат командой ota_rollback.</p>
+          <p data-ru="Если и откат недоступен, устройство придётся прошить по USB." data-en="If rollback is unavailable too, the device has to be reflashed over USB.">Крайний случай — прошивка по USB.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Как добавить новый датчик" data-en="How do I add a new sensor">Как добавить новый датчик</summary>
+        <div class="faq-body">
+          <p data-ru="Реализуйте драйвер по образцу существующего: опишите имя модуля, ключи и единицы метрик, идентификатор типа и периодичность чтения, затем зарегистрируйте его. Функция инициализации датчиков при этом не меняется — драйверы регистрируют себя сами." data-en="Implement the driver along the lines of an existing one: describe the module name, metric keys and units, the type ID and the read interval, then register it. The sensor initialisation function itself does not change — drivers register themselves.">Драйверы регистрируют себя сами.</p>
+        </div>
+      </details>
+
+      <h2 id="razrabotka" data-ru="Развёртывание и разработка" data-en="Deployment &amp; development">Развёртывание и разработка</h2>
+
+      <details class="faq">
+        <summary data-ru="Что проверяется автоматически?" data-en="What is verified automatically?">Что проверяется автоматически</summary>
+        <div class="faq-body">
+          <p data-ru="У сервера есть 36 автотестов: реестр, лимиты, аварии, правила и обработчики HTTP. У приложения 77 тестов. Прошивка проверяется сборкой под все три платы и поведением на реальном железе — автотестов у неё нет." data-en="The server has 36 automated tests: registry, limits, alerts, rules and the HTTP handlers. The app has 77 tests. Firmware is verified by building for all three boards and by behaviour on real hardware — it has no automated tests.">Тесты есть у сервера и приложения.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Нужно ли что-то менять в nginx для новых разделов?" data-en="Does nginx need changes for new sections?">Нужно ли менять nginx</summary>
+        <div class="faq-body">
+          <p data-ru="Нет. Всё, что лежит в каталоге сайта, отдаётся как статические файлы, поэтому вики, документация и новые страницы появляются простой загрузкой файлов — перезагрузка nginx не нужна." data-en="No. Anything inside the site directory is served as static files, so the wiki, the documentation and new pages appear by simply uploading files — no nginx reload required.">Статика отдаётся как есть.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Можно ли закрыть сервер от внешнего доступа" data-en="Can the server be kept off the public internet?">Можно ли закрыть сервер</summary>
+        <div class="faq-body">
+          <p data-ru="Да, и это рекомендуемый режим: сервер слушает только локальный адрес, а наружу его выставляет nginx. Если сервер стоит за другим nginx, порт менять не нужно — достаточно не проксировать его дальше." data-en="Yes, and it is the recommended setup: the server listens on the loopback address only and nginx is what faces the outside. If it sits behind another nginx, the port need not change — just don't proxy it further.">Сервер слушает только петлю.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Что делать, если устройство перестало появляться в реестре" data-en="What if a device stops showing in the registry">Устройство пропало из реестра</summary>
+        <div class="faq-body">
+          <p data-ru-html="Сначала проверьте само устройство: открывается ли его собственный API и есть ли в нём <code>uptime</code>. Если устройство живо, а в реестре его нет, вероятнее всего, оно не смогло достучаться до сервера — например, из-за неверного адреса или блокировки исходящих запросов." data-en-html="Check the device first: does its own API respond, and does it report an <code>uptime</code>? If the device is alive but absent from the registry, it most likely could not reach the server — a wrong address or blocked outbound traffic being the usual reasons.">Проверьте устройство, потом сеть.</p>
+          <p data-ru="Обратите внимание: запись не удаляется при потере связи, а помечается как офлайн. Полное исчезновение означает, что сервер был переустановлен без сохранения данных." data-en="Note that a record is not deleted when contact is lost, it is marked offline. A complete disappearance means the server was reinstalled without its data.">Записи не удаляются при обрыве связи.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="С чего начать сборку прошивки?" data-en="Where do I start building the firmware?">С чего начать сборку</summary>
+        <div class="faq-body">
+          <p data-ru="Создайте виртуальное окружение, поставьте PlatformIO и соберите нужную плату — проекта настроены под три: ESP32-C3, ESP32-C6 и ESP32-S3." data-en="Create a virtual environment, install PlatformIO and build the board you need — the project is configured for three: ESP32-C3, ESP32-C6 and ESP32-S3.">Три среды сборки.</p>
+          <pre style="margin-top:8px"><code>python -m venv .venv
+.venv\Scripts\activate
+pip install platformio
+pio run -e esp32c3</code></pre>
+        </div>
+      </details>
+
+      <div class="callout info">
+        <div class="co-ic">💬</div>
+        <div class="co-body">
+          <p data-ru-html="Остались вопросы — посмотрите <a href="api.html">справочник API</a> и <a href="server.html">раздел про сервер</a>: там собраны точные форматы, коды и значения по умолчанию." data-en-html="Still have questions? See the <a href="api.html">API reference</a> and the <a href="server.html">server section</a>: the exact formats, codes and defaults are collected there.">Загляните в справочник API.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+
+  <aside class="toc" id="toc"></aside>
+</div>
+
+<footer class="bottom">
+  <div class="foot-inner">
+    <div>Aeris Monitor · <span class="mono">spe4naz.online</span></div>
+    <div class="foot-links">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <a href="index.html" data-ru="Вики" data-en="Wiki">Вики</a>
+      <a href="app.html" data-ru="Приложение" data-en="App">Приложение</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/wiki.js"></script>
+</body>
+</html>

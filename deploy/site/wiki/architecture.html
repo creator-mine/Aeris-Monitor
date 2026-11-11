@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Архитектура системы · Aeris Monitor</title>
+<meta name="description" content="Компоненты системы, потоки данных, реестр модулей, жизненный цикл датчика, отказоустойчивость и масштабирование.">
+<link rel="canonical" href="https://spe4naz.online/wiki/architecture.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Aeris Monitor">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://spe4naz.online/wiki/architecture.html">
+<meta property="og:title" content="Архитектура системы">
+<meta property="og:description" content="Компоненты системы, потоки данных, реестр модулей, жизненный цикл датчика, отказоустойчивость и масштабирование.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/wiki.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+</head>
+<body data-page="architecture.html">
+
+<div id="progress"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="../index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Aeris Monitor</span>
+      <span class="sep">/</span>
+      <span class="sub" data-ru="Вики" data-en="Wiki">Вики</span>
+    </a>
+    <button class="icon-btn side-toggle" id="sideToggle" type="button" title="Меню" data-ru-attr="title" data-en-attr="Title" data-ru="Меню" data-en="Menu">☰</button>
+    <div class="top-search">
+      <span class="ico">🔍</span>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" title="Тема / Theme">🌙</button>
+      <button class="lang-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <main class="content">
+    <div class="crumbs">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <span>/</span>
+      <a href="index.html" data-ru="Вики" data-en="Wiki">Вики</a>
+      <span>/</span>
+      <span class="cur" data-ru="Архитектура" data-en="Architecture">Архитектура</span>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow"><span>🏗️</span> <span data-ru="Раздел 2" data-en="Section 2">Раздел 2</span></div>
+      <h1 data-ru="Архитектура системы" data-en="System architecture">Архитектура системы</h1>
+      <p class="lede" data-ru="Из каких блоков собрана система, как данные идут от датчика до экрана, что происходит при появлении и исчезновении модуля и за счёт чего всё это масштабируется." data-en="Which blocks make up the system, how data travels from a sensor to the screen, what happens when a module appears or disappears, and what makes it scale.">Из каких блоков собрана система.</p>
+    </div>
+
+    <div class="prose">
+
+      <h2 id="obzor" data-ru="Обзор системы" data-en="System overview">Обзор системы</h2>
+
+      <div class="flow">
+        <div class="flow-col">
+          <div class="flow-head" data-ru="Периферия" data-en="Edge">Периферия</div>
+          <div class="flow-node">
+            <span class="fi">🌡️</span>
+            <div>
+              <b data-ru="Сенсорный модуль" data-en="Sensor module">Сенсорный модуль</b>
+              <div class="fm"><span class="mono">ESP32-C6</span> · I²C · без Wi-Fi</div>
+            </div>
+          </div>
+          <div class="flow-node">
+            <span class="fi">🔌</span>
+            <div>
+              <b data-ru="Драйверы датчиков" data-en="Sensor drivers">Драйверы датчиков</b>
+              <div class="fm"><span data-ru="общий реестр, по клону на каждый найденный датчик" data-en="shared registry, one clone per detected device">общий реестр, по клону на каждый датчик</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-col">
+          <div class="flow-head" data-ru="Агрегация" data-en="Aggregation">Агрегация</div>
+          <div class="flow-node core">
+            <span class="fi">🧠</span>
+            <div>
+              <b data-ru="Главный контроллер" data-en="Main controller">Главный контроллер</b>
+              <div class="fm"><span class="mono">ESP32-C3</span> / <span class="mono">ESP32-S3</span></div>
+              <div class="tagline" data-ru="приём кадров · карта метрик · MQTT · веб-API · SD" data-en="frame intake · metric map · MQTT · web API · SD">приём кадров · карта метрик · MQTT · веб-API · SD</div>
+            </div>
+          </div>
+          <div class="flow-node">
+            <span class="fi">💾</span>
+            <div>
+              <b data-ru="История на SD" data-en="SD history">История на SD</b>
+              <div class="fm" data-ru="CSV по дням, до 60 файлов, чистка при заполнении" data-en="daily CSV, up to 60 files, trimmed when full">CSV по дням, до 60 файлов</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-col">
+          <div class="flow-head" data-ru="Внешний контур" data-en="Cloud">Внешний контур</div>
+          <div class="flow-node srv">
+            <span class="fi">📶</span>
+            <div>
+              <b data-ru="MQTT-брокер" data-en="MQTT broker">MQTT-брокер</b>
+              <div class="fm"><span class="mono">Mosquitto</span> · <span class="mono">iot/</span></div>
+            </div>
+          </div>
+          <div class="flow-node srv">
+            <span class="fi">🖥️</span>
+            <div>
+              <b data-ru="Сигнальный сервер" data-en="Signaling server">Сигнальный сервер</b>
+              <div class="fm" data-ru="реестр устройств, аварии, правила" data-en="device registry, alerts, rules">реестр устройств, аварии, правила</div>
+            </div>
+          </div>
+          <div class="flow-node app">
+            <span class="fi">📱</span>
+            <div>
+              <b data-ru="Приложение и панель" data-en="App and panel">Приложение и панель</b>
+              <div class="fm" data-ru="дашборд · графики · аварии · управление" data-en="dashboard · charts · alerts · control">дашборд · графики · аварии · управление</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p data-ru="Между контроллером и внешним контуром работает два независимых канала: MQTT через брокер и HTTPS к сигнальному серверу. MQTT несёт значения метрик, сигнальный сервер — только сведения об устройстве: адрес, имя, версию прошивки и список типов датчиков. Сами показания через сервер не ходят, поэтому его остановка не обрывает поток данных." data-en="Two independent channels run between the controller and the outside: MQTT through the broker, and HTTPS to the signaling server. MQTT carries the metric values; the signaling server only keeps device metadata — address, name, firmware version and the list of sensor types. Readings never pass through it, so stopping the server does not interrupt the data flow.">MQTT несёт значения, сигнальный сервер — только сведения об устройстве.</p>
+
+      <h2 id="potoki" data-ru="Потоки данных" data-en="Data flows">Потоки данных</h2>
+
+      <h3 data-ru="Внутри периферии: датчик в контроллер" data-en="Inside the edge: sensor to controller">Внутри периферии: датчик в контроллер</h3>
+
+      <ol class="seq">
+        <li>
+          <b data-ru="Сканирование шины" data-en="Bus scan">Сканирование шины</b>
+          <p data-ru="При старте и по команде пересканирования реестр перебирает адреса I²C. Для каждого каннала мультиплексора — отдельный проход с предварительным выбором канала." data-en="At boot and on a rescan command the registry walks the I²C addresses. Each mux channel gets its own pass with the channel selected first.">При старте и по команде пересканирования реестр перебирает адреса I²C.</p>
+        </li>
+        <li>
+          <b data-ru="Определение типа" data-en="Type detection">Определение типа</b>
+          <p data-ru="На каждый адрес вызывается detect() каждого зарегистрированного драйвера. Драйвер, который узнал свой чип по идентификатору, отдаёт адрес реестру." data-en="Each registered driver's detect() is called for the address. Whichever driver recognises its chip by ID claims the address.">На каждый адрес вызывается detect() каждого драйвера.</p>
+        </li>
+        <li>
+          <b data-ru="Клонирование и инициализация" data-en="Cloning and init">Клонирование и инициализация</b>
+          <p data-ru="Реестр создаёт свежий экземпляр драйвера через clone(), вызывает init() с найденным адресом и сохраняет запись: драйвер, адрес, адрес и канал мультиплексора, метки времени, состояние." data-en="The registry creates a fresh instance through clone(), calls init() with the discovered address and stores the record: driver, address, mux address and channel, timestamps and state.">Реестр создаёт свежий экземпляр драйвера через clone().</p>
+        </li>
+        <li>
+          <b data-ru="Опрос по расписанию" data-en="Scheduled polling">Опрос по расписанию</b>
+          <p data-ru="Каждый драйвер сообщает свой интервал. Когда срок приходит, реестр читает датчик, сглаживает результат с предыдущим показанием и публикует." data-en="Each driver reports its own interval. When the deadline arrives the registry reads the sensor, merges the result with the previous reading and publishes it.">Каждый драйвер сообщает свой интервал опроса.</p>
+        </li>
+      </ol>
+
+      <h3 data-ru="От контроллера наружу" data-en="From controller to the outside">От контроллера наружу</h3>
+
+      <ol class="seq">
+        <li>
+          <b data-ru="MQTT" data-en="MQTT">MQTT</b>
+          <p data-ru-html="Каждая метрика уходит отдельным сообщением в топик <code>iot/&lt;device&gt;/sensors/&lt;sensor&gt;</code> с отметкой времени и единицей измерения. Такой разрез по топикам позволяет подписаться только на нужные метрики." data-en-html="Every metric goes out as its own message on <code>iot/&lt;device&gt;/sensors/&lt;sensor&gt;</code>, carrying a timestamp and the unit. One topic per metric means a client can subscribe to just what it needs.">Каждая метрика уходит отдельным сообщением в свой топик.</p>
+        </li>
+        <li>
+          <b data-ru="REST и WebSocket" data-en="REST and WebSocket">REST и WebSocket</b>
+          <p data-ru="Локально контроллер отдаёт текущие значения, список модулей, историю и логи. По WebSocket те же данные приходят в приложение без опроса — как только они изменились." data-en="Locally the controller serves current values, the module list, history and logs. Over WebSocket the same data reaches the app without polling, as soon as it changes.">Локально — REST и WebSocket с push-обновлениями.</p>
+        </li>
+        <li>
+          <b data-ru="История на SD" data-en="SD history">История на SD</b>
+          <p data-ru="Каждое прочитанное значение дописывается в дневной CSV-файл. Файл называется по дате, поэтому старые данные не перезаписываются." data-en="Every reading is appended to a daily CSV file named by date, so older data is never overwritten.">Каждое значение дописывается в дневной CSV-файл.</p>
+        </li>
+        <li>
+          <b data-ru="Регистрация на сервере" data-en="Server registration">Регистрация на сервере</b>
+          <p data-ru="Контроллер сообщает серверу свой идентификатор, имя, адрес и версию прошивки и повторяет это раз в 30 секунд. Если подтверждения нет дольше трёх минут, устройство считается офлайн." data-en="The controller reports its ID, name, address and firmware version to the server and repeats it every 30 seconds. Without an acknowledgement for three minutes the device is considered offline.">Контроллер повторяет регистрацию раз в 30 секунд.</p>
+        </li>
+      </ol>
+
+      <h2 id="reestr-moduley" data-ru="Реестр модулей" data-en="Module registry">Реестр модулей</h2>
+
+      <p data-ru="Реестр — центральная часть системы. Он владеет тремя списками: прототипы драйверов, активные записи датчиков и список адресов мультиплексоров. Прототип никогда не используется для чтения напрямую: при обнаружении датчика из него делается отдельная копия." data-en="The registry is the heart of the system. It owns three lists: driver prototypes, active sensor records and the set of mux addresses. A prototype is never read from directly — each discovered sensor gets its own copy made from it.">Реестр владеет прототипами драйверов, активными записями и списком мультиплексоров.</p>
+
+      <div class="grid g2">
+        <div class="card">
+          <span class="c-ic">🧩</span>
+          <h3 data-ru="Прототип" data-en="Prototype">Прототип</h3>
+          <p data-ru="По одному экземпляру каждого драйвера. Создаётся фабрикой при первом обращении к реестру, служит только образцом для клонирования." data-en="One instance per driver, built by a factory on first use. It exists solely as a template for cloning.">Образец для клонирования.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">📋</span>
+          <h3 data-ru="Активная запись" data-en="Active record">Активная запись</h3>
+          <p data-ru="Пара «драйвер + адрес + мультиплексор + канал». У записи есть собственные кэш последних значений, отметки времени и флаг доступности." data-en="A driver plus address, mux and channel. Each record keeps its own value cache, timestamps and availability flag.">Пара «драйвер + адрес + мультиплексор + канал».</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">🔀</span>
+          <h3 data-ru="Мультиплексоры" data-en="Multiplexers">Мультиплексоры</h3>
+          <p data-ru="Список адресов TCA9548A задаётся конфигурацией и заканчивается нулём. Значение 0 в списке означает «мультиплексоров нет», прямая шина." data-en="The TCA9548A address list comes from configuration and ends with a zero. A 0 in the list means “no mux”, a direct bus.">Список адресов TCA9548A из конфигурации.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">🔒</span>
+          <h3 data-ru="Блокировка шины" data-en="Bus lock">Блокировка шины</h3>
+          <p data-ru="Все обращения к шине и все изменения списков проходят под семафором. Задачи HTTP и WebSocket выполняются не в основном цикле Arduino, поэтому без блокировки они столкнулись бы с чтением датчиков." data-en="Every bus transaction and every list mutation runs under a semaphore. HTTP and WebSocket tasks do not run on the Arduino loop task, so without the lock they would collide with sensor reads.">Все обращения к шине проходят под семафором.</p>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="co-ic">🔢</div>
+        <div class="co-body">
+          <p data-ru-html="Состав датчиков может измениться в любой момент. Счётчик <code>compositionRevision</code> увеличивается при каждом изменении — по нему контроллер понимает, что карту метрик нужно переслать заново, и отдаёт клиентам обновлённый список модулей." data-en-html="The sensor set can change at any moment. The <code>compositionRevision</code> counter increments on every change — that is how the controller knows the metric map must be re-sent and hands clients a fresh module list.">Счётчик compositionRevision растёт при каждом изменении состава датчиков.</p>
+        </div>
+      </div>
+
+      <h2 id="zhiznennyy-cikl" data-ru="Жизненный цикл модуля" data-en="Module lifecycle">Жизненный цикл модуля</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Состояние" data-en="State">Состояние</th>
+              <th data-ru="Как обнаруживается" data-en="How it is detected">Как обнаруживается</th>
+              <th data-ru="Что видит пользователь" data-en="What the user sees">Что видит пользователь</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Отсутствует" data-en="Absent">Отсутствует</td>
+              <td data-ru="Нет ответа на адресе при сканировании" data-en="No response on the address during the scan">Нет ответа на адресе при сканировании</td>
+              <td data-ru="Датчика нет в списке" data-en="The sensor is absent from the list">Датчика нет в списке</td>
+            </tr>
+            <tr>
+              <td data-ru="Онлайн" data-en="Online">Онлайн</td>
+              <td data-ru="Успешный ответ на шине или успешное чтение" data-en="A successful bus answer or a successful read">Успешный ответ на шине</td>
+              <td data-ru="Обычные значения, метрики обновляются" data-en="Normal values, metrics updating">Обычные значения</td>
+            </tr>
+            <tr>
+              <td data-ru="Офлайн" data-en="Offline">Офлайн</td>
+              <td data-ru="Проверка живости раз в 10 секунд не получила ответа" data-en="The 10-second liveness check got no answer">Проверка живости не получила ответа</td>
+              <td data-ru="Запись остаётся в списке, значения помечаются как нет данных" data-en="The record stays in the list, readings are marked as no data">Запись остаётся, значения — «нет данных»</td>
+            </tr>
+            <tr>
+              <td data-ru="Восстановление" data-en="Recovery">Восстановление</td>
+              <td data-ru="После успешного ответа создаётся новый клон драйвера" data-en="A fresh driver clone is built after a successful answer">Создаётся новый клон драйвера</td>
+              <td data-ru="Метрики снова обновляются" data-en="Metrics update again">Метрики снова обновляются</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru="Офлайн-записи не удаляются намеренно. Если датчик отвалился на минуту, пользователь должен видеть, что произошло, а не что метрика просто исчезла из интерфейса. Удалить запись можно пересканированием шины." data-en="Offline records are kept on purpose. If a sensor drops out for a minute, the user should see that something happened rather than watching the metric silently vanish. A bus rescan removes the record.">Офлайн-записи не удаляются намеренно.</p>
+
+      <h2 id="otkazy" data-ru="Отказоустойчивость" data-en="Fault tolerance">Отказоустойчивость</h2>
+
+      <div class="grid g2">
+        <div class="card">
+          <h3 data-ru="Не удалось прочитать датчик" data-en="A sensor read fails">Не удалось прочитать датчик</h3>
+          <p data-ru="Ошибка не роняет остальные метрики датчика: непрочитанные значения заменяются на NAN, в интерфейсе это видно как «нет данных», а не как ноль." data-en="A failure does not take down the other metrics of that sensor: unread values become NAN, which the UI shows as “no data” rather than zero.">Ошибка не роняет остальные метрики датчика.</p>
+        </div>
+        <div class="card">
+          <h3 data-ru="Шина I²C зависла" data-en="The I²C bus hangs">Шина I²C зависла</h3>
+          <p data-ru="Неподтверждённая передача завершается по таймауту библиотеки, запись переходит в офлайн, при следующем успешном ответе драйвер пересоздаётся." data-en="An unacknowledged transfer times out inside the library, the record goes offline, and a fresh driver is rebuilt on the next successful answer.">Неподтверждённая передача завершается по таймауту.</p>
+        </div>
+        <div class="card">
+          <h3 data-ru="Пропал UART" data-en="UART link lost">Пропал UART</h3>
+          <p data-ru="Контроллер продолжает работать: свои датчики, MQTT, API и SD никуда не делись. В списке модулей просто не будет строки сенсорного модуля." data-en="The controller carries on: its own sensors, MQTT, the API and the SD card are unaffected. The sensor module simply stops appearing in the module list.">Контроллер продолжает работать.</p>
+        </div>
+        <div class="card">
+          <h3 data-ru="Пропал MQTT-брокер" data-en="MQTT broker lost">Пропал MQTT-брокер</h3>
+          <p data-ru="Публикации повторяются с задержкой, история продолжает писаться на SD, локальный доступ по HTTP и WebSocket не прерывается." data-en="Publishing retries with a delay, SD history keeps being written, and local HTTP and WebSocket access is uninterrupted.">Публикации повторяются, история пишется.</p>
+        </div>
+        <div class="card">
+          <h3 data-ru="Пропал сигнальный сервер" data-en="Signaling server lost">Пропал сигнальный сервер</h3>
+          <p data-ru="Данные продолжают идти по MQTT, регистрация повторяется по расписанию. Приложение в режиме «прямое LAN» работает и вообще без сервера." data-en="Data keeps flowing over MQTT, registration retries on schedule, and in “direct LAN” mode the app works with no server at all.">Данные продолжают идти по MQTT.</p>
+        </div>
+        <div class="card">
+          <h3 data-ru="Зависла прошивка" data-en="Firmware hangs">Зависла прошивка</h3>
+          <p data-ru="Сторожевой таймер срабатывает через 20 секунд и перезагружает контроллер. После перезагрузки реестр заново сканирует шину и поднимает найденные датчики." data-en="A watchdog fires after 20 seconds and reboots the controller. After the reboot the registry rescans the bus and brings the found sensors back up.">Сторожевой таймер перезагружает через 20 секунд.</p>
+        </div>
+      </div>
+
+      <h2 id="masshtab" data-ru="Масштабирование" data-en="Scaling">Масштабирование</h2>
+
+      <p data-ru="Масштабирование идёт по трём независимым осям, и каждая упирается в свой предел." data-en="Scaling proceeds along three independent axes, each with its own ceiling.">Масштабирование идёт по трём независимым осям.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Ось" data-en="Axis">Ось</th>
+              <th data-ru="Как расширяется" data-en="How it grows">Как расширяется</th>
+              <th data-ru="Предел" data-en="Limit">Предел</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Больше датчиков на одной плате" data-en="More sensors per board">Больше датчиков на одной плате</td>
+              <td data-ru="Дополнительные адреса I²C, затем мультиплексор TCA9548A" data-en="Extra I²C addresses, then a TCA9548A mux">Дополнительные адреса, затем мультиплексор</td>
+              <td data-ru="8 каналов на мультиплексор, до 8 мультиплексоров на шине" data-en="8 channels per mux, up to 8 muxes on the bus">8 каналов на мультиплексор</td>
+            </tr>
+            <tr>
+              <td data-ru="Больше модулей на контроллере" data-en="More modules per controller">Больше модулей на контроллере</td>
+              <td data-ru="Второй сенсорный модуль на тех же UART-пинах" data-en="A second sensor module on the same UART pins">Второй сенсорный модуль</td>
+              <td data-ru="Один модуль на пару UART-пинов; несколько — через отдельный идентификатор и драйвер" data-en="One module per UART pin pair; several need distinct IDs and drivers">Один модуль на пару UART-пинов</td>
+            </tr>
+            <tr>
+              <td data-ru="Больше контроллеров" data-en="More controllers">Больше контроллеров</td>
+              <td data-ru="Новый идентификатор устройства и своя пара MQTT-учётных данных" data-en="A new device ID and its own MQTT credentials">Новый идентификатор устройства</td>
+              <td data-ru="Ограничено брокером и реестром сервера, а не прошивкой" data-en="Bounded by the broker and the server registry, not by the firmware">Ограничено брокером и реестром</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">📏</div>
+        <div class="co-body">
+          <p data-ru="Практический предел одной установки — обычно не число датчиков, а длина кабелей и питание. Десяток BME680 на разных каналах мультиплексора работает, десяток датчиков на двадцатиметровых проводах — уже нет." data-en="The practical limit of a single install is usually not the sensor count but cable length and power. A dozen BME680 devices on separate mux channels works; a dozen sensors on twenty-metre leads does not.">Практический предел — длина кабелей и питание.</p>
+        </div>
+      </div>
+
+      <h2 id="model-dannyh" data-ru="Модель данных" data-en="Data model">Модель данных</h2>
+
+      <p data-ru="Значение метрики проходит через систему с тремя уровнями описания." data-en="A metric value passes through the system with three levels of description.">Значение метрики проходит через систему с тремя уровнями описания.</p>
+
+      <div class="grid g3">
+        <div class="card">
+          <span class="c-num">1</span>
+          <h3 data-ru="Тип датчика" data-en="Sensor type">Тип датчика</h3>
+          <p data-ru-html="Одно число — <code>type_id</code> — плюс имя. По нему контроллер узнаёт, какой драйвер использовать. BME680 это 1, BH1750 это 2, SCD30 это 3, INA219 это 4, BMP280 это 5." data-en-html="A single number — the <code>type_id</code> — plus a name. It tells the controller which driver to use. BME680 is 1, BH1750 is 2, SCD30 is 3, INA219 is 4, BMP280 is 5.">Одно число плюс имя.</p>
+        </div>
+        <div class="card">
+          <span class="c-num">2</span>
+          <h3 data-ru="Экземпляр датчика" data-en="Sensor instance">Экземпляр датчика</h3>
+          <p data-ru-html="Строка вида <code>BME680_0x76</code>. Если датчик стоит за мультиплексором, добавляется суффикс канала. Это и есть идентификатор в API." data-en-html="A string such as <code>BME680_0x76</code>, with a channel suffix when the sensor sits behind a mux. This is the ID you see in the API.">Строка вида BME680_0x76.</p>
+        </div>
+        <div class="card">
+          <span class="c-num">3</span>
+          <h3 data-ru="Метрика" data-en="Metric">Метрика</h3>
+          <p data-ru="Ключ, единица измерения и значение. Ключ приезжает с модуля, поэтому приложению не нужно знать заранее, что именно измеряет датчик." data-en="A key, a unit and a value. The key arrives from the module, so the app need not know in advance what the sensor measures.">Ключ, единица измерения и значение.</p>
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <div class="co-ic">🔑</div>
+        <div class="co-body">
+          <p data-ru-html="Ключ метрики может совпадать у разных датчиков — например, температура есть и у BME680, и у SCD30, — поэтому у драйверов, где это создаёт путаницу, ключи намеренно с префиксом: <code>bmp280_temperature</code>, <code>scd30_co2</code>. Подробности в разделе <a href=\"sensors.html\">Датчики и драйверы</a>." data-en-html="Metric keys may repeat across sensors — temperature exists on both BME680 and SCD30 — so drivers where that would be confusing use prefixed keys: <code>bmp280_temperature</code>, <code>scd30_co2</code>. See <a href=\"sensors.html\">Sensors &amp; drivers</a>.">Ключи метрик могут совпадать у разных датчиков.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+
+  <aside class="toc" id="toc"></aside>
+</div>
+
+<footer class="bottom">
+  <div class="foot-inner">
+    <div>Aeris Monitor · <span class="mono">spe4naz.online</span></div>
+    <div class="foot-links">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <a href="sensors.html" data-ru="Датчики" data-en="Sensors">Датчики</a>
+      <a href="api.html">API</a>
+      <a href="faq.html">FAQ</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/wiki.js"></script>
+</body>
+</html>

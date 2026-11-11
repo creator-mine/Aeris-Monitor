@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Прошивка и протокол · Aeris Monitor</title>
+<meta name="description" content="Сборка прошивок PlatformIO для ESP32-C3, C6 и S3, первичная прошивка и настройка Wi-Fi, OTA, структура кода и бинарный UART-протокол с CRC-16.">
+<link rel="canonical" href="https://spe4naz.online/wiki/firmware.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Aeris Monitor">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://spe4naz.online/wiki/firmware.html">
+<meta property="og:title" content="Прошивка и протокол">
+<meta property="og:description" content="Сборка прошивок PlatformIO для ESP32-C3, C6 и S3, первичная прошивка и настройка Wi-Fi, OTA, структура кода и бинарный UART-протокол с CRC-16.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/wiki.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+</head>
+<body data-page="firmware.html">
+
+<div id="progress"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="../index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Aeris Monitor</span>
+      <span class="sep">/</span>
+      <span class="sub" data-ru="Вики" data-en="Wiki">Вики</span>
+    </a>
+    <button class="icon-btn side-toggle" id="sideToggle" type="button" title="Меню" data-ru-attr="title" data-en-attr="Title" data-ru="Меню" data-en="Menu">☰</button>
+    <div class="top-search">
+      <span class="ico">🔍</span>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" title="Тема / Theme">🌙</button>
+      <button class="lang-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <main class="content">
+    <div class="crumbs">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <span>/</span>
+      <a href="index.html" data-ru="Вики" data-en="Wiki">Вики</a>
+      <span>/</span>
+      <span class="cur" data-ru="Прошивка и протокол" data-en="Firmware &amp; protocol">Прошивка и протокол</span>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow"><span>⚙️</span> <span data-ru="Раздел 5" data-en="Section 5">Раздел 5</span></div>
+      <h1 data-ru="Прошивка и протокол" data-en="Firmware &amp; protocol">Прошивка и протокол</h1>
+      <p class="lede" data-ru="Как собрать и прошить обе прошивки, как обновлять их по воздуху, где лежит код и как устроен бинарный обмен по UART." data-en="How to build and flash both firmwares, how to update them over the air, where the code lives and how the binary UART exchange works.">Как собрать и прошить обе прошивки.</p>
+    </div>
+
+    <div class="prose">
+
+      <h2 id="sostav" data-ru="Состав репозитория" data-en="Repository layout">Состав репозитория</h2>
+
+      <pre><code>firmware/
+├── main_controller/        прошивка главного контроллера
+│   ├── include/            config.h, uart_protocol.h, web_server.h, ota_updater.h
+│   ├── src/                main.cpp и остальные модули
+│   └── platformio.ini      среды esp32-c3 и esp32-s3
+├── sensor_module/          прошивка сенсорного модуля
+│   ├── include/            config.h, uart_protocol.h
+│   ├── src/main.cpp
+│   └── platformio.ini      среда esp32-c6
+├── shared/
+│   └── sensor_modules/     общие драйверы датчиков и реестр
+├── test_simple/            минимальный проверочный проект
+└── partitions_c3_ota.csv   разметка flash с двумя OTA-слотами</code></pre>
+
+      <h2 id="sborka" data-ru="Сборка прошивок" data-en="Building the firmware">Сборка прошивок</h2>
+
+      <p data-ru="Сборка идёт через PlatformIO. Прошивок две, и собирать нужно ту, чья плата у вас перед глазами: модуль не понимает Wi-Fi, контроллер не отправляет данные по UART без модуля." data-en="Builds go through PlatformIO. There are two firmwares, and you build the one matching the board in front of you: the module has no Wi-Fi, and the controller has nothing to send over UART without the module.">Сборка идёт через PlatformIO, прошивок две.</p>
+
+      <div class="steps">
+        <div class="step">
+          <h3 data-ru="Установите PlatformIO Core" data-en="Install PlatformIO Core">Установите PlatformIO Core</h3>
+          <pre style="margin-top:4px"><code>pipx install platformio
+# либо
+pip install -U platformio</code></pre>
+        </div>
+        <div class="step">
+          <h3 data-ru="Соберите главный контроллер" data-en="Build the main controller">Соберите главный контроллер</h3>
+          <pre style="margin-top:4px"><code>cd firmware/main_controller
+pio run -e esp32-c3</code></pre>
+          <p data-ru="Для платы ESP32-S3 N16R8 вместо этого собирается среда esp32-s3: она объявляет 16 МБ флеша и восьмиканальную PSRAM." data-en="For an ESP32-S3 N16R8 board build the esp32-s3 environment instead: it declares 16 MB of flash and octal PSRAM.">Для платы ESP32-S3 — среда esp32-s3.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Соберите сенсорный модуль" data-en="Build the sensor module">Соберите сенсорный модуль</h3>
+          <pre style="margin-top:4px"><code>cd firmware/sensor_module
+pio run -e esp32-c6</code></pre>
+        </div>
+        <div class="step">
+          <h3 data-ru="Прошейте платы" data-en="Flash the boards">Прошейте платы</h3>
+          <pre style="margin-top:4px"><code>pio run -e esp32-c3 -t upload
+pio run -e esp32-c6 -t upload</code></pre>
+          <p data-ru="Скорость загрузки в проекте поднята до 921600 бод — это ускоряет прошивку примерно вдвое." data-en="Upload speed is raised to 921600 baud in the project, roughly halving flash time.">Скорость загрузки поднята до 921600 бод.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Цель сборки" data-en="Build target">Цель сборки</th>
+              <th data-ru="Плата" data-en="Board">Плата</th>
+              <th data-ru="Занято flash" data-en="Flash used">Занято flash</th>
+              <th data-ru="Занято RAM" data-en="RAM used">Занято RAM</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">esp32-c3</td>
+              <td class="mono">lolin_c3_mini</td>
+              <td data-ru="около 88 %" data-en="about 88 %">около 88 %</td>
+              <td data-ru="около 23 %" data-en="about 23 %">около 23 %</td>
+            </tr>
+            <tr>
+              <td class="mono">esp32-c6</td>
+              <td class="mono">esp32-c6-devkitc-1</td>
+              <td data-ru="около 27 %" data-en="about 27 %">около 27 %</td>
+              <td data-ru="около 5 %" data-en="about 5 %">около 5 %</td>
+            </tr>
+            <tr>
+              <td class="mono">esp32-s3</td>
+              <td class="mono">esp32-s3-devkitc-1</td>
+              <td data-ru="около 20 %" data-en="about 20 %">около 20 %</td>
+              <td data-ru="около 26 %" data-en="about 26 %">около 26 %</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn">
+        <div class="co-ic">📏</div>
+        <div class="co-body">
+          <p data-ru="У C3 флеш заполнен примерно на 88 %. Под него сделана отдельная разметка памяти с двумя OTA-слотами, потому что штатная уже не вмещает бинарник. Дальнейшее добавление крупных зависимостей потребует либо перехода на S3, либо уменьшения приложения." data-en="The C3 flash is about 88 % full. A dedicated memory layout with two OTA slots was made for it, because the stock one no longer fits the binary. Adding large dependencies from here means moving to S3 or trimming the app.">У C3 флеш заполнен примерно на 88 %.</p>
+        </div>
+      </div>
+
+      <h2 id="pervyy-zapusk" data-ru="Первичная прошивка и настройка" data-en="Initial flash &amp; setup">Первичная прошивка и настройка</h2>
+
+      <ol class="seq">
+        <li>
+          <b data-ru="Включите контроллер" data-en="Power the controller up">Включите контроллер</b>
+          <p data-ru="Если в памяти нет сохранённой сети, контроллер поднимает свою точку доступа с именем вида Aeris-Setup-XXXX и без пароля. Подключитесь к ней телефоном." data-en="With no stored network configuration the controller brings up its own access point named like Aeris-Setup-XXXX, with no password. Join it from a phone.">Контроллер поднимает точку доступа Aeris-Setup-XXXX.</p>
+        </li>
+        <li>
+          <b data-ru="Откройте страницу настройки" data-en="Open the setup page">Откройте страницу настройки</b>
+          <p data-ru-html="В браузере откройте <code>http://192.168.4.1</code> и укажите имя и пароль своей Wi-Fi сети. Настройка сохраняется в энергонезависимой памяти платы." data-en-html="Open <code>http://192.168.4.1</code> in a browser, enter your Wi-Fi name and password. The settings are stored in the board's non-volatile memory.">Откройте http://192.168.4.1.</p>
+        </li>
+        <li>
+          <b data-ru="Дождитесь перезагрузки" data-en="Wait for the reboot">Дождитесь перезагрузки</b>
+          <p data-ru="Контроллер перезапустится, подключится к вашей сети и получит адрес по DHCP. Все действия контроллера видны в Serial-выводе на скорости 115200." data-en="The controller restarts, joins your network and takes a DHCP address. Everything it does is visible in the serial output at 115200 baud.">Все действия видны в Serial на 115200.</p>
+        </li>
+        <li>
+          <b data-ru="Подключите модуль" data-en="Attach the module">Подключите модуль</b>
+          <p data-ru="Соедините TX и RX перекрёстно, обязательно сведите землю. Сенсорный модуль сам начнёт объявлять себя при включении." data-en="Cross TX and RX and definitely tie the grounds together. The sensor module starts announcing itself as soon as it powers up.">Соедините TX и RX перекрёстно.</p>
+        </li>
+        <li>
+          <b data-ru="Проверьте регистрацию" data-en="Check the registration">Проверьте регистрацию</b>
+          <p data-ru-html="В Serial-выводе контроллера должна появиться строка регистрации с именем модуля, а в <code>/api/v1/modules</code> — его описание с метриками." data-en-html="A registration line with the module name appears in the controller's serial output, and <code>/api/v1/modules</code> gains its description with metrics.">Проверьте регистрацию в Serial.</p>
+        </li>
+      </ol>
+
+      <div class="callout info">
+        <div class="co-ic">🔑</div>
+        <div class="co-body">
+          <p data-ru="Точка доступа живёт пять минут. Если за это время сеть не задана, контроллер перезагрузится и попробует подключиться снова. Сменить сеть позже можно командой переконфигурации из приложения." data-en="The access point stays up for five minutes. If no network is configured in that time, the controller reboots and tries again. You can switch networks later with a reconfiguration command from the app.">Точка доступа живёт пять минут.</p>
+        </div>
+      </div>
+
+      <h2 id="ota" data-ru="Обновление по воздуху" data-en="Over-the-air updates">Обновление по воздуху</h2>
+
+      <p data-ru="Контроллер умеет обновлять сам себя по HTTPS с публичного сайта. У каждой платы свой бинарник и свой файл-манифест, поэтому прошивка S3 не попадёт на C3 даже по ошибке." data-en="The controller can update itself over HTTPS from the public site. Every board has its own binary and its own manifest, so an S3 image cannot land on a C3 by mistake.">У каждой платы свой бинарник и свой манифест.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Тип устройства" data-en="Device type">Тип устройства</th>
+              <th data-ru="Бинарник" data-en="Binary">Бинарник</th>
+              <th data-ru="Манифест версии" data-en="Version manifest">Манифест версии</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">esp32c3</td>
+              <td class="mono">/fw/main.bin</td>
+              <td class="mono">/fw/version.json</td>
+            </tr>
+            <tr>
+              <td class="mono">esp32s3</td>
+              <td class="mono">/fw/main_esp32-s3.bin</td>
+              <td class="mono">/fw/version-esp32-s3.json</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ol class="seq">
+        <li>
+          <b data-ru="Контроллер спрашивает манифест" data-en="The controller reads the manifest">Контроллер спрашивает манифест</b>
+          <p data-ru="По HTTPS запрашивается файл версии для типа платы. Если опубликованная версия новее установленной, обновление продолжается." data-en="It fetches the version file for its board type over HTTPS. If the published version is newer than the installed one, the update proceeds.">По HTTPS запрашивается файл версии.</p>
+        </li>
+        <li>
+          <b data-ru="Качает новый образ" data-en="It downloads the image">Качает новый образ</b>
+          <p data-ru="Бинарник сохраняется в свободный OTA-слот. Текущая прошивка остаётся нетронутой до момента перезагрузки." data-en="The binary is written into the free OTA slot. The running image stays untouched until the reboot.">Бинарник пишется в свободный OTA-слот.</p>
+        </li>
+        <li>
+          <b data-ru="Перезагружается и проверяет себя" data-en="It reboots and verifies itself">Перезагружается и проверяет себя</b>
+          <p data-ru="После перезапуска новая прошивка должна отдать признак успешного старта. Если это не произошло, контроллер возвращается к предыдущему образу." data-en="After the restart the new image must report a successful start. If it does not, the controller falls back to the previous one.">Новая прошивка должна отдать признак успешного старта.</p>
+        </li>
+        <li>
+          <b data-ru="Откат по команде" data-en="Rollback on demand">Откат по команде</b>
+          <p data-ru="Возврат на предыдущий образ доступен как команда — вручную из приложения или веб-интерфейса платы." data-en="Returning to the previous image is available as a command — manually from the app or from the board's web interface.">Возврат доступен как команда.</p>
+        </li>
+      </ol>
+
+      <h2 id="struktura" data-ru="Структура кода контроллера" data-en="Controller code layout">Структура кода контроллера</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Файл" data-en="File">Файл</th>
+              <th data-ru="Задача" data-en="Responsibility">Задача</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">main.cpp</td>
+              <td data-ru="Главный цикл, MQTT, история на SD, обработка команд UART" data-en="Main loop, MQTT, SD history, UART command handling">Главный цикл, MQTT, SD, команды</td>
+            </tr>
+            <tr>
+              <td class="mono">web_server.cpp</td>
+              <td data-ru="REST-эндпоинты, WebSocket и встроенная страница настроек" data-en="REST endpoints, WebSocket and the built-in setup page">REST, WebSocket, страница настроек</td>
+            </tr>
+            <tr>
+              <td class="mono">ota_updater.cpp</td>
+              <td data-ru="Проверка манифеста, загрузка образа, подтверждение и откат" data-en="Manifest check, image download, confirmation and rollback">OTA: манифест, загрузка, откат</td>
+            </tr>
+            <tr>
+              <td class="mono">provisioning.cpp</td>
+              <td data-ru="Точка доступа на первом запуске, сохранение сети, повторные попытки" data-en="First-boot access point, network storage, retries">Точка доступа и настройка сети</td>
+            </tr>
+            <tr>
+              <td class="mono">signaling_client.cpp</td>
+              <td data-ru="Регистрация устройства и heartbeat на сервере" data-en="Device registration and heartbeat to the server">Регистрация на сервере</td>
+            </tr>
+            <tr>
+              <td class="mono">mqtt_config.cpp</td>
+              <td data-ru="Подключение к брокеру, подписки, публикация метрик" data-en="Broker connection, subscriptions, metric publishing">MQTT: подписки и публикация</td>
+            </tr>
+            <tr>
+              <td class="mono">ring_logger.cpp</td>
+              <td data-ru="Кольцевой буфер последних записей для веб-интерфейса" data-en="Ring buffer of recent entries for the web UI">Кольцевой буфер логов</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_config.cpp</td>
+              <td data-ru="Подключение, смена сети, сброс настроек" data-en="Connect, change network, reset settings">Wi-Fi: подключение и сброс</td>
+            </tr>
+            <tr>
+              <td class="mono">time_util.cpp</td>
+              <td data-ru="Синхронизация времени и метки в данных" data-en="Time sync and timestamps in the data">Время и метки времени</td>
+            </tr>
+            <tr>
+              <td class="mono">serial_cmd.cpp</td>
+              <td data-ru="Разбор входящих кадров и команды модулям" data-en="Incoming frame parsing and commands to modules">Разбор кадров и команды модулям</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="protocol" data-ru="UART-протокол" data-en="UART protocol">UART-протокол</h2>
+
+      <p data-ru="Модуль и контроллер говорят на коротком бинарном протоколе с фиксированной длиной поля, CRC-16 и заголовком из двух байт. Длина поля — 16-битная, поэтому кадр может нести больше 256 байт полезной нагрузки." data-en="Module and controller speak a compact binary protocol with a fixed-size length field, a CRC-16 and a two-byte header. The length field is 16 bits, so a frame can carry more than 256 bytes of payload.">Бинарный протокол с CRC-16.</p>
+
+      <h3 data-ru="Формат кадра" data-en="Frame layout">Формат кадра</h3>
+
+      <pre><code>[0] HDR1 = 0xAA
+[1] HDR2 = 0x55
+[2] module_id
+[3] cmd
+[4] length_hi    ┐ длина полезной нагрузки,
+[5] length_lo    ┘ 16 бит, старший байт первым
+[6..] payload    длина байт
+[6+len] crc_hi    ┐ CRC-16/CCITT,
+[6+len+1] crc_lo  ┘ старший байт первым</code></pre>
+
+      <p data-ru="Итого: 6 байт заголовка, полезная нагрузка и 2 байта контрольной суммы — восемь байт служебных полей плюс данные." data-en="In total: 6 header bytes, the payload and 2 checksum bytes — eight bytes of framing plus the data.">Шесть байт заголовка, полезная нагрузка и два байта CRC.</p>
+
+      <h3 data-ru="Команды" data-en="Commands">Команды</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Код" data-en="Code">Код</th>
+              <th data-ru="Имя" data-en="Name">Имя</th>
+              <th data-ru="Кто шлёт" data-en="Sent by">Кто шлёт</th>
+              <th data-ru="Смысл" data-en="Meaning">Смысл</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">0x01</td>
+              <td class="mono">CMD_REGISTER</td>
+              <td data-ru="модуль → контроллер" data-en="module → controller">модуль → контроллер</td>
+              <td data-ru="Объявление: тип датчика, имя и список метрик с единицами" data-en="Announcement: sensor type, name and the metric list with units">Объявление типа и метрик</td>
+            </tr>
+            <tr>
+              <td class="mono">0x02</td>
+              <td class="mono">CMD_READ_SENSOR</td>
+              <td data-ru="контроллер → модуль" data-en="controller → module">контроллер → модуль</td>
+              <td data-ru="Запросить показания немедленно, не дожидаясь таймера" data-en="Ask for a reading now, without waiting for the timer">Запросить показания сейчас</td>
+            </tr>
+            <tr>
+              <td class="mono">0x03</td>
+              <td class="mono">CMD_SENSOR_DATA</td>
+              <td data-ru="модуль → контроллер" data-en="module → controller">модуль → контроллер</td>
+              <td data-ru="Значения метрик с отметкой времени" data-en="Metric values with a timestamp">Значения метрик</td>
+            </tr>
+            <tr>
+              <td class="mono">0x04</td>
+              <td class="mono">CMD_HEARTBEAT</td>
+              <td data-ru="обе стороны" data-en="both sides">обе стороны</td>
+              <td data-ru="Признак жизни, шлётся раз в 30 секунд" data-en="Liveness beacon, sent every 30 seconds">Признак жизни</td>
+            </tr>
+            <tr>
+              <td class="mono">0x05</td>
+              <td class="mono">CMD_CONFIG_UPDATE</td>
+              <td data-ru="контроллер → модуль" data-en="controller → module">контроллер → модуль</td>
+              <td data-ru="Изменение конфигурации: модуль перерегистрируется" data-en="Configuration change: the module re-registers">Модуль перерегистрируется</td>
+            </tr>
+            <tr>
+              <td class="mono">0x06</td>
+              <td class="mono">CMD_ACK</td>
+              <td data-ru="обе стороны" data-en="both sides">обе стороны</td>
+              <td data-ru="Подтверждение приёма команды" data-en="Acknowledgement of a command">Подтверждение</td>
+            </tr>
+            <tr>
+              <td class="mono">0x07</td>
+              <td class="mono">CMD_NACK</td>
+              <td data-ru="обе стороны" data-en="both sides">обе стороны</td>
+              <td data-ru="Отказ: команда не выполнена" data-en="Refusal: the command was not carried out">Отказ</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 data-ru="Полезная нагрузка регистрации" data-en="Registration payload">Полезная нагрузка регистрации</h3>
+
+      <pre><code>[sensor_count 1 байт]
+для каждого датчика:
+    [type_id 1 байт]
+    [name_len 1 байт] [имя...]
+    [metric_count 1 байт]
+    для каждой метрики:
+        [key_len 1 байт]  [ключ...]
+        [unit_len 1 байт] [единица...]</code></pre>
+
+      <h3 data-ru="Полезная нагрузка данных" data-en="Data payload">Полезная нагрузка данных</h3>
+
+      <pre><code>[timestamp 4 байта]
+[value_1 4 байта float]
+[value_2 4 байта float]
+[value_n 4 байта float]</code></pre>
+
+      <div class="callout warn">
+        <div class="co-ic">📏</div>
+        <div class="co-body">
+          <p data-ru="Порядок значений не случаен: он получается «расплющиванием» в том же порядке, в каком шла регистрация, — сначала датчики, потом метрики каждого датчика. Именно поэтому контроллер понимает, какое значение к какой метрике относится, не передавая имён повторно." data-en="The value order is not arbitrary: it is the registration order flattened — sensors first, then each sensor's metrics. That is why the controller knows which value belongs to which metric without the names being sent again.">Порядок значений соответствует порядку регистрации.</p>
+        </div>
+      </div>
+
+      <h2 id="crc" data-ru="CRC-16 и целостность кадра" data-en="CRC-16 &amp; frame integrity">CRC-16 и целостность кадра</h2>
+
+      <p data-ru="Контрольная сумма считается алгоритмом CRC-16/CCITT с полиномом 0x1021 и стартовым значением 0xFFFF, покрывает заголовок вместе с полезной нагрузкой и передаётся старшим байтом первым." data-en="The checksum is CRC-16/CCITT with polynomial 0x1021 and initial value 0xFFFF. It covers the header together with the payload and is transmitted most significant byte first.">CRC-16/CCITT, полином 0x1021, старт 0xFFFF.</p>
+
+      <pre><code>uint16_t crc = 0xFFFF;
+for (каждый байт заголовка и полезной нагрузки) {
+    crc ^= (байт &lt;&lt; 8);
+    for (8 раз) {
+        crc = (crc &amp; 0x8000) ? ((crc &lt;&lt; 1) ^ 0x1021) : (crc &lt;&lt; 1);
+    }
+}</code></pre>
+
+      <p data-ru="Приём разбирает поток побайтно и не опирается на границы пакетов: частичные кадры остаются в буфере до стыковки. Это важно, потому что по UART кадр может прийти несколькими фрагментами." data-en="The receiver parses the stream byte by byte and does not rely on packet boundaries: partial frames stay buffered until they complete. This matters because a frame may arrive in several pieces over UART.">Приём разбирает поток побайтно.</p>
+
+      <div class="grid g2">
+        <div class="card">
+          <h3 data-ru="Повреждённый кадр" data-en="Corrupt frame">Повреждённый кадр</h3>
+          <p data-ru="Кадр с неверной контрольной суммой целиком отбрасывается, а разбор продолжается со следующего заголовка. Частично принятые данные в прошивку не попадают." data-en="A frame with a bad checksum is discarded in full and parsing resumes from the next header. Partially received data never reaches the firmware.">Кадр с неверной суммой отбрасывается целиком.</p>
+        </div>
+        <div class="card">
+          <h3 data-ru="Слишком длинное объявление" data-en="Oversized announcement">Слишком длинное объявление</h3>
+          <p data-ru="Длина кадра объявляется в заголовке, поэтому получатель всегда знает, сколько байт пропустить, даже если содержимое ему неинтересно." data-en="The frame length is declared in the header, so the receiver always knows how many bytes to skip even when the content is of no interest to it.">Длина объявляется в заголовке.</p>
+        </div>
+      </div>
+
+      <h2 id="potok-registracii" data-ru="Поток регистрации" data-en="Registration flow">Поток регистрации</h2>
+
+      <div class="steps">
+        <div class="step">
+          <h3 data-ru="Модуль запускается" data-en="The module starts">Модуль запускается</h3>
+          <p data-ru="Поднимается шина I²C, запускаются все зарегистрированные драйверы. Конструкторы драйверов здесь не вызываются: реестр создаёт их позже, уже после инициализации платы." data-en="The I²C bus comes up and every registered driver starts. Driver constructors are not called here: the registry builds them later, after the board has finished initialising.">Поднимается шина и запускаются драйверы.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Сканируется шина" data-en="The bus is scanned">Сканируется шина</h3>
+          <p data-ru="Реестр перебирает адреса, определяет чипы, клонирует драйверы и инициализирует каждый найденный датчик." data-en="The registry walks the addresses, identifies the chips, clones the drivers and initialises each sensor it finds.">Реестр перебирает адреса и клонирует драйверы.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Формируется объявление" data-en="The announcement is built">Формируется объявление</h3>
+          <p data-ru="Для каждого датчика собирается кадр регистрации: тип, имя, список метрик с единицами. Кадр один на все датчики модуля." data-en="A registration frame is assembled per sensor: type, name, metric list with units. One frame covers every sensor on the module.">Кадр регистрации: тип, имя, метрики.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Контроллер строит карту метрик" data-en="The controller builds the metric map">Контроллер строит карту метрик</h3>
+          <p data-ru="Разобрав объявление, контроллер знает, какие метрики ждать в следующем кадре данных, в каком порядке и с какими единицами." data-en="Having parsed the announcement, the controller knows which metrics to expect in the next data frame, in what order and with which units.">Контроллер знает порядок и единицы метрик.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Идёт обмен значениями" data-en="Values start flowing">Идёт обмен значениями</h3>
+          <p data-ru="По таймерам драйверов модуль шлёт кадры данных, контроллер публикует их в MQTT, пишет в CSV на SD и отдаёт по HTTP и WebSocket." data-en="On each driver's timer the module sends data frames; the controller publishes them to MQTT, appends them to the SD CSV and serves them over HTTP and WebSocket.">Модуль шлёт кадры, контроллер публикует их.</p>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">🔄</div>
+        <div class="co-body">
+          <p data-ru-html="Если состав датчиков изменился — модуль перезапустили, датчик отвалился или добавился, — модуль отправляет регистрацию заново, а контроллер увеличивает счётчик <code>compositionRevision</code> и обновляет карту метрик у клиентов." data-en-html="If the sensor set changed — the module restarted, a sensor dropped out or appeared — the module sends the registration again, and the controller bumps <code>compositionRevision</code> and refreshes the clients' metric map.">Если состав датчиков изменился, регистрация повторяется.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+
+  <aside class="toc" id="toc"></aside>
+</div>
+
+<footer class="bottom">
+  <div class="foot-inner">
+    <div>Aeris Monitor · <span class="mono">spe4naz.online</span></div>
+    <div class="foot-links">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <a href="app.html" data-ru="Приложение" data-en="App">Приложение</a>
+      <a href="api.html">API</a>
+      <a href="faq.html">FAQ</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/wiki.js"></script>
+</body>
+</html>

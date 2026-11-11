@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Датчики и драйверы · Aeris Monitor</title>
+<meta name="description" content="Реестр драйверов датчиков, коды type_id, определение по chip ID, метрики и единицы, отказоустойчивость и пошаговое добавление собственного датчика.">
+<link rel="canonical" href="https://spe4naz.online/wiki/sensors.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Aeris Monitor">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://spe4naz.online/wiki/sensors.html">
+<meta property="og:title" content="Датчики и драйверы">
+<meta property="og:description" content="Реестр драйверов датчиков, коды type_id, определение по chip ID, метрики и единицы, отказоустойчивость и пошаговое добавление собственного датчика.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/wiki.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+</head>
+<body data-page="sensors.html">
+
+<div id="progress"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="../index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Aeris Monitor</span>
+      <span class="sep">/</span>
+      <span class="sub" data-ru="Вики" data-en="Wiki">Вики</span>
+    </a>
+    <button class="icon-btn side-toggle" id="sideToggle" type="button" title="Меню" data-ru-attr="title" data-en-attr="Title" data-ru="Меню" data-en="Menu">☰</button>
+    <div class="top-search">
+      <span class="ico">🔍</span>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" title="Тема / Theme">🌙</button>
+      <button class="lang-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <main class="content">
+    <div class="crumbs">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <span>/</span>
+      <a href="index.html" data-ru="Вики" data-en="Wiki">Вики</a>
+      <span>/</span>
+      <span class="cur" data-ru="Датчики" data-en="Sensors">Датчики</span>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow"><span>🌡️</span> <span data-ru="Раздел 4" data-en="Section 4">Раздел 4</span></div>
+      <h1 data-ru="Датчики и драйверы" data-en="Sensors &amp; drivers">Датчики и драйверы</h1>
+      <p class="lede" data-ru="Какие датчики поддерживаются, как реестр их различает, что драйвер обязан сообщить системе о себе и как подключить датчик, которого в реестре ещё нет." data-en="Which sensors are supported, how the registry tells them apart, what a driver must tell the system about itself, and how to attach a sensor that is not in the registry yet.">Какие датчики поддерживаются.</p>
+    </div>
+
+    <div class="prose">
+
+      <h2 id="reestr" data-ru="Реестр драйверов" data-en="Driver registry">Реестр драйверов</h2>
+
+      <p data-ru="Драйверы лежат в общей папке и используются обеими прошивками: и главным контроллером, и сенсорным модулем. Это значит, что добавленный датчик одинаково работает на обеих платах и не требует копирования кода." data-en="Drivers live in one shared folder used by both firmwares: the main controller and the sensor module alike. A sensor added once works the same way on both boards, with no code duplication.">Драйверы лежат в общей папке и используются обеими прошивками.</p>
+
+      <pre><code>firmware/shared/sensor_modules/
+├── include/
+│   ├── sensor_module.h      базовый интерфейс драйвера
+│   ├── sensor_registry.h    реестр: сканирование, опрос, восстановление
+│   ├── uart_frame.h         сборка и разбор кадров
+│   ├── bme680_module.h
+│   ├── bh1750_module.h
+│   ├── bmp280_module.h
+│   ├── ina219_module.h
+│   └── scd30_module.h
+└── src/
+    ├── sensor_registry.cpp
+    ├── bme680_module.cpp
+    ├── bh1750_module.cpp
+    ├── bmp280_module.cpp
+    ├── ina219_module.cpp
+    └── scd30_module.cpp</code></pre>
+
+      <p data-ru="Каждый драйвер сам регистрирует себя одной макросом в конце своего файла. Благодаря этому добавление датчика не требует правок в точке входа прошивки: файл объявлен библиотекой, а объект создаётся фабрикой при первом обращении к реестру." data-en="Each driver registers itself with a single macro at the end of its file. Adding a sensor therefore needs no edits in the firmware entry point: the file is picked up as a library, and the instance is built by a factory on first use of the registry.">Каждый драйвер сам регистрирует себя одной макросом в конце файла.</p>
+
+      <h2 id="tipy-dannyh" data-ru="Типы и коды датчиков" data-en="Sensor types &amp; codes">Типы и коды датчиков</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="type_id" data-en="type_id">type_id</th>
+              <th data-ru="Датчик" data-en="Sensor">Датчик</th>
+              <th data-ru="Адреса I²C" data-en="I²C addresses">Адреса I²C</th>
+              <th data-ru="Интервал опроса" data-en="Poll interval">Интервал опроса</th>
+              <th data-ru="Метрики" data-en="Metrics">Метрики</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">1</td>
+              <td data-ru="BME680" data-en="BME680">BME680</td>
+              <td class="mono">0x76, 0x77</td>
+              <td class="mono">5000 мс</td>
+              <td>
+                <div class="mono" style="font-size:12.5px;line-height:1.7">
+                  temperature · C<br>
+                  humidity · %<br>
+                  pressure · hPa<br>
+                  gas_resistance · Ohm
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="mono">2</td>
+              <td data-ru="BH1750" data-en="BH1750">BH1750</td>
+              <td class="mono">0x23, 0x5C</td>
+              <td class="mono">5000 мс</td>
+              <td>
+                <div class="mono" style="font-size:12.5px;line-height:1.7">illuminance · lux</div>
+              </td>
+            </tr>
+            <tr>
+              <td class="mono">3</td>
+              <td data-ru="SCD30" data-en="SCD30">SCD30</td>
+              <td class="mono">0x61</td>
+              <td class="mono">2000 мс</td>
+              <td>
+                <div class="mono" style="font-size:12.5px;line-height:1.7">
+                  scd30_co2 · ppm<br>
+                  scd30_temperature · C<br>
+                  scd30_humidity · %
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="mono">4</td>
+              <td data-ru="INA219" data-en="INA219">INA219</td>
+              <td class="mono">0x40</td>
+              <td class="mono">5000 мс</td>
+              <td>
+                <div class="mono" style="font-size:12.5px;line-height:1.7">
+                  ina219_voltage · V<br>
+                  ina219_current · mA<br>
+                  ina219_power · mW
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="mono">5</td>
+              <td data-ru="BMP280" data-en="BMP280">BMP280</td>
+              <td class="mono">0x76, 0x77</td>
+              <td class="mono">5000 мс</td>
+              <td>
+                <div class="mono" style="font-size:12.5px;line-height:1.7">
+                  bmp280_temperature · C<br>
+                  bmp280_pressure · hPa
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">🔢</div>
+        <div class="co-body">
+          <p data-ru-html="Код типа — это часть протокола: он едет в кадре регистрации, и контроллер по нему понимает, какой драйвер поднять. Новый датчик обязан получить уникальный номер, не совпадающий с уже занятыми. Значения 1–5 заняты; следующим свободным считается 6." data-en-html="The type code is part of the protocol: it travels in the registration frame and tells the controller which driver to bring up. A new sensor needs a unique number that clashes with nothing. Values 1–5 are taken, so 6 is the next free one.">Код типа — это часть протокола.</p>
+        </div>
+      </div>
+
+      <h2 id="detekciya" data-ru="Определение по chip ID" data-en="Detection by chip ID">Определение по chip ID</h2>
+
+      <p data-ru="Прямое обращение к адресу и получение ответа ничего не доказывают: на популярных адресах сидят сразу несколько чипов. Поэтому для датчиков с общим диапазоном адресов проверяется регистр идентификатора." data-en="Talking to an address and getting an answer proves nothing: several chips share the popular addresses. So for sensors with an overlapping address range the identification register is read instead.">Для датчиков с общим диапазоном адресов проверяется регистр идентификатора.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Датчик" data-en="Sensor">Датчик</th>
+              <th data-ru="Регистр" data-en="Register">Регистр</th>
+              <th data-ru="Ожидаемое значение" data-en="Expected value">Ожидаемое значение</th>
+              <th data-ru="Смысл" data-en="Meaning">Смысл</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">BME680</td>
+              <td class="mono">0xD0</td>
+              <td class="mono">0x60</td>
+              <td data-ru="Чип точно BME680, а не BMP280" data-en="Definitely a BME680, not a BMP280">Чип точно BME680</td>
+            </tr>
+            <tr>
+              <td class="mono">BMP280</td>
+              <td class="mono">0xD0</td>
+              <td class="mono">0x58</td>
+              <td data-ru="Чип точно BMP280, а не BME680" data-en="Definitely a BMP280, not a BME680">Чип точно BMP280</td>
+            </tr>
+            <tr>
+              <td class="mono">BH1750</td>
+              <td data-ru="только отклик по адресу" data-en="address ACK only">только отклик по адресу</td>
+              <td>—</td>
+              <td data-ru="Диапазон адресов не пересекается с другими драйверами" data-en="Its address range does not overlap another driver">Диапазон адресов не пересекается</td>
+            </tr>
+            <tr>
+              <td class="mono">INA219</td>
+              <td data-ru="только отклик по адресу" data-en="address ACK only">только отклик по адресу</td>
+              <td>—</td>
+              <td data-ru="Единственный поддерживаемый адрес — 0x40" data-en="The only supported address is 0x40">Единственный адрес — 0x40</td>
+            </tr>
+            <tr>
+              <td class="mono">SCD30</td>
+              <td data-ru="только отклик по адресу" data-en="address ACK only">только отклик по адресу</td>
+              <td>—</td>
+              <td data-ru="Фиксированный адрес 0x61" data-en="Fixed address 0x61">Фиксированный адрес 0x61</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru="Без такой проверки BME680 и BMP280 на одном адресе определялись бы как один и тот же датчик: первым отвечает тот драйвер, который успел раньше, а второй остаётся незамеченным." data-en="Without that check, a BME680 and a BMP280 on the same address would be recognised as the same sensor: whichever driver answers first claims it and the other goes unnoticed.">Без такой проверки два чипа на одном адресе определяются как один.</p>
+
+      <h2 id="metriki" data-ru="Метрики и единицы" data-en="Metrics &amp; units">Метрики и единицы</h2>
+
+      <p data-ru="Каждый драйвер возвращает две вещи: список метрик с описанием и список текущих значений в том же порядке. Реестр следит за совпадением длин и сам дописывает NAN туда, где значения нет." data-en="Every driver returns two things: a metric list with descriptions and a list of current values in the same order. The registry keeps the lengths matched and fills in NAN wherever a value is missing.">Каждый драйвер возвращает описание метрик и значения в том же порядке.</p>
+
+      <ul>
+        <li data-ru="Ключ метрики — короткая строка латиницей, она становится именем в JSON, MQTT-топике и CSV." data-en="A metric key is a short Latin string; it becomes the name in JSON, in the MQTT topic and in the CSV.">Ключ метрики — короткая строка латиницей.</li>
+        <li data-ru="Единица измерения приходит от драйвера, поэтому приложение не подставляет её наугад." data-en="The unit comes from the driver, so the app never guesses it.">Единица измерения приходит от драйвера.</li>
+        <li data-ru="Порядок метрик обязан быть стабильным между вызовами: он напрямую соответствует порядку значений в кадре." data-en="The metric order must be stable between calls: it maps directly onto the value order in the frame.">Порядок метрик обязан быть стабильным.</li>
+        <li data-ru="Разные датчики могут отдавать одинаковые ключи — например, температуру. Там, где это сбивает с толку, ключи получают префикс с именем датчика." data-en="Different sensors may emit the same key, temperature being the obvious case. Where that would be confusing, the keys carry the sensor name as a prefix.">Одинаковые ключи у разных датчиков получают префикс.</li>
+      </ul>
+
+      <div class="callout warn">
+        <div class="co-ic">🚫</div>
+        <div class="co-body">
+          <p data-ru="Значения NAN и INF в публикацию не попадают, отрицательные значения отбрасываются там, где они физически невозможны — например, освещённость не может быть минусовой. Это защищает от мусорных графиков и аварий на ровном месте." data-en="NAN and INF values are never published, and physically impossible negative readings are dropped — illuminance cannot be below zero, for instance. That keeps junk out of the charts and prevents alerts that mean nothing.">Значения NAN и INF в публикацию не попадают.</p>
+        </div>
+      </div>
+
+      <h2 id="otkazoustoychivost" data-ru="Отказоустойчивость драйверов" data-en="Driver resilience">Отказоустойчивость драйверов</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Что произошло" data-en="What happened">Что произошло</th>
+              <th data-ru="Поведение системы" data-en="System behaviour">Поведение системы</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Часть метрик не прочиталась" data-en="Some metrics failed to read">Часть метрик не прочиталась</td>
+              <td data-ru="На их место подставляется NAN, остальные метрики публикуются как обычно" data-en="They become NAN while the rest publish normally">На их место подставляется NAN</td>
+            </tr>
+            <tr>
+              <td data-ru="Датчик перестал отвечать" data-en="The sensor stopped answering">Датчик перестал отвечать</td>
+              <td data-ru="Проверка живости раз в 10 секунд переводит запись в офлайн, опрос остальных продолжается" data-en="The 10-second liveness check marks it offline; other sensors keep polling">Запись переводится в офлайн</td>
+            </tr>
+            <tr>
+              <td data-ru="Датчик ответил снова" data-en="The sensor answered again">Датчик ответил снова</td>
+              <td data-ru="Создаётся новый клон драйвера, метрики оживают" data-en="A fresh driver clone is created and the metrics come back">Создаётся новый клон драйвера</td>
+            </tr>
+            <tr>
+              <td data-ru="Появился датчик того же типа на новом адресе" data-en="Another sensor of the same type appeared on a new address">Появился датчик того же типа на новом адресе</td>
+              <td data-ru="Создаётся второй независимый экземпляр драйвера" data-en="A second independent driver instance is created">Создаётся второй независимый экземпляр</td>
+            </tr>
+            <tr>
+              <td data-ru="Драйвер вернул неверное число метрик" data-en="A driver returned a wrong metric count">Драйвер вернул неверное число метрик</td>
+              <td data-ru="Данные выравниваются по описанию из регистрации, лишнее отбрасывается" data-en="Data is realigned to the registered description and the surplus is dropped">Данные выравниваются по описанию</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="tca-datchiki" data-ru="Датчики за TCA9548A" data-en="Sensors behind TCA9548A">Датчики за TCA9548A</h2>
+
+      <p data-ru="Реестр обходится все каналы каждого мультиплексора и каждый адрес на каждом канале. Идентичность датчика включает пару «адрес мультиплексора + номер канала», поэтому одинаковые чипы в разных каналах — это разные записи." data-en="The registry walks every channel of every mux and every address on every channel. A sensor's identity includes the pair of mux address and channel number, so identical chips on different channels are separate records.">Идентичность датчика включает адрес мультиплексора и канал.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Расположение" data-en="Location">Расположение</th>
+              <th data-ru="Идентификатор" data-en="Identifier">Идентификатор</th>
+              <th data-ru="Пример" data-en="Example">Пример</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Прямо на шине" data-en="Directly on the bus">Прямо на шине</td>
+              <td class="mono">имя_0xадрес</td>
+              <td class="mono">BME680_0x76</td>
+            </tr>
+            <tr>
+              <td data-ru="Канал 0 мультиплексора 0x70" data-en="Channel 0 of mux 0x70">Канал 0 мультиплексора 0x70</td>
+              <td class="mono">имя_0xадрес_c0</td>
+              <td class="mono">BME680_0x76_c0</td>
+            </tr>
+            <tr>
+              <td data-ru="Канал 3 мультиплексора 0x71" data-en="Channel 3 of mux 0x71">Канал 3 мультиплексора 0x71</td>
+              <td class="mono">имя_0xадрес_c3</td>
+              <td class="mono">INA219_0x40_c3</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="svoy-datchik" data-ru="Как добавить свой датчик" data-en="Adding your own sensor">Как добавить свой датчик</h2>
+
+      <p data-ru="Процедура одинакова для любого I²C-датчика. Ниже минимальный драйвер, который ничего не измеряет, но показывает все обязательные пункты." data-en="The procedure is the same for any I²C sensor. Below is a minimal driver that measures nothing but shows every required item.">Процедура одинакова для любого I²C-датчика.</p>
+
+      <div class="steps">
+        <div class="step">
+          <h3 data-ru="Заведите два файла в общей папке" data-en="Create two files in the shared folder">Заведите два файла в общей папке</h3>
+          <p data-ru-html="Заголовок <code>include/my_sensor_module.h</code> и реализация <code>src/my_sensor_module.cpp</code>. Класс наследуется от <code>SensorModule</code> и реализует восемь обязательных методов." data-en-html="A header <code>include/my_sensor_module.h</code> and a source <code>src/my_sensor_module.cpp</code>. The class derives from <code>SensorModule</code> and implements eight required methods.">Класс наследуется от SensorModule.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Выберите свободный type_id" data-en="Pick a free type_id">Выберите свободный type_id</h3>
+          <p data-ru-html="Сейчас заняты значения от 1 до 5. Возьмите 6 и не переиспользуйте чужие номера: код едет в кадре регистрации, и путаница здесь ломает разбор кадров." data-en-html="Values 1–5 are taken. Use 6, and never reuse somebody else's number: the code travels in the registration frame, and confusion here breaks frame parsing.">Возьмите 6.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Опишите адреса и определение" data-en="Declare addresses and detection">Опишите адреса и определение</h3>
+          <p data-ru-html="Метод <code>i2cAddresses()</code> возвращает список адресов, на которых датчик может стоять. Метод <code>detect(address)</code> должен вернуть истину только если чип действительно ваш: проверяйте идентификатор, если адрес занят кем-то ещё." data-en-html="Return the possible addresses from <code>i2cAddresses()</code>. <code>detect(address)</code> must return true only when the chip really is yours: check the ID if the address is shared with someone else.">Метод detect() должен подтвердить чип.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Реализуйте init(), read() и metrics()" data-en="Implement init(), read() and metrics()">Реализуйте init(), read() и metrics()</h3>
+          <p data-ru-html="В <code>init()</code> сохраните переданный адрес и поднимите библиотеку датчика. В <code>read()</code> верните вектор значений в том же порядке, что и <code>metrics()</code>. Порядок обязан быть постоянным." data-en-html="In <code>init()</code> store the address and start the sensor library. In <code>read()</code> return values in exactly the order of <code>metrics()</code>. That order must never change.">Порядок значений должен совпадать с metrics().</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Отдайте clone() и интервал" data-en="Provide clone() and the interval">Отдайте clone() и интервал</h3>
+          <p data-ru-html="В <code>clone()</code> возвращайте новый, ещё не инициализированный экземпляр — копировать уже работающий драйвер нельзя. В <code>readInterval()</code> укажите период в миллисекундах, минимум 500." data-en-html="Return a brand-new, not yet initialised instance from <code>clone()</code> — never copy a driver that is already running. <code>readInterval()</code> returns the period in milliseconds, 500 at minimum.">clone() возвращает свежий экземпляр.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Зарегистрируйте драйвер макросом" data-en="Register with the macro">Зарегистрируйте драйвер макросом</h3>
+          <p data-ru-html="Одной строкой в конце файла реализации: <code>REGISTER_SENSOR(MySensorModule)</code>. Больше нигде про драйвер упоминать не нужно." data-en-html="One line at the end of the source file: <code>REGISTER_SENSOR(MySensorModule)</code>. Nothing else needs to mention the driver.">Одна строка в конце файла.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Подключите библиотеку и пересоберите" data-en="Add the library and rebuild">Подключите библиотеку и пересоберите</h3>
+          <p data-ru-html="Если драйвер использует стороннюю библиотеку, добавьте её в <code>lib_deps</code> в <code>platformio.ini</code> для нужной среды. Затем обычная сборка прошивки." data-en-html="If the driver uses a third-party library, add it to <code>lib_deps</code> in <code>platformio.ini</code> for the target environment, then rebuild as usual.">Добавьте библиотеку в lib_deps и пересоберите.</p>
+        </div>
+      </div>
+
+      <h3 data-ru="Минимальный драйвер" data-en="A minimal driver">Минимальный драйвер</h3>
+
+      <pre><code>#include "sensor_module.h"
+
+class MySensorModule : public SensorModule {
+public:
+    uint8_t typeId() const override { return 6; }
+    const char* moduleName() const override { return "MySensor"; }
+
+    std::vector&lt;uint8_t&gt; i2cAddresses() const override { return {0x48}; }
+
+    bool detect(uint8_t address) override {
+        uint8_t chipId = 0;
+        if (!readSensorRegister(address, 0x0F, chipId)) return false;
+        return chipId == 0x2C;
+    }
+
+    bool init(uint8_t address) override {
+        _address = address;
+        return writeRegister(address, 0x00, 0xA0);
+    }
+
+    std::vector&lt;Metric&gt; read() override {
+        std::vector&lt;Metric&gt; out;
+        float raw = readValue(_address);
+        out.push_back({"my_value", raw, "unit"});
+        return out;
+    }
+
+    std::vector&lt;MetricDef&gt; metrics() const override {
+        return {{"my_value", "My Value", "unit"}};
+    }
+
+    uint32_t readInterval() const override { return 5000; }
+
+    SensorModule* clone() const override { return new MySensorModule(); }
+};
+
+REGISTER_SENSOR(MySensorModule)</code></pre>
+
+      <div class="callout ok">
+        <div class="co-ic">✅</div>
+        <div class="co-body">
+          <p data-ru="После пересборки датчик появится в списке сам, без правок в main и без ручного добавления в таблицы. В Serial-выводе контроллера будет строка регистрации с именем датчика, а в API — новая запись." data-en="After the rebuild the sensor shows up on its own: no edits to main, nothing to add to any table by hand. The controller's serial output gets a registration line with the sensor name, and the API gains a new record.">После пересборки датчик появится сам.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+
+  <aside class="toc" id="toc"></aside>
+</div>
+
+<footer class="bottom">
+  <div class="foot-inner">
+    <div>Aeris Monitor · <span class="mono">spe4naz.online</span></div>
+    <div class="foot-links">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <a href="firmware.html" data-ru="Прошивка" data-en="Firmware">Прошивка</a>
+      <a href="api.html">API</a>
+      <a href="faq.html">FAQ</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/wiki.js"></script>
+</body>
+</html>

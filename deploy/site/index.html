@@ -3,8 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IoT Modular System | Экосистема мониторинга окружающей среды</title>
+  <title>Aeris Monitor | Экосистема мониторинга окружающей среды</title>
   <meta name="description" content="Модульная система мониторинга окружающей среды на ESP32: температура, влажность, давление, качество воздуха и освещённость. Сигнальный сервер, MQTT, мобильное приложение.">
+  <link rel="canonical" href="https://spe4naz.online/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Aeris Monitor">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:url" content="https://spe4naz.online/">
+  <meta property="og:title" content="Aeris Monitor | Экосистема мониторинга окружающей среды">
+  <meta property="og:description" content="Модульная система мониторинга окружающей среды на ESP32: сигнальный сервер, MQTT, мобильное приложение, открытая вики.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -391,13 +398,14 @@
     <div class="container nav-inner">
       <div class="logo">
         <div class="logo-badge">⚡</div>
-        <span>IoT Modular System</span>
+        <span>Aeris Monitor</span>
       </div>
       <div class="nav-links">
         <a href="#sensors" data-i18n="navSensors">Датчики</a>
         <a href="#architecture" data-i18n="navArch">Архитектура</a>
         <a href="#features" data-i18n="navFeatures">Возможности</a>
         <a href="#build" data-i18n="navBuild">Сборка</a>
+        <a href="/wiki/" data-i18n="navWiki">Вики</a>
       </div>
       <div class="nav-tools">
         <button class="icon-btn nav-toggle" id="navToggle" aria-label="Menu" onclick="toggleMenu()">☰</button>
@@ -411,6 +419,7 @@
       <a href="#architecture" data-i18n="navArch">Архитектура</a>
       <a href="#features" data-i18n="navFeatures">Возможности</a>
       <a href="#build" data-i18n="navBuild">Сборка</a>
+      <a href="/wiki/" data-i18n="navWiki">Вики</a>
     </div>
   </nav>
 
@@ -629,9 +638,9 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
 
       <div class="step">
         <h3><span class="step-num">2</span><span data-i18n="b2t">Первое включение и настройка Wi-Fi</span></h3>
-        <p><span data-i18n="b2p1">При первом старте главный контроллер поднимает точку доступа </span><span class="mono">IoT-Setup-XXXX</span><span data-i18n="b2p2"> без пароля.</span></p>
+        <p><span data-i18n="b2p1">При первом старте главный контроллер поднимает точку доступа </span><span class="mono">Aeris-Setup-XXXX</span><span data-i18n="b2p2"> без пароля.</span></p>
         <ul>
-          <li><span data-i18n="b2l1">Подключитесь к сети </span><span class="mono">IoT-Setup-XXXX</span></li>
+          <li><span data-i18n="b2l1">Подключитесь к сети </span><span class="mono">Aeris-Setup-XXXX</span></li>
           <li><span data-i18n="b2l2">Откройте в браузере </span><span class="mono">http://192.168.4.1</span></li>
           <li data-i18n="b2l3">Укажите SSID и пароль вашей Wi-Fi сети и сохраните</li>
           <li data-i18n="b2l4">Контроллер перезагрузится и подключится к вашему роутеру, данные появятся в приложении</li>
@@ -892,7 +901,7 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
         <details class="trouble">
           <summary data-i18n="t9c5">Данные не публикуются в приложение (нет MQTT)</summary>
           <ul>
-            <li><span data-i18n="t9c5l1a">Wi-Fi не настроен: при первом старте будет точка </span><span class="mono">IoT-Setup-XXXX</span><span data-i18n="t9c5l1b"> — пройдите шаг 2</span></li>
+            <li><span data-i18n="t9c5l1a">Wi-Fi не настроен: при первом старте будет точка </span><span class="mono">Aeris-Setup-XXXX</span><span data-i18n="t9c5l1b"> — пройдите шаг 2</span></li>
             <li data-i18n="t9c5l2">Проверьте и повторите настройку Wi-Fi командой «Сброс Wi-Fi» из приложения</li>
             <li data-i18n="t9c5l3">Убедитесь, что сервер доступен: статус-индикатор на странице spe4naz.online</li>
           </ul>
@@ -915,11 +924,13 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
     <div class="container footer-inner">
       <div class="logo">
         <div class="logo-badge" style="width:26px;height:26px;font-size:14px">⚡</div>
-        <p>IoT Modular System · <span class="mono">spe4naz.online</span></p>
+        <p>Aeris Monitor · <span class="mono">spe4naz.online</span></p>
       </div>
       <div class="footer-links">
         <a href="#build" data-i18n="navBuild">Сборка</a>
         <a href="#sensors" data-i18n="navSensors">Датчики</a>
+        <a href="/wiki/" data-i18n="navWiki">Вики</a>
+        <a href="/wiki/api.html">API</a>
       </div>
     </div>
   </footer>
@@ -927,9 +938,10 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
   <script>
     const I18N = {
       ru: {
-        pageTitle: 'IoT Modular System | Экосистема мониторинга окружающей среды',
+        pageTitle: 'Aeris Monitor | Экосистема мониторинга окружающей среды',
         pageDesc: 'Модульная система мониторинга окружающей среды на ESP32: температура, влажность, давление, качество воздуха и освещённость. Сигнальный сервер, MQTT, мобильное приложение.',
         navSensors: 'Датчики', navArch: 'Архитектура', navFeatures: 'Возможности', navBuild: 'Сборка',
+        navWiki: 'Вики',
         statusPending: 'проверка...', statusOnline: 'сервер онлайн', statusOffline: 'сервер недоступен',
         heroTitle1: 'Модульная система', heroTitle2: 'мониторинга', heroGrad: 'окружающей среды',
         heroSub: 'Открытая IoT-экосистема на базе ESP32: сенсорные модули измеряют климат, микроконтроллер собирает данные, а приложение показывает всё в реальном времени.',
@@ -1052,9 +1064,10 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
         unitDay: 'дн'
       },
       en: {
-        pageTitle: 'IoT Modular System | Environmental monitoring ecosystem',
+        pageTitle: 'Aeris Monitor | Environmental monitoring ecosystem',
         pageDesc: 'A modular environmental monitoring system on ESP32: temperature, humidity, pressure, air quality and light. Signaling server, MQTT, mobile app.',
         navSensors: 'Sensors', navArch: 'Architecture', navFeatures: 'Features', navBuild: 'Build',
+        navWiki: 'Wiki',
         statusPending: 'checking...', statusOnline: 'server online', statusOffline: 'server unavailable',
         heroTitle1: 'Modular system', heroTitle2: 'for', heroGrad: 'environmental monitoring',
         heroSub: 'An open-source IoT ecosystem built on ESP32: sensor modules measure the climate, the microcontroller gathers data, and the app shows everything in real time.',
@@ -1256,8 +1269,9 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
     checkStatus();
     setInterval(checkStatus, 30000);
 
-    /* ---- Live sensor panel (wss 9002, read-only web user) ---- */
+    /* ---- Live sensor panel (SSE /api/v1/stream) ---- */
     const LIVE_ENABLED = true;
+    const LIVE_STREAM_URL = '/api/v1/stream';
     const METRIC_META = {
       temperature: { ic: '🌡️', ru: 'Температура', en: 'Temperature' },
       humidity: { ic: '💧', ru: 'Влажность', en: 'Humidity' },
@@ -1303,6 +1317,20 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
       updateLiveTick(card, ts);
     }
 
+    function renderLiveSnapshot(devices) {
+      if (!devices || typeof devices !== 'object') return;
+      Object.keys(devices).forEach((deviceId) => {
+        const sensors = devices[deviceId];
+        if (!sensors || typeof sensors !== 'object') return;
+        Object.keys(sensors).forEach((key) => {
+          const rec = sensors[key];
+          if (rec && Number.isFinite(Number(rec.v))) {
+            renderLive(deviceId, key, Number(rec.v), String(rec.u || ''), Number(rec.t));
+          }
+        });
+      });
+    }
+
     function updateLiveTick(card, ts) {
       const d = new Date(ts);
       const hh = String(d.getHours()).padStart(2, '0');
@@ -1320,68 +1348,51 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
       });
     }
 
-    if (LIVE_ENABLED) {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/mqtt@5.5.4/dist/mqtt.min.js';
-      script.onload = initLive;
-      script.onerror = () => {
-        document.getElementById('liveStatus').textContent = 'mqtt.js: ' + (lang === 'en' ? 'load failed' : 'не загрузился');
-      };
-      document.head.appendChild(script);
+    function setLiveStatus(text, ok) {
+      const st = document.getElementById('liveStatus');
+      st.textContent = text;
+      st.style.color = ok ? 'var(--accent-2)' : 'var(--warning)';
     }
 
     function initLive() {
-      if (typeof mqtt === 'undefined') return;
       const liveSection = document.getElementById('live');
-      const st = document.getElementById('liveStatus');
       liveSection.hidden = false;
-
-      const client = mqtt.connect('wss://spe4naz.online:9002', {
-        username: 'web',
-        password: 'web_public_readonly',
-        clientId: 'web_panel_' + Math.random().toString(16).slice(2, 8),
-        clean: true,
-        keepalive: 30,
-        reconnectPeriod: 4000
-      });
-
-      client.on('connect', () => {
-        client.subscribe('iot/+/sensors/#', { qos: 0 });
-        st.textContent = lang === 'en'
-          ? 'Streaming via MQTT over WebSocket'
-          : 'Поток данных: MQTT через WebSocket (wss 9002)';
-        st.style.color = 'var(--accent-2)';
-      });
-      client.on('reconnect', () => {
-        st.textContent = lang === 'en' ? 'reconnecting…' : 'переподключение…';
-        st.style.color = 'var(--warning)';
-      });
-      client.on('offline', () => {
-        st.textContent = lang === 'en' ? 'offline' : 'нет соединения';
-        st.style.color = 'var(--warning)';
-      });
-      client.on('error', () => {
-        st.textContent = 'MQTT error';
-        st.style.color = 'var(--warning)';
-      });
-
-      client.on('message', (topic, payload) => {
-        const parts = topic.split('/');
-        if (parts.length !== 4 || parts[0] !== 'iot' || parts[2] !== 'sensors') return;
-        const deviceId = parts[1];
-        const key = parts[3];
-        let data;
-        try {
-          data = JSON.parse(payload.toString());
-        } catch (e) {
-          return;
-        }
-        const ts = Number(data.timestamp || Date.now());
-        renderLive(deviceId, key, Number(data.value), String(data.unit || ''), ts);
-      });
-
       setInterval(sweepLive, 5000);
+
+      if (typeof EventSource === 'undefined') {
+        setLiveStatus('SSE: ' + (lang === 'en' ? 'not supported' : 'не поддерживается'), false);
+        return;
+      }
+
+      const source = new EventSource(LIVE_STREAM_URL);
+
+      source.onopen = () => {
+        setLiveStatus(lang === 'en' ? 'Live stream: connected' : 'Поток данных: подключено', true);
+      };
+      source.onerror = () => {
+        setLiveStatus(lang === 'en' ? 'reconnecting…' : 'переподключение…', false);
+      };
+      source.addEventListener('hello', (evt) => {
+        try {
+          const data = JSON.parse(evt.data);
+          renderLiveSnapshot(data.telemetry);
+        } catch (e) {
+          /* ignore a malformed frame */
+        }
+      });
+      source.addEventListener('metric', (evt) => {
+        try {
+          const data = JSON.parse(evt.data);
+          if (data && data.deviceId && data.sensor) {
+            renderLive(data.deviceId, data.sensor, Number(data.value), String(data.unit || ''), Number(data.timestamp || Date.now()));
+          }
+        } catch (e) {
+          /* ignore a malformed frame */
+        }
+      });
     }
+
+    if (LIVE_ENABLED) initLive();
   </script>
 </body>
 </html>

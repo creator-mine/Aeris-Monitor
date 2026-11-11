@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Обзор и оглавление · Aeris Monitor</title>
+<meta name="description" content="Вики модульной системы мониторинга окружающей среды на ESP32: архитектура, железо, датчики, прошивка, приложение, сервер, API, FAQ.">
+<link rel="canonical" href="https://spe4naz.online/wiki/index.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Aeris Monitor">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://spe4naz.online/wiki/index.html">
+<meta property="og:title" content="Обзор и оглавление">
+<meta property="og:description" content="Вики модульной системы мониторинга окружающей среды на ESP32: архитектура, железо, датчики, прошивка, приложение, сервер, API, FAQ.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/wiki.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+</head>
+<body data-page="index.html">
+
+<div id="progress"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="../index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Aeris Monitor</span>
+      <span class="sep">/</span>
+      <span class="sub" data-ru="Вики" data-en="Wiki">Вики</span>
+    </a>
+    <button class="icon-btn side-toggle" id="sideToggle" type="button" title="Меню" data-ru-attr="title" data-en-attr="Title" data-ru="Меню" data-en="Menu">☰</button>
+    <div class="top-search">
+      <span class="ico">🔍</span>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" title="Тема / Theme">🌙</button>
+      <button class="lang-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <main class="content">
+    <div class="crumbs">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <span>/</span>
+      <span class="cur" data-ru="Вики" data-en="Wiki">Вики</span>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow"><span>📚</span> <span data-ru="Документация" data-en="Documentation">Документация</span></div>
+      <h1 data-ru="Вики проекта" data-en="Project wiki">Вики проекта</h1>
+      <p class="lede" data-ru="Полное описание модульной системы мониторинга окружающей среды: как устроена, из чего состоит, как собрать, как подключить датчики, что говорит приложение и как развернуть серверную часть." data-en="A complete description of the modular environmental monitoring system: how it works, what it consists of, how to build it, how to attach sensors, what the app reports and how to deploy the server side.">Полное описание модульной системы мониторинга окружающей среды.</p>
+    </div>
+
+    <div class="prose">
+
+      <h2 id="kak-chitat" data-ru="Как читать вики" data-en="How to read this wiki">Как читать вики</h2>
+
+      <p data-ru="Вики разделена на десять самостоятельных разделов. Каждый открывается из бокового меню слева, на узких экранах — по кнопке ☰. Справа на странице находится оглавление текущего раздела: оно подсвечивает активный заголовок при прокрутке." data-en="The wiki is split into ten independent sections. Each one is reachable from the sidebar on the left — on narrow screens use the ☰ button. The right-hand column holds the table of contents of the current section and highlights the heading you are reading.">Вики разделена на десять самостоятельных разделов.</p>
+
+      <p data-ru-html="Поиск работает по всем страницам и заголовкам: нажмите на поле в шапке или клавишу <code>/</code> в любом месте страницы. Тема оформления и язык сохраняются в браузере и общие с главной страницей сайта — переключили на главной, переключили и здесь." data-en-html="Search covers every page and heading: click the field in the header or press <code>/</code> anywhere on the page. The colour theme and the language are stored in the browser and shared with the site home page — switch them once and they apply everywhere.">Поиск работает по всем страницам и заголовкам.</p>
+
+      <div class="callout info">
+        <div class="co-ic">ℹ️</div>
+        <div class="co-body">
+          <p data-ru-html="Версии, на которые опирается вики: прошивка <code>1.2.2</code>, приложение <code>1.2.0</code>, сигнальный сервер <code>0.4.0</code>. Их актуальные значения видны в подвале оглавления справа." data-en-html="Wiki baseline versions: firmware <code>1.2.2</code>, app <code>1.2.0</code>, signaling server <code>0.4.0</code>. The current values are shown in the sidebar footer on the right.">Версии вики.</p>
+        </div>
+      </div>
+
+      <h2 id="razdely" data-ru="Разделы вики" data-en="Wiki sections">Разделы вики</h2>
+
+      <div class="grid g3">
+        <a class="card" href="about.html">
+          <span class="c-ic">🎯</span>
+          <h3 data-ru="О проекте" data-en="About the project">О проекте</h3>
+          <p data-ru="Зачем нужна система, какую задачу она решает, что в ней нового и где проходят её границы." data-en="Why the system exists, the problem it solves, what is genuinely new about it and where its limits are.">Зачем нужна система.</p>
+        </a>
+        <a class="card" href="architecture.html">
+          <span class="c-ic">🏗️</span>
+          <h3 data-ru="Архитектура системы" data-en="System architecture">Архитектура системы</h3>
+          <p data-ru="Компоненты и их роли, потоки данных, реестр модулей, поведение при отказах, масштабирование." data-en="Components and their roles, data flows, the module registry, behaviour under failure, scaling.">Компоненты и их роли.</p>
+        </a>
+        <a class="card" href="data.html">
+          <span class="c-ic">📊</span>
+          <h3 data-ru="Архитектура данных" data-en="Data architecture">Архитектура данных</h3>
+          <p data-ru="MQTT-топики и форматы, JSONL-хранилище с роллапами, живой поток SSE, история и движок правил." data-en="MQTT topics and formats, JSONL storage with rollups, the live SSE stream, history and the rules engine.">Что происходит с данными.</p>
+        </a>
+        <a class="card" href="hardware.html">
+          <span class="c-ic">🔌</span>
+          <h3 data-ru="Железо и схемы" data-en="Hardware &amp; schematics">Железо и схемы</h3>
+          <p data-ru="Пины обеих плат, питание, схемы UART и I²C, расширение шины через TCA9548A, BOM." data-en="Pins of both boards, power, UART and I²C schematics, bus expansion with TCA9548A, BOM.">Пины обеих плат.</p>
+        </a>
+        <a class="card" href="sensors.html">
+          <span class="c-ic">🌡️</span>
+          <h3 data-ru="Датчики и драйверы" data-en="Sensors &amp; drivers">Датчики и драйверы</h3>
+          <p data-ru="Реестр драйверов, коды датчиков, определение по chip ID, метрики, добавление своего датчика." data-en="Driver registry, sensor codes, detection by chip ID, metrics, adding your own sensor.">Реестр драйверов.</p>
+        </a>
+        <a class="card" href="firmware.html">
+          <span class="c-ic">⚙️</span>
+          <h3 data-ru="Прошивка и протокол" data-en="Firmware &amp; protocol">Прошивка и протокол</h3>
+          <p data-ru="Сборка PlatformIO, первичная прошивка, OTA, структура кода и бинарный UART-протокол с CRC-16." data-en="PlatformIO build, initial flashing, OTA, code layout and the binary UART protocol with CRC-16.">Сборка и протокол.</p>
+        </a>
+        <a class="card" href="app.html">
+          <span class="c-ic">📱</span>
+          <h3 data-ru="Мобильное приложение" data-en="Mobile application">Мобильное приложение</h3>
+          <p data-ru="Flutter-приложение: режимы подключения, экраны, графики, аварии, smart rules, сборка прошивок." data-en="The Flutter app: connection modes, screens, charts, alerts, smart rules, firmware builds.">Flutter-приложение.</p>
+        </a>
+        <a class="card" href="server.html">
+          <span class="c-ic">🖥️</span>
+          <h3 data-ru="Сервер и развёртывание" data-en="Server &amp; deployment">Сервер и развёртывание</h3>
+          <p data-ru="Сигнальный сервер, Mosquitto, nginx, TLS, systemd, переменные окружения, бэкапы." data-en="Signaling server, Mosquitto, nginx, TLS, systemd, environment variables, backups.">Серверная часть.</p>
+        </a>
+        <a class="card" href="api.html">
+          <span class="c-ic">📡</span>
+          <h3 data-ru="Справочник API" data-en="API reference">Справочник API</h3>
+          <p data-ru="REST и WebSocket контроллера, MQTT-топики, формат CSV на SD-карте, коды ошибок." data-en="Controller REST and WebSocket, MQTT topics, the SD card CSV format, error codes.">Справочник API.</p>
+        </a>
+        <a class="card" href="faq.html">
+          <span class="c-ic">🛟</span>
+          <h3 data-ru="FAQ и траблешут" data-en="FAQ &amp; troubleshooting">FAQ и траблешут</h3>
+          <p data-ru="Разбор типовых проблем: датчик не найден, нет данных, рассинхрон метрик, потеря SD, откат прошивки." data-en="Typical problems explained: sensor not found, no data, metric desync, lost SD card, firmware rollback.">Разбор типовых проблем.</p>
+        </a>
+      </div>
+
+      <h2 id="s-chego-nachat" data-ru="С чего начать" data-en="Where to start">С чего начать</h2>
+
+      <div class="steps">
+        <div class="step">
+          <h3 data-ru="Хочу понять, что это такое" data-en="I want to understand what it is">Хочу понять, что это такое</h3>
+          <p data-ru="Начните с раздела «О проекте», затем посмотрите схему в «Архитектуре» — там же лежит картинка со всеми блоками и подписями." data-en="Start with “About the project”, then look at the diagram in “System architecture” — the same picture with every block annotated is there.">Начните с раздела «О проекте».</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Хочу собрать систему с нуля" data-en="I want to build it from scratch">Хочу собрать систему с нуля</h3>
+          <p data-ru="Порядок такой: «Железо и схемы» (распиновка и питание) → «Прошивка и протокол» (сборка и прошивка) → «Датчики и драйверы» (что подключать). Если что-то не заводится — сразу в «FAQ и траблешут»." data-en="The order is: “Hardware &amp; schematics” (pinout and power) → “Firmware &amp; protocol” (build and flash) → “Sensors &amp; drivers” (what to attach). If something misbehaves, jump straight to “FAQ &amp; troubleshooting”.">Порядок такой: «Железо и схемы» → «Прошивка и протокол» → «Датчики и драйверы».</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Хочу добавить свой датчик" data-en="I want to add my own sensor">Хочу добавить свой датчик</h3>
+          <p data-ru-html="Раздел «Датчики и драйверы», подраздел «Как добавить свой датчик»: там пошагово описано, что писать в драйвере, как выдать <code>type_id</code> и что при этом менять в прошивке модуля." data-en-html="See “Sensors &amp; drivers” → “Adding your own sensor”: it walks through the driver, the <code>type_id</code> and what has to change in the module firmware.">Раздел «Датчики и драйверы».</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Хочу писать свой клиент" data-en="I want to write my own client">Хочу писать свой клиент</h3>
+          <p data-ru="Возьмите «Справочник API»: там REST-эндпоинты контроллера, WebSocket-события, MQTT-топики и формат CSV. Этого достаточно, чтобы построить свой дашборд." data-en="Use the “API reference”: controller REST endpoints, WebSocket events, MQTT topics and the CSV layout are all there — enough to build your own dashboard.">Возьмите «Справочник API».</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Хочу развернуть у себя" data-en="I want to deploy it myself">Хочу развернуть у себя</h3>
+          <p data-ru="Раздел «Сервер и развёртывание»: состав сервера, systemd-юнит, nginx с TLS, полный список переменных окружения и порядок бэкапа." data-en="See “Server &amp; deployment”: what runs there, the systemd unit, nginx with TLS, the full environment variable list and the backup order.">Раздел «Сервер и развёртывание».</p>
+        </div>
+      </div>
+
+      <h2 id="ssylki" data-ru="Прямые ссылки" data-en="Direct links">Прямые ссылки</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Куда" data-en="Where">Куда</th>
+              <th data-ru="Адрес" data-en="Address">Адрес</th>
+              <th data-ru="Что это" data-en="What it is">Что это</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Главная сайта" data-en="Site home">Главная сайта</td>
+              <td><a href="../index.html">/</a></td>
+              <td data-ru="Лендинг с живыми показаниями датчиков" data-en="Landing page with live sensor readings">Лендинг с живыми показаниями</td>
+            </tr>
+            <tr>
+              <td data-ru="Панель" data-en="Panel">Панель</td>
+              <td><a href="../panel/" target="_blank" rel="noopener">/panel/</a></td>
+              <td data-ru="Веб-панель управления, доступна по паролю" data-en="Web control panel, password protected">Веб-панель управления</td>
+            </tr>
+            <tr>
+              <td data-ru="Приложение" data-en="App">Приложение</td>
+              <td><a href="../app/" target="_blank" rel="noopener">/app/</a></td>
+              <td data-ru="Веб-сборка мобильного приложения" data-en="Web build of the mobile app">Веб-сборка мобильного приложения</td>
+            </tr>
+            <tr>
+              <td data-ru="Прошивки" data-en="Firmware">Прошивки</td>
+              <td><a href="../fw/" target="_blank" rel="noopener">/fw/</a></td>
+              <td data-ru="Каталог бинарников и version.json для OTA" data-en="Binary directory and version.json for OTA">Каталог бинарников и version.json</td>
+            </tr>
+            <tr>
+              <td data-ru="API сервера" data-en="Server API">API сервера</td>
+              <td><code>/api/v1/health</code></td>
+              <td data-ru="Состояние сигнального сервера: версия, аптайм, устройства" data-en="Signaling server health: version, uptime, devices">Состояние сигнального сервера</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="feedback">
+        <span>💬</span>
+        <span data-ru="Нашли неточность? Исходники вики лежат в репозитории проекта — правки приветствуются." data-en="Found an inaccuracy? The wiki sources live in the project repository — contributions welcome.">Нашли неточность?</span>
+      </div>
+
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+
+  <aside class="toc" id="toc"></aside>
+</div>
+
+<footer class="bottom">
+  <div class="foot-inner">
+    <div>Aeris Monitor · <span class="mono">spe4naz.online</span></div>
+    <div class="foot-links">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <a href="firmware.html" data-ru="Сборка" data-en="Build">Сборка</a>
+      <a href="api.html">API</a>
+      <a href="faq.html">FAQ</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/wiki.js"></script>
+</body>
+</html>

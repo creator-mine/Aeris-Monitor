@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Справочник API · Aeris Monitor</title>
+<meta name="description" content="Полный справочник интерфейсов: REST и WebSocket устройства, команды, API сигнального сервера, топики MQTT, формат CSV и манифест OTA.">
+<link rel="canonical" href="https://spe4naz.online/wiki/api.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Aeris Monitor">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://spe4naz.online/wiki/api.html">
+<meta property="og:title" content="Справочник API">
+<meta property="og:description" content="Полный справочник интерфейсов: REST и WebSocket устройства, команды, API сигнального сервера, топики MQTT, формат CSV и манифест OTA.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/wiki.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+</head>
+<body data-page="api.html">
+
+<div id="progress"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="../index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Aeris Monitor</span>
+      <span class="sep">/</span>
+      <span class="sub" data-ru="Вики" data-en="Wiki">Вики</span>
+    </a>
+    <button class="icon-btn side-toggle" id="sideToggle" type="button" title="Меню" data-ru-attr="title" data-en-attr="Title" data-ru="Меню" data-en="Menu">☰</button>
+    <div class="top-search">
+      <span class="ico">🔍</span>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" title="Тема / Theme">🌙</button>
+      <button class="lang-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <main class="content">
+    <div class="crumbs">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <span>/</span>
+      <a href="index.html" data-ru="Вики" data-en="Wiki">Вики</a>
+      <span>/</span>
+      <span class="cur">API</span>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow"><span>🧩</span> <span data-ru="Раздел 8" data-en="Section 8">Раздел 8</span></div>
+      <h1 data-ru="Справочник API" data-en="API reference">Справочник API</h1>
+      <p class="lede" data-ru="Всё, чем можно поговорить с системой: HTTP и WebSocket устройства, REST сервера, топики MQTT и форматы файлов." data-en="Everything you can talk to the system with: the device's HTTP and WebSocket, the server REST API, MQTT topics and file formats.">Всё, чем можно поговорить с системой.</p>
+    </div>
+
+    <div class="prose">
+
+      <h2 id="obzor" data-ru="Два разных интерфейса" data-en="Two different interfaces">Два разных интерфейса</h2>
+
+      <p data-ru="В системе два независимых API, и их важно не путать: они живут по разным адресам и решают разные задачи." data-en="The system has two independent APIs, and they should not be confused: they live at different addresses and solve different problems.">В системе два независимых API.</p>
+
+      <div class="grid g2">
+        <div class="card">
+          <span class="c-ic">📟</span>
+          <h3 data-ru="API устройства" data-en="Device API">API устройства</h3>
+          <p data-ru="Живёт на самом микроконтроллере по локальному адресу. Отдаёт показания, историю, состояние и принимает команды." data-en="Lives on the microcontroller itself at a local address. Serves readings, history, status and accepts commands.">Живёт на микроконтроллере.</p>
+          <p class="mono dim">http://&lt;ip&gt;/api/v1</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">🖥️</span>
+          <h3 data-ru="API сервера" data-en="Server API">API сервера</h3>
+          <p data-ru="Живёт на VPS за nginx. Хранит реестр устройств, аварии и правила. Данными датчиков не занимается." data-en="Lives on the VPS behind nginx. Keeps the device registry, alerts and rules. It deals with no sensor data.">Живёт на VPS.</p>
+          <p class="mono dim">https://spe4naz.online/api/v1</p>
+        </div>
+      </div>
+
+      <h2 id="ustroystvo" data-ru="API устройства" data-en="Device API">API устройства</h2>
+
+      <p data-ru="Все ответы — обычный JSON. Префикс общий, он задаётся в конфигурации прошивки." data-en="All responses are plain JSON. The prefix is shared and comes from the firmware configuration.">Все ответы — обычный JSON.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Метод и путь" data-en="Method &amp; path">Метод и путь</th>
+              <th data-ru="Что возвращает" data-en="Returns">Что возвращает</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">GET /</td>
+              <td data-ru="Короткая подсказка, что API доступен по этому адресу" data-en="A short note that the API is available at this address">Подсказка о доступности API</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /sensors</td>
+              <td data-ru="Текущие значения всех метрик вложенными объектами: сначала по модулям, потом по метрикам" data-en="Current values of all metrics, nested: first by module, then by metric">Текущие значения метрик</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /modules</td>
+              <td data-ru="Список обнаруженных модулей: адрес, шина, имя, интервал, состояние" data-en="Detected modules: address, bus, name, interval, state">Список модулей</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /status</td>
+              <td data-ru="Состояние: аптайм, свободная память, IP, RSSI, температура чипа, версия прошивки" data-en="Status: uptime, free heap, IP, RSSI, chip temperature, firmware version">Состояние системы</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /sd/info</td>
+              <td data-ru="Карта памяти: смонтирована ли, тип, объём и занятое место" data-en="The memory card: mounted, type, total and used space">Информация о карте</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /sensors/history</td>
+              <td data-ru="История из CSV на карте с фильтрами" data-en="History from the card's CSV with filters">История показаний</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /logs</td>
+              <td data-ru="Кольцевой буфер последних событий и список файлов журнала" data-en="A ring buffer of recent events and the list of log files">Журнал событий</td>
+            </tr>
+            <tr>
+              <td class="mono">POST /command</td>
+              <td data-ru="Выполнить команду устройству" data-en="Run a command on the device">Команда устройству</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 data-ru="Показания" data-en="Readings">Показания</h3>
+
+      <pre><code>GET /api/v1/sensors</code></pre>
+
+      <pre><code>{
+  "timestamp": 128374,
+  "modules": {
+    "BME680_0x76": {
+      "temperature": 21.40,
+      "humidity": 44.20,
+      "pressure": 1013.10,
+      "gas_resistance": 41200.00
+    }
+  }
+}</code></pre>
+
+      <h3 data-ru="Состояние" data-en="Status">Состояние</h3>
+
+      <pre><code>GET /api/v1/status</code></pre>
+
+      <pre><code>{
+  "type": "status_update",
+  "device_id": "esp32c3_001",
+  "device_name": "Main Controller",
+  "device_type": "esp32c3",
+  "uptime": 128374,
+  "free_heap": 214000,
+  "wifi_connected": true,
+  "ip": "192.168.1.50",
+  "time_synced": true,
+  "rssi": -58,
+  "chip_temp": 42.3,
+  "firmware": "1.2.2"
+}</code></pre>
+
+      <h3 data-ru="История" data-en="History">История</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Параметр" data-en="Parameter">Параметр</th>
+              <th data-ru="По умолчанию" data-en="Default">По умолчанию</th>
+              <th data-ru="Смысл" data-en="Meaning">Смысл</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">type</td>
+              <td data-ru="любой" data-en="any">любой</td>
+              <td data-ru="Ключ метрики, например temperature" data-en="Metric key, for example temperature">Ключ метрики</td>
+            </tr>
+            <tr>
+              <td class="mono">since</td>
+              <td class="mono">0</td>
+              <td data-ru="Метка времени Unix в миллисекундах: брать только новее" data-en="Unix time in milliseconds: keep only newer points">Отбор по времени</td>
+            </tr>
+            <tr>
+              <td class="mono">limit</td>
+              <td class="mono">1000</td>
+              <td data-ru="Сколько точек вернуть" data-en="How many points to return">Сколько точек</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru="История читается с SD-карты, поэтому она работает только при смонтированной карте и только в пределах того, что на ней осталось: хранится до 60 последних файлов, а при заполнении карты старые удаляются." data-en="History is read from the SD card, so it works only when a card is mounted and only for what is still on it: up to the last 60 files are kept, and when the card fills up old files are removed.">История читается с SD-карты.</p>
+
+      <div class="callout info">
+        <div class="co-ic">🔢</div>
+        <div class="co-body">
+          <p data-ru="Чтение с карты ограничено по времени: просматривается не больше 4096 строк за запрос. На медленной карте это заметно ограничивает глубину выборки, поэтому для больших периодов надёжнее MQTT или экспорт CSV." data-en="Reading is time-bounded: at most 4096 lines are scanned per request. On a slow card that noticeably caps how deep a query can go, so for long periods MQTT or a CSV export is more reliable.">За просмотр не больше 4096 строк.</p>
+        </div>
+      </div>
+
+      <h2 id="komandy" data-ru="Команды устройству" data-en="Device commands">Команды устройству</h2>
+
+      <p data-ru-html="Команда отправляется методом <code>POST</code> на <code>/api/v1/command</code> с JSON-телом, в котором обязательно поле <code>command</code>. Через WebSocket формат другой: <code>{"type":"command","command":"..."}</code>." data-en-html="A command is sent with <code>POST</code> to <code>/api/v1/command</code> and a JSON body that must contain <code>command</code>. Over WebSocket the shape differs: <code>{"type":"command","command":"..."}</code>.">Команда отправляется методом POST.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Команда" data-en="Command">Команда</th>
+              <th data-ru="Поля" data-en="Fields">Поля</th>
+              <th data-ru="Действие" data-en="Effect">Действие</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">restart</td>
+              <td>—</td>
+              <td data-ru="Перезагрузка. Журнал сохраняется на карту перед рестартом" data-en="Reboot. The log is flushed to the card first">Перезагрузка</td>
+            </tr>
+            <tr>
+              <td class="mono">read_sensor</td>
+              <td>—</td>
+              <td data-ru="Немедленное чтение всех датчиков вне очереди по времени" data-en="Read every sensor right away, out of the timed cycle">Форс-чтение</td>
+            </tr>
+            <tr>
+              <td class="mono">rescan</td>
+              <td>—</td>
+              <td data-ru="Повторное сканирование шины I2C с учётом мультиплексоров" data-en="Rescan the I2C bus, multiplexers included">Пересканировать шину</td>
+            </tr>
+            <tr>
+              <td class="mono">mqtt_enable<br>mqtt_disable</td>
+              <td>—</td>
+              <td data-ru="Включение и выключение публикации; выбор сохраняется" data-en="Turn publishing on or off; the choice is persisted">Включить или выключить MQTT</td>
+            </tr>
+            <tr>
+              <td class="mono">ota</td>
+              <td class="mono">force</td>
+              <td data-ru="Обновление по воздуху. Без force — только если опубликованная версия новее" data-en="Over-the-air update. Without force — only when the published version is newer">Обновление по воздуху</td>
+            </tr>
+            <tr>
+              <td class="mono">ota_rollback</td>
+              <td>—</td>
+              <td data-ru="Возврат на предыдущий раздел прошивки" data-en="Roll back to the previous firmware slot">Откат прошивки</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_set</td>
+              <td class="mono">ssid<br>password</td>
+              <td data-ru="Записать имя сети и пароль в энергонезависимую память и перезагрузиться" data-en="Write the network name and password to non-volatile memory and reboot">Сменить сеть</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <pre><code>curl -X POST http://192.168.1.50/api/v1/command \
+     -H 'Content-Type: application/json' \
+     -d '{"command":"ota","force":true}'</code></pre>
+
+      <p data-ru="Ошибки команды возвращаются кодом 409 и полем error: например, ota_busy, если обновление уже идёт, rollback_failed, если нет предыдущего раздела, missing_ssid, если не передан ssid, и unknown_command, если команды нет." data-en="Command failures come back with status 409 and an error field: for example ota_busy when an update is already running, rollback_failed when there is no previous slot, missing_ssid when ssid is absent, and unknown_command when the command does not exist.">Ошибки команды возвращаются кодом 409.</p>
+
+      <h2 id="websocket" data-ru="WebSocket устройства" data-en="Device WebSocket">WebSocket устройства</h2>
+
+      <p data-ru-html="Тот же порт, что и HTTP, путь <code>/ws</code>. При подключении устройство сразу шлёт четыре сообщения: состояние, список модулей, текущие показания и журнал. Дальше поток идёт по мере изменения значений." data-en-html="The same port as HTTP, path <code>/ws</code>. On connect the device immediately sends four messages: status, module list, current readings and the log. After that the stream follows as values change.">Тот же порт, путь /ws.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Направление" data-en="Direction">Направление</th>
+              <th data-ru="Тип" data-en="Type">Тип</th>
+              <th data-ru="Когда приходит" data-en="When it arrives">Когда приходит</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Устройство → клиент" data-en="Device → client">Устройство → клиент</td>
+              <td class="mono">status_update</td>
+              <td data-ru="При подключении и по команде request_status" data-en="On connect and on a request_status command">При подключении</td>
+            </tr>
+            <tr>
+              <td data-ru="Устройство → клиент" data-en="Device → client">Устройство → клиент</td>
+              <td class="mono">modules_update</td>
+              <td data-ru="При подключении, после rescan и при появлении модуля" data-en="On connect, after rescan and when a module appears">При подключении и после rescan</td>
+            </tr>
+            <tr>
+              <td data-ru="Устройство → клиент" data-en="Device → client">Устройство → клиент</td>
+              <td class="mono">sensor_update</td>
+              <td data-ru="Каждый цикл чтения и после read_sensor" data-en="Every read cycle and after read_sensor">Каждый цикл чтения</td>
+            </tr>
+            <tr>
+              <td data-ru="Устройство → клиент" data-en="Device → client">Устройство → клиент</td>
+              <td class="mono">logs</td>
+              <td data-ru="При подключении и по команде request_logs" data-en="On connect and on a request_logs command">При подключении</td>
+            </tr>
+            <tr>
+              <td data-ru="Устройство → клиент" data-en="Device → client">Устройство → клиент</td>
+              <td class="mono">history</td>
+              <td data-ru="В ответ на request_history" data-en="In reply to request_history">В ответ на запрос</td>
+            </tr>
+            <tr>
+              <td data-ru="Устройство → клиент" data-en="Device → client">Устройство → клиент</td>
+              <td class="mono">ack</td>
+              <td data-ru="Подтверждение выполненной команды" data-en="Acknowledgement of a performed command">Подтверждение команды</td>
+            </tr>
+            <tr>
+              <td data-ru="Устройство → клиент" data-en="Device → client">Устройство → клиент</td>
+              <td class="mono">error</td>
+              <td data-ru="Команда не выполнена, с указанием причины" data-en="The command failed, with the reason">Ошибка команды</td>
+            </tr>
+            <tr>
+              <td data-ru="Клиент → устройство" data-en="Client → device">Клиент → устройство</td>
+              <td class="mono">request_sensors<br>request_status<br>request_history<br>request_logs<br>command</td>
+              <td data-ru="Запрос полного состояния или выполнение команды" data-en="Ask for full state, or run a command">Запрос состояния или команда</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn">
+        <div class="co-ic">📏</div>
+        <div class="co-body">
+          <p data-ru="Кадры длиннее 2 КБ отбрасываются, и входящие команды длиннее 512 байт обрезаются. Обычные команды в это ограничение укладываются с большим запасом; ограничение важно помнить при отладке длинными полями вроде ssid." data-en="Frames longer than 2 KB are dropped and incoming commands are truncated past 512 bytes. Ordinary commands fit with room to spare; the limit matters while debugging long fields such as ssid.">Кадры длиннее 2 КБ отбрасываются.</p>
+        </div>
+      </div>
+
+      <h2 id="server-api" data-ru="API сигнального сервера" data-en="Signaling server API">API сигнального сервера</h2>
+
+      <p data-ru-html="Префикс тот же, но адрес другой: на живом развёртывании это <code>https://spe4naz.online/api/v1</code>. Методы, которым нужен токен, требуют заголовок <code>Authorization: Bearer &lt;токен&gt;</code>." data-en-html="The prefix is the same but the address is different: on the live deployment that is <code>https://spe4naz.online/api/v1</code>. Methods that need a token require the <code>Authorization: Bearer &lt;token&gt;</code> header.">Тот же префикс, другой адрес.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Метод и путь" data-en="Method &amp; path">Метод и путь</th>
+              <th data-ru="Токен" data-en="Token">Токен</th>
+              <th data-ru="Назначение" data-en="Purpose">Назначение</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">GET /health</td>
+              <td>—</td>
+              <td data-ru="Версия, аптайм, счётчики устройств, аварий и правил" data-en="Version, uptime, device, alert and rule counters">Состояние сервера</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /meta</td>
+              <td>—</td>
+              <td data-ru="Версия, таймаут офлайна, лимиты, включена ли авторизация" data-en="Version, offline timeout, limits, whether auth is on">Параметры сервера</td>
+            </tr>
+            <tr>
+              <td class="mono">POST /devices/register</td>
+              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="Регистрация или обновление устройства" data-en="Register or update a device">Регистрация устройства</td>
+            </tr>
+            <tr>
+              <td class="mono">POST /devices/heartbeat</td>
+              <td>—</td>
+              <td data-ru="Подтверждение присутствия; возвращает устройство в онлайн" data-en="Presence ping; brings the device back online">Подтверждение присутствия</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /devices</td>
+              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru-html="Список устройств, фильтр <code>?online=true|false</code>" data-en-html="Device list, filter <code>?online=true|false</code>">Список устройств</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /devices/:id</td>
+              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="Одно устройство по идентификатору" data-en="A single device by ID">Карточка устройства</td>
+            </tr>
+            <tr>
+              <td class="mono">DELETE /devices/:id</td>
+              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="Удаление устройства вместе с его авариями и правилами" data-en="Delete a device along with its alerts and rules">Удаление устройства</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /alerts</td>
+              <td>—</td>
+              <td data-ru-html="Список аварий, фильтр <code>?device_id=…</code>" data-en-html="Alert list, filter <code>?device_id=…</code>">Список аварий</td>
+            </tr>
+            <tr>
+              <td class="mono">POST /alerts</td>
+              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="Создать аварию" data-en="Create an alert">Создание аварии</td>
+            </tr>
+            <tr>
+              <td class="mono">PUT /alerts/:id</td>
+              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="Изменить аварию, в том числе отметить срабатывание" data-en="Update an alert, including marking a trigger">Изменение аварии</td>
+            </tr>
+            <tr>
+              <td class="mono">DELETE /alerts/:id</td>
+              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="Удалить аварию" data-en="Delete an alert">Удаление аварии</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /rules</td>
+              <td>—</td>
+              <td data-ru-html="Список правил, фильтр <code>?device_id=…</code>" data-en-html="Rule list, filter <code>?device_id=…</code>">Список правил</td>
+            </tr>
+            <tr>
+              <td class="mono">POST /rules</td>
+              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="Создать правило" data-en="Create a rule">Создание правила</td>
+            </tr>
+            <tr>
+              <td class="mono">PUT /rules/:id</td>
+              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="Изменить правило" data-en="Update a rule">Изменение правила</td>
+            </tr>
+            <tr>
+              <td class="mono">DELETE /rules/:id</td>
+              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="Удалить правило" data-en="Delete a rule">Удаление правила</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 data-ru="Тело запроса регистрации" data-en="Registration body">Тело запроса регистрации</h3>
+
+      <pre><code>POST /api/v1/devices/register
+Authorization: Bearer &lt;токен&gt;
+Content-Type: application/json
+
+{
+  "id": "esp32c3_001",
+  "name": "Main Controller",
+  "type": "esp32c3",
+  "ip": "192.168.1.50",
+  "port": 80,
+  "sensors": ["temperature", "humidity", "co2"]
+}</code></pre>
+
+      <p data-ru="Обязательны только идентификатор и адрес: остальное заполняется значениями по умолчанию. Повторная регистрация с тем же идентификатором обновляет запись, а не создаёт вторую." data-en="Only the ID and the address are required; the rest falls back to defaults. Registering again with the same ID updates the record instead of creating a second one.">Обязательны только идентификатор и адрес.</p>
+
+      <h3 data-ru="Тело запроса аварии" data-en="Alert body">Тело запроса аварии</h3>
+
+      <pre><code>POST /api/v1/alerts
+{
+  "device_id": "esp32c3_001",
+  "sensor_type": "temperature",
+  "type": "above",
+  "threshold": 27.5
+}</code></pre>
+
+      <h3 data-ru="Тело запроса правила" data-en="Rule body">Тело запроса правила</h3>
+
+      <pre><code>POST /api/v1/rules
+{
+  "name": "Уведомить о жаре",
+  "device_id": "esp32c3_001",
+  "trigger": "threshold_above",
+  "sensor_type": "temperature",
+  "threshold": 27.5,
+  "action": "notify",
+  "cooldown_seconds": 300
+}</code></pre>
+
+      <h2 id="kod" data-ru="Коды ответа и ошибки" data-en="Status codes and errors">Коды ответа и ошибки</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Код" data-en="Code">Код</th>
+              <th data-ru="Когда" data-en="When">Когда</th>
+              <th data-ru="Поле error" data-en="error field">Поле error</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">401</td>
+              <td data-ru="Токен не задан или неверный" data-en="Token missing or wrong">Требуется токен</td>
+              <td class="mono">unauthorized</td>
+            </tr>
+            <tr>
+              <td class="mono">404</td>
+              <td data-ru="Записи нет" data-en="No such record">Запись не найдена</td>
+              <td class="mono">not_found<br>not_registered</td>
+            </tr>
+            <tr>
+              <td class="mono">400</td>
+              <td data-ru="Тело не прошло проверку" data-en="Body failed validation">Некорректный запрос</td>
+              <td class="mono">invalid_json<br>missing_id<br>missing_ip<br>invalid_device<br>invalid_alert<br>invalid_rule<br>bad_alert_id<br>bad_device_id<br>bad_rule_id</td>
+            </tr>
+            <tr>
+              <td class="mono">429</td>
+              <td data-ru="Превышен лимит запросов или слишком много устройств с одного адреса" data-en="Rate limit exceeded, or too many devices from one address">Превышен лимит</td>
+              <td class="mono">rate_limited<br>too_many_devices_from_ip</td>
+            </tr>
+            <tr>
+              <td class="mono">500</td>
+              <td data-ru="Непредвиденная ошибка на сервере" data-en="Unexpected server-side failure">Внутренняя ошибка</td>
+              <td class="mono">internal_error</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru-html="Устройство дополнительно отвечает 409 на занятую команду, 405 на неверный метод и 404 на неизвестный путь — последнее всегда с телом <code>{"error":"not_found"}</code>." data-en-html="The device also answers 409 for a busy command, 405 for a wrong method and 404 for an unknown path — the last one always with the body <code>{"error":"not_found"}</code>.">Устройство отвечает и кодами 409 и 405.</p>
+
+      <div class="callout info">
+        <div class="co-ic">🛡️</div>
+        <div class="co-body">
+          <p data-ru="Ошибки всегда приходят в одинаковом виде — поле error с коротким машинным кодом. Человеческие тексты появляются только в интерфейсе приложения, поэтому по коду всегда можно однозначно понять, что произошло." data-en="Errors always arrive the same way — an error field with a short machine code. Human-readable text appears only in the app UI, so the code alone tells you unambiguously what happened.">Ошибки всегда в одном формате.</p>
+        </div>
+      </div>
+
+      <h2 id="mqtt" data-ru="Топики MQTT" data-en="MQTT topics">Топики MQTT</h2>
+
+      <p data-ru-html="Топик строится как <code>&lt;префикс&gt;/&lt;идентификатор устройства&gt;/&lt;хвост&gt;</code>. По умолчанию префикс — <code>iot</code>." data-en-html="A topic is built as <code>&lt;prefix&gt;/&lt;device id&gt;/&lt;suffix&gt;</code>. The default prefix is <code>iot</code>.">Топик строится из префикса и идентификатора.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Топик" data-en="Topic">Топик</th>
+              <th data-ru="Направление" data-en="Direction">Направление</th>
+              <th data-ru="Содержимое" data-en="Payload">Содержимое</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">iot/&lt;id&gt;/sensors/&lt;ключ&gt;</td>
+              <td data-ru="устройство → подписчик" data-en="device → subscriber">устройство → подписчик</td>
+              <td data-ru="Одно значение метрики" data-en="A single metric value">Одно значение</td>
+            </tr>
+            <tr>
+              <td class="mono">iot/&lt;id&gt;/status</td>
+              <td data-ru="устройство → подписчик" data-en="device → subscriber">устройство → подписчик</td>
+              <td data-ru="Состояние: аптайм, память, RSSI, список модулей" data-en="Status: uptime, heap, RSSI, module list">Состояние</td>
+            </tr>
+            <tr>
+              <td class="mono">iot/&lt;id&gt;/commands</td>
+              <td data-ru="подписчик → устройство" data-en="subscriber → device">подписчик → устройство</td>
+              <td data-ru="Объект с полем command, те же команды, что и в HTTP" data-en="An object with a command field — the same commands as over HTTP">Команда устройству</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <pre><code>iot/esp32c3_001/sensors/temperature</code></pre>
+
+      <pre><code>{
+  "device_id": "esp32c3_001",
+  "sensor": "temperature",
+  "timestamp": 1735689600000,
+  "value": 21.40,
+  "unit": "C"
+}</code></pre>
+
+      <p data-ru="Публикация идёт не каждый цикл, а только при изменении значения и как минимум раз в минуту, чтобы топик не выглядел мёртвым. Значения, для которых нет корректного показания — например во время прогрева CO₂-датчика, — не публикуются вовсе." data-en="Publishing does not happen every cycle but only when a value changes, and at least once a minute so the topic never looks dead. Readings without a valid value — during CO₂ sensor warm-up, for instance — are not published at all.">Публикация только при изменении.</p>
+
+      <div class="callout warn">
+        <div class="co-ic">🚦</div>
+        <div class="co-body">
+          <p data-ru="Время в топике указано как миллисекунды, и до синхронизации с NTP это время неверное: счётчик отсчитывает миллисекунды с момента старта. Проверять time_synced нужно до того, как строить графики по MQTT." data-en="The time in the topic is in milliseconds, and before NTP sync it is wrong: the counter starts at boot. Check time_synced before building MQTT-based charts.">До синхронизации времени метки неверны.</p>
+        </div>
+      </div>
+
+      <h2 id="csv" data-ru="Формат CSV на карте" data-en="CSV format on the card">Формат CSV на карте</h2>
+
+      <p data-ru="Каждая запись — одна строка из четырёх полей, без заголовка, чтобы файл можно было дописывать построчно." data-en="Each record is one line of four fields, with no header, so the file can be appended line by line.">Одна строка — четыре поля.</p>
+
+      <pre><code>метка_времени,ключ_метрики,значение,единица
+1735689600000,temperature,21.40,C
+1735689600000,humidity,44.20,%
+1735689600000,co2,612.00,ppm</code></pre>
+
+      <p data-ru-html="Файл один на сутки и называется по дате: <code>/data_&lt;идентификатор&gt;_ГГГГММДД.csv</code>. Пока время не синхронизировано, пишется один общий файл <code>/data_&lt;идентификатор&gt;.csv</code> — так ничего не теряется в первые минуты работы." data-en-html="There is one file per day named by date: <code>/data_&lt;id&gt;_YYYYMMDD.csv</code>. Until time is synced a single flat file <code>/data_&lt;id&gt;.csv</code> is written, so nothing is lost in the first minutes of operation.">Файл один на сутки.</p>
+
+      <div class="callout ok">
+        <div class="co-ic">🗑️</div>
+        <div class="co-body">
+          <p data-ru="Ротация и уборка автоматические: хранятся последние 60 файлов, а при заполнении карты более чем на 90 процентов удаляются пять самых старых. Проверка запускается раз в час." data-en="Rotation and pruning are automatic: the last 60 files are kept, and once the card is more than 90 percent full the five oldest are removed. The check runs once an hour.">Хранятся последние 60 файлов.</p>
+        </div>
+      </div>
+
+      <h2 id="ota" data-ru="Манифест прошивки" data-en="Firmware manifest">Манифест прошивки</h2>
+
+      <p data-ru-html="Обновление приходит по HTTPS. Устройство сначала спрашивает манифест и сравнивает версии: если опубликованная новее — качает образ и сверяет контрольную сумму." data-en-html="The update comes over HTTPS. The device first asks for the manifest and compares versions: if the published one is newer it downloads the image and verifies the checksum.">Обновление приходит по HTTPS.</p>
+
+      <pre><code>GET /fw/version.json
+
+{
+  "version": "1.2.3",
+  "sha256": "9f2c…"
+}</code></pre>
+
+      <p data-ru="Без манифеста устройство просто скачает образ по стандартному пути. Контрольная сумма обязательна при нормальном обновлении: при несовпадении прошивка не применяется и устройство продолжает работать на прежней версии." data-en="With no manifest the device simply downloads the image from the default path. The checksum matters on a normal update: on a mismatch the firmware is not applied and the device keeps running the previous version.">Контрольная сумма обязательна при нормальном обновлении.</p>
+
+      <h2 id="primer" data-ru="Готовые примеры" data-en="Worked examples">Готовые примеры</h2>
+
+      <h3 data-ru="Показать текущую температуру" data-en="Read the current temperature">Показать текущую температуру</h3>
+
+      <pre><code>curl -s http://192.168.1.50/api/v1/sensors \
+  | grep -o '"temperature":[0-9.]*'</code></pre>
+
+      <h3 data-ru="Подписаться на поток значений" data-en="Subscribe to the value stream">Подписаться на поток значений</h3>
+
+      <pre><code>mosquitto_sub -h spe4naz.online -p 1883 \
+  -t 'iot/+/sensors/temperature' -v</code></pre>
+
+      <h3 data-ru="Проверить состояние сервера" data-en="Check the server state">Проверить состояние сервера</h3>
+
+      <pre><code>curl -s https://spe4naz.online/api/v1/health</code></pre>
+
+      <pre><code>{
+  "ok": true,
+  "version": "0.4.0",
+  "uptime": 928371.4,
+  "devices": { "total": 1, "online": 1, "offline": 0 },
+  "alerts": 0,
+  "rules": 0
+}</code></pre>
+
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+
+  <aside class="toc" id="toc"></aside>
+</div>
+
+<footer class="bottom">
+  <div class="foot-inner">
+    <div>Aeris Monitor · <span class="mono">spe4naz.online</span></div>
+    <div class="foot-links">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <a href="server.html" data-ru="Сервер" data-en="Server">Сервер</a>
+      <a href="faq.html">FAQ</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/wiki.js"></script>
+</body>
+</html>

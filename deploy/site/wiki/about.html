@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>О проекте · Aeris Monitor</title>
+<meta name="description" content="Зачем нужна модульная система мониторинга окружающей среды, какую задачу она решает, что в ней нового и где проходят её границы.">
+<link rel="canonical" href="https://spe4naz.online/wiki/about.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Aeris Monitor">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://spe4naz.online/wiki/about.html">
+<meta property="og:title" content="О проекте">
+<meta property="og:description" content="Зачем нужна модульная система мониторинга окружающей среды, какую задачу она решает, что в ней нового и где проходят её границы.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/wiki.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+</head>
+<body data-page="about.html">
+
+<div id="progress"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="../index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Aeris Monitor</span>
+      <span class="sep">/</span>
+      <span class="sub" data-ru="Вики" data-en="Wiki">Вики</span>
+    </a>
+    <button class="icon-btn side-toggle" id="sideToggle" type="button" title="Меню" data-ru-attr="title" data-en-attr="Title" data-ru="Меню" data-en="Menu">☰</button>
+    <div class="top-search">
+      <span class="ico">🔍</span>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" title="Тема / Theme">🌙</button>
+      <button class="lang-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <main class="content">
+    <div class="crumbs">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <span>/</span>
+      <a href="index.html" data-ru="Вики" data-en="Wiki">Вики</a>
+      <span>/</span>
+      <span class="cur" data-ru="О проекте" data-en="About the project">О проекте</span>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow"><span>🎯</span> <span data-ru="Раздел 1" data-en="Section 1">Раздел 1</span></div>
+      <h1 data-ru="О проекте" data-en="About the project">О проекте</h1>
+      <p class="lede" data-ru="Зачем нужна система, какую задачу она решает, что в ней принципиально нового, где проходят её границы и в каком состоянии находится разработка." data-en="Why the system exists, the problem it solves, what is genuinely new about it, where its limits lie and where development currently stands.">Зачем нужна система.</p>
+    </div>
+
+    <div class="prose">
+
+      <h2 id="zachem" data-ru="Зачем это нужно" data-en="Why it exists">Зачем это нужно</h2>
+
+      <p data-ru="Мониторинг микроклимата в помещении обычно упирается в три вещи. Первое — датчик нельзя заменить или переставить без перепрошивки: прошивка жёстко знает адрес и тип датчика. Второе — на одной шине I²C быстро заканчиваются свободные адреса, и два одинаковых датчика начинают конфликтовать. Третье — добавить новый тип датчика значит переписать и прошивку, и приложение, и сервер: формат данных зашит в код по всей системе." data-en="Indoor microclimate monitoring usually runs into three walls. First, a sensor cannot be swapped or moved without reflashing: the firmware hard-codes its address and type. Second, a single I²C bus runs out of free addresses quickly and two identical sensors start to collide. Third, adding a new sensor type means rewriting the firmware, the app and the server — the data format is baked into code across the whole system.">Мониторинг микроклимата обычно упирается в три вещи.</p>
+
+      <p data-ru="Проект решает именно эти три проблемы: датчики описывают себя сами, одинаковые чипы различаются по идентификатору, а формат метрик приходит от железа, а не из прошивки приложения." data-en="This project addresses exactly those three: sensors describe themselves, identical chips are told apart by their chip ID, and the metric layout comes from the hardware rather than from the app firmware.">Проект решает именно эти три проблемы.</p>
+
+      <h2 id="ideya" data-ru="Идея решения" data-en="The idea">Идея решения</h2>
+
+      <p data-ru="Система разделена на две роли, и это ключевое решение." data-en="The system is split into two roles, and that split is the key decision.">Система разделена на две роли.</p>
+
+      <div class="grid g2">
+        <div class="card">
+          <span class="c-ic">🌡️</span>
+          <h3 data-ru="Сенсорные модули" data-en="Sensor modules">Сенсорные модули</h3>
+          <p data-ru="ESP32-C6 без Wi-Fi: только шина I²C, собственный драйвер и отправка бинарных кадров по UART. Дёшево, потребляет мало, не зависит от сети. При включении модуль объявляет контроллеру, кто он и какие метрики умеет отдавать." data-en="An ESP32-C6 with no Wi-Fi: an I²C bus, one driver, and binary frames out over UART. Cheap, low power, network independent. On boot the module tells the controller who it is and which metrics it can produce.">ESP32-C6 без Wi-Fi: только шина I²C, драйвер и бинарные кадры по UART.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">🧠</span>
+          <h3 data-ru="Главный контроллер" data-en="Main controller">Главный контроллер</h3>
+          <p data-ru="ESP32-C3 или ESP32-S3: принимает кадры по UART, собирает карту метрик, публикует всё в MQTT, отдаёт REST и WebSocket, пишет историю в CSV на SD-карту и служит точкой входа в локальную сеть." data-en="An ESP32-C3 or ESP32-S3: receives UART frames, assembles the metric map, publishes everything to MQTT, serves REST and WebSocket, writes CSV history to an SD card and is the entry point into the local network.">Принимает кадры, публикует в MQTT, отдаёт API и пишет историю на SD.</p>
+        </div>
+      </div>
+
+      <p data-ru="Вместо того чтобы знать заранее, что подключено, контроллер слушает шину и слушает UART. Модуль появился — контроллер сам создал ему экземпляр драйвера, снял описание метрик и включил их в опрос. Модуль исчез — запись помечена как офлайн, остальные продолжают работать. Пользователю не нужно ни менять прошивку, ни перезагружать систему." data-en="Instead of knowing in advance what is attached, the controller listens to the bus and to UART. A module appears — the controller creates a driver instance for it, pulls the metric description and adds it to the polling set. A module disappears — its record is marked offline and everything else keeps running. The user changes neither firmware nor reloads the system.">Вместо того чтобы знать заранее, что подключено, контроллер слушает шину и UART.</p>
+
+      <h2 id="novizna" data-ru="Что нового" data-en="What is new">Что нового</h2>
+
+      <p data-ru="Самооописание метрик — главное отличие от типовых проектов на ESP32. Обычно прошивка содержит жёсткий список датчиков, а приложение знает, как называется каждое поле. Здесь описание приходит по проводу вместе с данными: имя датчика, единицы измерения и количество метрик." data-en="Self-describing metrics are the main departure from typical ESP32 projects. Usually the firmware holds a hard-coded sensor list and the app knows what every field is called. Here the description travels over the wire together with the data: sensor name, units and metric count.">Главное отличие — самооописание метрик.</p>
+
+      <div class="grid g2">
+        <div class="card">
+          <span class="c-num">1</span>
+          <h3 data-ru="Драйвер как отдельный объект" data-en="Driver as an object">Драйвер как отдельный объект</h3>
+          <p data-ru="Каждый найденный экземпляр датчика получает собственный клон драйвера. Два INA219 по разным адресам не делят внутреннее состояние и не мешают друг другу при чтении." data-en="Every detected sensor gets its own driver clone. Two INA219 devices on different addresses share no mutable state and never interfere while being read.">Каждый экземпляр датчика получает собственный клон драйвера.</p>
+        </div>
+        <div class="card">
+          <span class="c-num">2</span>
+          <h3 data-ru="Определение по chip ID" data-en="Detection by chip ID">Определение по chip ID</h3>
+          <p data-ru="BME680 и BMP280 живут на одних адресах 0x76 и 0x77. Реестр читает регистр идентификатора и решает по значению, какой чип стоит на шине, а не полагается на молчание устройства." data-en="BME680 and BMP280 share addresses 0x76 and 0x77. The registry reads the identification register and decides by value which chip sits on the bus instead of trusting a silent ACK.">Реестр читает регистр идентификатора и решает по значению.</p>
+        </div>
+        <div class="card">
+          <span class="c-num">3</span>
+          <h3 data-ru="Мультиплексор в идентичности датчика" data-en="Mux inside sensor identity">Мультиплексор в идентичности датчика</h3>
+          <p data-ru="Адрес мультиплексора и номер канала входят в идентификатор датчика. Один и тот же BME680 на разных каналах TCA9548A — это разные записи с разными значениями, а не один датчик, который «мигает» между каналами." data-en="The mux address and channel number are part of the sensor identity. The same BME680 on two TCA9548A channels yields two separate records with separate readings, not one sensor flickering between channels.">Адрес мультиплексора и канал входят в идентификатор датчика.</p>
+        </div>
+        <div class="card">
+          <span class="c-num">4</span>
+          <h3 data-ru="Позиционный контракт кадров" data-en="Positional frame contract">Позиционный контракт кадров</h3>
+          <p data-ru="Порядок значений в кадре данных жёстко привязан к порядку, объявленному при регистрации: сначала датчики, потом метрики каждого датчика. Благодаря этому значение приходит на контроллер без повторной передачи имён." data-en="The value order in a data frame is strictly bound to the order declared at registration: sensors first, then each sensor's metrics. That is how a reading reaches the controller without shipping the names again.">Порядок значений жёстко привязан к порядку при регистрации.</p>
+        </div>
+      </div>
+
+      <p data-ru="Ещё одна деталь, о которой стоит знать: если часть метрик датчика прочитать не удалось, контроллер не выбрасывает показание целиком. На место непрочитанной метрики подставляется NAN, в приложении такая метрика показывается как «нет данных», а не как ноль." data-en="One more detail worth knowing: if only some of a sensor's metrics fail to read, the controller does not discard the whole reading. The unreadable metrics become NAN, and the app shows them as “no data” rather than as zero.">Если часть метрик не прочиталась, на их место подставляется NAN.</p>
+
+      <h2 id="aktualnost" data-ru="Актуальность" data-en="Relevance">Актуальность</h2>
+
+      <p data-ru="Задача комфортного микроклимата в помещении — это не про комфорт вообще, а про измеримые параметры: температуру, влажность, давление, качество воздуха и освещённость. Отдельно стоит углекислый газ: там, где много людей, его уровень растёт быстрее, чем меняется температура, и именно он первым объясняет усталость и головную боль." data-en="Indoor comfort is not a vague notion but a set of measurable parameters: temperature, humidity, pressure, air quality and illuminance. Carbon dioxide deserves a mention of its own: where many people gather it climbs faster than temperature does, and it is usually the first thing behind tiredness and headaches.">Задача комфортного микроклимата — это измеримые параметры.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Сценарий" data-en="Scenario">Сценарий</th>
+              <th data-ru="Что обычно не хватает" data-en="What is usually missing">Что обычно не хватает</th>
+              <th data-ru="Что даёт система" data-en="What the system provides">Что даёт система</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Жилое помещение, спальня" data-en="Living space, bedroom">Жилое помещение, спальня</td>
+              <td data-ru="Увлажнение зимой, духота летом" data-en="Humidification in winter, stuffiness in summer">Увлажнение зимой, духота летом</td>
+              <td data-ru="Непрерывная история с точностью до секунд, а не разовое замер" data-en="Continuous history down to the second instead of a one-off measurement">История с точностью до секунд</td>
+            </tr>
+            <tr>
+              <td data-ru="Офис и переговорная" data-en="Office and meeting room">Офис и переговорная</td>
+              <td data-ru="Сколько людей нужно для проветривания" data-en="How many people before you must air the room">Сколько людей нужно для проветривания</td>
+              <td data-ru="Уровень CO₂ как прямое показание качества воздуха" data-en="CO₂ level as a direct air-quality reading">Уровень CO₂ как прямое показание</td>
+            </tr>
+            <tr>
+              <td data-ru="Теплица, склад, мастерская" data-en="Greenhouse, storage, workshop">Теплица, склад, мастерская</td>
+              <td data-ru="Резкие изменения в отдельных точках" data-en="Sudden changes in specific spots">Резкие изменения в отдельных точках</td>
+              <td data-ru="Несколько модулей в разных местах на одной шине" data-en="Several modules in different places on one bus">Несколько модулей в разных местах</td>
+            </tr>
+            <tr>
+              <td data-ru="Обучение и прототипирование" data-en="Teaching and prototyping">Обучение и прототипирование</td>
+              <td data-ru="Сложность повторения схемы" data-en="Reproducing the setup">Сложность повторения схемы</td>
+              <td data-ru="Добавление датчика новым файлом драйвера, без правок точек входа" data-en="Adding a sensor as one new driver file, with no entry-point edits">Добавление датчика новым файлом драйвера</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="granicy" data-ru="Границы применимости" data-en="Scope &amp; limits">Границы применимости</h2>
+
+      <p data-ru="Честный список того, чего система пока не делает." data-en="An honest list of what the system does not do yet.">Честный список того, чего система пока не делает.</p>
+
+      <ul>
+        <li data-ru="Дальность UART ограничена: 115200 бод рассчитан на короткие кабели в пределах одного помещения. Для дистанции в десятки метров связь нужно менять." data-en="UART range is limited: 115200 baud suits short cables inside a single room. Longer distances need a different link.">Дальность UART ограничена 115200 бод.</li>
+        <li data-ru="Шина I²C на 100 кГц — это 3,3 В и короткие расстояния. Длинные провода датчиков требуют витой пары с землёй или другого транспорта." data-en="The 100 kHz I²C bus means 3.3 V and short runs. Long sensor wires need twisted pair with a ground or a different transport.">Шина I²C на 100 кГц — это 3,3 В и короткие расстояния.</li>
+        <li data-ru="Питание датчиков по USB или общему блоку 5 В: автономного питания от батареи и работы без провода нет." data-en="Sensors are powered from USB or a shared 5 V rail: there is no battery operation and no wireless link.">Автономного питания и беспроводной связи нет.</li>
+        <li data-ru="Встроенного графика температуры самого ESP32 нет: плата греется, и её собственный датчик показывает тепло, а не воздух. Мерить нужно вынесенным датчиком." data-en="There is no on-chip temperature graph: the board heats up and reports its own heat, not the air. Use a sensor placed away from the board.">Встроенный датчик ESP32 показывает тепло самой платы.</li>
+        <li data-ru="SD-карта — расходник. Система удаляет старые файлы, но ресурс карты всё равно расходуется." data-en="The SD card is a consumable. The system deletes old files, but the card still wears out eventually.">SD-карта — расходник.</li>
+        <li data-ru="Флеш-память ESP32-C3 заполнена примерно на 88 %. Новые крупные зависимости потребуют либо перехода на ESP32-S3, либо уменьшения размера приложения." data-en="The ESP32-C3 flash is roughly 88 % full. New large dependencies mean either moving to ESP32-S3 or trimming the app.">Флеш ESP32-C3 заполнен примерно на 88 %.</li>
+      </ul>
+
+      <h2 id="status" data-ru="Статус проекта" data-en="Project status">Статус проекта</h2>
+
+      <p data-ru="Система рабочая: собирается, прошивается, обменивается данными по UART, отдаёт их по MQTT и REST, пишет историю на SD. Живая демонстрация развёрнута на этом сайте — показания на главной странице приходят из MQTT-брокера, а не из файла." data-en="The system works: it builds, flashes, exchanges data over UART, serves it over MQTT and REST and writes history to SD. A live demo is deployed on this site — the readings on the home page come from the MQTT broker, not from a file.">Система рабочая и развёрнута на этом сайте.</p>
+
+      <div class="stats">
+        <div class="stat"><div class="num">3</div><div class="lab" data-ru="цели сборки прошивки" data-en="firmware build targets">цели сборки прошивки</div></div>
+        <div class="stat"><div class="num">5</div><div class="lab" data-ru="драйверов датчиков в реестре" data-en="sensor drivers in the registry">драйверов датчиков</div></div>
+        <div class="stat"><div class="num">1.2.2</div><div class="lab" data-ru="версия прошивки" data-en="firmware version">версия прошивки</div></div>
+        <div class="stat"><div class="num">0.4.0</div><div class="lab" data-ru="версия сервера" data-en="server version">версия сервера</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Часть" data-en="Part">Часть</th>
+              <th data-ru="Версия" data-en="Version">Версия</th>
+              <th data-ru="Что покрыто проверками" data-en="What is verified">Что покрыто проверками</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Прошивка контроллера и модуля" data-en="Controller and module firmware">Прошивка контроллера и модуля</td>
+              <td class="mono">1.2.2</td>
+              <td data-ru="Сборки под ESP32-C3, ESP32-C6 и ESP32-S3, проверка на железе" data-en="Builds for ESP32-C3, ESP32-C6 and ESP32-S3 plus on-device checks">Сборки под три платы + проверка на железе</td>
+            </tr>
+            <tr>
+              <td data-ru="Сигнальный сервер" data-en="Signaling server">Сигнальный сервер</td>
+              <td class="mono">0.4.0</td>
+              <td data-ru="36 автотестов реестра, лимитов, аварий, правил и HTTP-обработчиков" data-en="36 automated tests over the registry, limits, alerts, rules and HTTP handlers">36 автотестов</td>
+            </tr>
+            <tr>
+              <td data-ru="Мобильное приложение" data-en="Mobile application">Мобильное приложение</td>
+              <td class="mono">1.2.0</td>
+              <td data-ru="77 автотестов моделей, парсеров и логики" data-en="77 automated tests over models, parsers and logic">77 автотестов</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="dorozhnaya-karta" data-ru="Дорожная карта" data-en="Roadmap">Дорожная карта</h2>
+
+      <p data-ru="Направления, в которых проект будет развиваться. Это не обязательства по срокам, а список того, что лежит напрашивается." data-en="Where the project is heading. These are directions, not dated commitments.">Направления развития, а не обязательства по срокам.</p>
+
+      <ul>
+        <li data-ru="Больше драйверов в общем реестре: SHT31, TSL2591, MPU6050, вытяжка в сторону датчиков воздуха." data-en="More drivers in the shared registry: SHT31, TSL2591, MPU6050 — leaning towards air sensors.">Больше драйверов в общем реестре.</li>
+        <li data-ru="Несколько мультиплексоров на одной шине I²C и проверка каналов при перечислении." data-en="Several multiplexers on one I²C bus, with per-channel verification during enumeration.">Несколько мультиплексоров на одной шине.</li>
+        <li data-ru="Перенос потяжелевших задач на ESP32-S3, где свободно 16 МБ флеша и есть PSRAM." data-en="Moving heavier work to ESP32-S3, with 16 MB of flash and PSRAM available.">Перенос потяжелевших задач на ESP32-S3.</li>
+        <li data-ru="Экспорт истории за произвольный период и устойчивая ротация файлов на SD." data-en="Exporting history over an arbitrary period, with robust SD file rotation.">Экспорт истории за произвольный период.</li>
+        <li data-ru="Интеграция с внешними системами автоматизации через MQTT — без изменения прошивки устройства." data-en="Integration with external automation systems over MQTT, with no device firmware change.">Интеграция с внешними системами автоматизации.</li>
+        <li data-ru="Интерфейс веб-панели на других языках." data-en="Localising the web panel interface.">Интерфейс веб-панели на других языках.</li>
+      </ul>
+
+      <div class="callout info">
+        <div class="co-ic">📖</div>
+        <div class="co-body">
+          <p data-ru-html="Дальше по устройству системы — <a href=\"architecture.html\">Архитектура</a>, по железу — <a href=\"hardware.html\">Железо и схемы</a>." data-en-html="Next: <a href=\"architecture.html\">System architecture</a>, or jump to <a href=\"hardware.html\">Hardware &amp; schematics</a>.">Дальше по устройству системы.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+
+  <aside class="toc" id="toc"></aside>
+</div>
+
+<footer class="bottom">
+  <div class="foot-inner">
+    <div>Aeris Monitor · <span class="mono">spe4naz.online</span></div>
+    <div class="foot-links">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <a href="hardware.html" data-ru="Железо" data-en="Hardware">Железо</a>
+      <a href="api.html">API</a>
+      <a href="faq.html">FAQ</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/wiki.js"></script>
+</body>
+</html>

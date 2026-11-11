@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Сервер и развёртывание · Aeris Monitor</title>
+<meta name="description" content="Сигнальный сервер, брокер Mosquitto, nginx и TLS, systemd-юнит, развёртывание с нуля, переменные окружения, бэкапы и безопасность.">
+<link rel="canonical" href="https://spe4naz.online/wiki/server.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Aeris Monitor">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="https://spe4naz.online/wiki/server.html">
+<meta property="og:title" content="Сервер и развёртывание">
+<meta property="og:description" content="Сигнальный сервер, брокер Mosquitto, nginx и TLS, systemd-юнит, развёртывание с нуля, переменные окружения, бэкапы и безопасность.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/wiki.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+</head>
+<body data-page="server.html">
+
+<div id="progress"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="../index.html">
+      <span class="logo-badge">⚡</span>
+      <span>Aeris Monitor</span>
+      <span class="sep">/</span>
+      <span class="sub" data-ru="Вики" data-en="Wiki">Вики</span>
+    </a>
+    <button class="icon-btn side-toggle" id="sideToggle" type="button" title="Меню" data-ru-attr="title" data-en-attr="Title" data-ru="Меню" data-en="Menu">☰</button>
+    <div class="top-search">
+      <span class="ico">🔍</span>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="top-tools">
+      <button class="icon-btn" id="themeBtn" type="button" title="Тема / Theme">🌙</button>
+      <button class="lang-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <main class="content">
+    <div class="crumbs">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <span>/</span>
+      <a href="index.html" data-ru="Вики" data-en="Wiki">Вики</a>
+      <span>/</span>
+      <span class="cur" data-ru="Сервер" data-en="Server">Сервер</span>
+    </div>
+
+    <div class="page-head">
+      <div class="eyebrow"><span>🖥️</span> <span data-ru="Раздел 7" data-en="Section 7">Раздел 7</span></div>
+      <h1 data-ru="Сервер и развёртывание" data-en="Server &amp; deployment">Сервер и развёртывание</h1>
+      <p class="lede" data-ru="Из чего собрана серверная часть, как поднять её с нуля, какие переменные окружения задать и о чём не стоит забывать при эксплуатации." data-en="What the server side is made of, how to bring it up from scratch, which environment variables to set and what not to forget in operation.">Из чего собрана серверная часть.</p>
+    </div>
+
+    <div class="prose">
+
+      <h2 id="sostav" data-ru="Что стоит на сервере" data-en="What runs on the server">Что стоит на сервере</h2>
+
+      <p data-ru="Серверная часть намеренно минимальна. По умолчанию из данных она хранит только сведения об устройствах, правила и аварии. Поток метрик сервер может дополнительно вести в JSONL-файлах — это включается переменной MQTT_ENABLED, данные ложатся в INGEST_DIR (подробности на странице «Архитектура данных»)." data-en="The server side is deliberately minimal. By default it stores only device metadata, rules and alerts. With MQTT_ENABLED=1 it can additionally keep the metric stream in JSONL files under INGEST_DIR (see the “Data architecture” page).">Из данных сервер хранит минимум.</p>
+
+      <div class="grid g2">
+        <div class="card">
+          <span class="c-ic">🖥️</span>
+          <h3 data-ru="Сигнальный сервер" data-en="Signaling server">Сигнальный сервер</h3>
+          <p data-ru="Node.js под systemd. Реестр устройств, аварии и правила. Слушает только локальный адрес, наружу выставлен через nginx." data-en="Node.js under systemd. Device registry, alerts and rules. Binds to the loopback address only; nginx is the only way in.">Node.js под systemd.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">📶</span>
+          <h3 data-ru="Mosquitto" data-en="Mosquitto">Mosquitto</h3>
+          <p data-ru="Брокер MQTT. Классический порт для микроконтроллера и отдельный веб-сокетный порт для телефонов и браузеров." data-en="The MQTT broker. A classic port for the microcontroller and a separate WebSocket port for phones and browsers.">Брокер MQTT.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">🌐</span>
+          <h3 data-ru="nginx" data-en="nginx">nginx</h3>
+          <p data-ru="Единая точка входа: сертификаты, статический сайт, панель, веб-приложение и прокси к серверу." data-en="A single entry point: certificates, the static site, the panel, the web app and the proxy to the server.">Единая точка входа.</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">📁</span>
+          <h3 data-ru="Статические файлы" data-en="Static files">Статические файлы</h3>
+          <p data-ru="Сайт, вики, каталог прошивок и собранное веб-приложение отдаются nginx напрямую с диска." data-en="The site, this wiki, the firmware directory and the built web app are served straight off disk by nginx.">Отдаются nginx с диска.</p>
+        </div>
+      </div>
+
+      <h2 id="signalnyy" data-ru="Сигнальный сервер" data-en="Signaling server">Сигнальный сервер</h2>
+
+      <p data-ru="Задача сервера — дать приложению знать, какие устройства существуют и где они доступны. Данные датчиков через него не идут. По умолчанию процесс слушает только адрес локальной петли, и весь внешний трафик заходит через nginx с сертификатом." data-en="The server exists to tell the app which devices exist and where they can be reached. Sensor data never passes through it. By default the process binds to the loopback address only, and all external traffic enters through nginx over TLS.">Данные датчиков через сервер не идут.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Порт" data-en="Port">Порт</th>
+              <th data-ru="Кто слушает" data-en="Listener">Кто слушает</th>
+              <th data-ru="Назначение" data-en="Purpose">Назначение</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">80 / 443</td>
+              <td data-ru="nginx" data-en="nginx">nginx</td>
+              <td data-ru="Публичный HTTPS, сайт, панель, приложение" data-en="Public HTTPS: site, panel, app">Публичный HTTPS</td>
+            </tr>
+            <tr>
+              <td class="mono">3100</td>
+              <td data-ru="сервер, только localhost" data-en="server, loopback only">сервер, только localhost</td>
+              <td data-ru="API сигнального сервера через прокси nginx" data-en="Signaling server API behind the nginx proxy">API сигнального сервера</td>
+            </tr>
+            <tr>
+              <td class="mono">1883</td>
+              <td data-ru="Mosquitto" data-en="Mosquitto">Mosquitto</td>
+              <td data-ru="MQTT для микроконтроллеров" data-en="MQTT for microcontrollers">MQTT для микроконтроллеров</td>
+            </tr>
+            <tr>
+              <td class="mono">9001</td>
+              <td data-ru="Mosquitto" data-en="Mosquitto">Mosquitto</td>
+              <td data-ru="MQTT через веб-сокеты для приложения и браузера" data-en="MQTT over WebSockets for the app and browser">MQTT через веб-сокеты</td>
+            </tr>
+            <tr>
+              <td class="mono">9002</td>
+              <td data-ru="Mosquitto" data-en="Mosquitto">Mosquitto</td>
+              <td data-ru="Веб-сокеты для публичного показания датчиков на сайте" data-en="WebSockets for the public readings on the site">Для live-данных на сайте</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 data-ru="Состояние и хранение" data-en="State and storage">Состояние и хранение</h3>
+
+      <p data-ru="Реестр устройств, аварии и правила лежат в JSON-файлах рядом с кодом и переживают перезапуск сервера. Запись атомарная: файл переписывается целиком, поэтому оборванное сохранение не портит данные." data-en="The device registry, alerts and rules live in JSON files next to the code and survive a server restart. Writes are atomic: the file is rewritten whole, so an interrupted save cannot corrupt the data.">Данные лежат в JSON и переживают перезапуск.</p>
+
+      <p data-ru-html="Токен доступа задаётся переменной окружения <code>REGISTER_TOKEN</code>. Если он задан, то регистрация, удаление и чтение устройств требуют заголовок с токеном. Если не задан, проверка отключается — на публичном развёртывании так оставлять нельзя." data-en-html="The access token is set with the <code>REGISTER_TOKEN</code> environment variable. When set, registration, deletion and device reads require a token header. When unset the check is disabled — never leave it that way on a public deployment.">Токен задаётся переменной окружения.</p>
+
+      <div class="callout warn">
+        <div class="co-ic">⏱️</div>
+        <div class="co-body">
+          <p data-ru="Устройство считается офлайн, если подтверждения не было дольше трёх минут. Запись при этом не удаляется, а помечается как офлайн и возвращается в онлайн при следующем подтверждении." data-en="A device is considered offline after three minutes without an acknowledgement. The record is not deleted; it is marked offline and returns online on the next acknowledgement.">Офлайн после трёх минут молчания.</p>
+        </div>
+      </div>
+
+      <h2 id="mqtt" data-ru="Брокер Mosquitto" data-en="Mosquitto broker">Брокер Mosquitto</h2>
+
+      <p data-ru="Брокер используется тремя разными способами, и каждому нужен свой доступ." data-en="The broker is used in three different ways, and each needs its own access.">
+
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Кто подключается" data-en="Client">Кто подключается</th>
+              <th data-ru="Что читает" data-en="What it reads">Что читает</th>
+              <th data-ru="Что пишет" data-en="What it writes">Что пишет</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="Контроллер" data-en="Controller">Контроллер</td>
+              <td data-ru="команды в своём топике" data-en="commands on its own topic">команды в своём топике</td>
+              <td data-ru="значения метрик и статус" data-en="metric values and status">значения метрик и статус</td>
+            </tr>
+            <tr>
+              <td data-ru="Приложение" data-en="App">Приложение</td>
+              <td data-ru="значения метрик и статус" data-en="metric values and status">значения метрик и статус</td>
+              <td data-ru="команды устройству" data-en="commands to the device">команды устройству</td>
+            </tr>
+            <tr>
+              <td data-ru="Страница сайта" data-en="Website">Страница сайта</td>
+              <td data-ru="только значения метрик, только чтение" data-en="metric values only, read-only">только значения метрик</td>
+              <td data-ru="ничего" data-en="nothing">ничего</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru-html="Тема брокера задаётся префиксом и идентификатором устройства: <code>iot</code> и <code>esp32c3_001</code> дают <code>iot/esp32c3_001/sensors/temperature</code>. Полный список топиков — в разделе «Справочник API»." data-en-html="A broker topic is the prefix plus the device ID: <code>iot</code> and <code>esp32c3_001</code> give <code>iot/esp32c3_001/sensors/temperature</code>. The full topic list is in the API reference.">Топик строится из префикса и идентификатора устройства.</p>
+
+      <h2 id="nginx" data-ru="nginx и маршрутизация" data-en="nginx &amp; routing">nginx и маршрутизация</h2>
+
+      <p data-ru="Весь публичный трафик собирает nginx: он держит сертификат, отдаёт статику и проксирует всё, что динамично." data-en="nginx collects all public traffic: it holds the certificate, serves static files and proxies everything dynamic.">Весь публичный трафик собирает nginx.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Путь" data-en="Path">Путь</th>
+              <th data-ru="Куда попадает запрос" data-en="Where the request goes">Куда попадает запрос</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">/</td>
+              <td data-ru="Главная страница сайта, включая эту вики по адресу /wiki/" data-en="The site home page, including this wiki under /wiki/">Главная страница сайта</td>
+            </tr>
+            <tr>
+              <td class="mono">/panel/</td>
+              <td data-ru="Веб-панель управления" data-en="Web control panel">Веб-панель управления</td>
+            </tr>
+            <tr>
+              <td class="mono">/app/</td>
+              <td data-ru="Собранное веб-приложение" data-en="The built web application">Собранное веб-приложение</td>
+            </tr>
+            <tr>
+              <td class="mono">/fw/</td>
+              <td data-ru="Каталог прошивок и манифесты версий для OTA" data-en="Firmware directory and version manifests for OTA">Каталог прошивок</td>
+            </tr>
+            <tr>
+              <td class="mono">/api/v1/</td>
+              <td data-ru="Прокси на сигнальный сервер" data-en="Proxied to the signaling server">Прокси на сигнальный сервер</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru="Сервер слушает только локальный адрес, поэтому напрямую из интернета он недоступен: ни токен, ни методы записи нельзя вызвать в обход nginx." data-en="The server binds to the loopback address only, so it is unreachable from the internet: neither the token nor the write methods can be bypassed around nginx.">Сервер слушает только локальный адрес.</p>
+
+      <h2 id="razvertyvanie" data-ru="Развёртывание с нуля" data-en="Deploying from scratch">Развёртывание с нуля</h2>
+
+      <div class="steps">
+        <div class="step">
+          <h3 data-ru="Подготовьте систему" data-en="Prepare the system">Подготовьте систему</h3>
+          <pre style="margin-top:4px"><code>sudo apt update &amp;&amp; sudo apt install -y nginx mosquitto mosquitto-clients
+sudo npm install -g pm2   # если сервер ставится вручную, а не systemd</code></pre>
+        </div>
+        <div class="step">
+          <h3 data-ru="Разверните сервер" data-en="Deploy the server">Разверните сервер</h3>
+          <pre style="margin-top:4px"><code>sudo mkdir -p /opt/iot-server
+sudo chown "$USER" /opt/iot-server
+cd /opt/iot-server
+npm install --omit=dev
+node src/index.js   # проверка: должен напечатать версию и порт</code></pre>
+        </div>
+        <div class="step">
+          <h3 data-ru="Опишите systemd-юнит" data-en="Write the systemd unit">Опишите systemd-юнит</h3>
+          <pre style="margin-top:4px"><code>[Unit]
+Description=IoT Signaling Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/iot-server
+ExecStart=/usr/bin/node src/index.js
+Restart=always
+RestartSec=5
+User=iot
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+          <p data-ru="Токен и остальные настройки задаются в отдельном файле окружения, а не прямо в юните, чтобы не светить секреты в юнит-файле." data-en="The token and other settings go into a separate environment file rather than into the unit itself, so secrets never appear in the unit file.">Токен задаётся в отдельном файле окружения.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Включите и проверьте" data-en="Enable and verify">Включите и проверьте</h3>
+          <pre style="margin-top:4px"><code>sudo systemctl daemon-reload
+sudo systemctl enable --now iot-server
+systemctl is-active iot-server
+curl -s http://127.0.0.1:3100/api/v1/health</code></pre>
+          <p data-ru="В ответе должны быть версия, время работы и счётчики устройств и аварий." data-en="The reply should carry the version, uptime and the device and alert counters.">В ответе версия, аптайм и счётчики.</p>
+        </div>
+        <div class="step">
+          <h3 data-ru="Настройте nginx и сертификат" data-en="Configure nginx and the certificate">Настройте nginx и сертификат</h3>
+          <pre style="margin-top:4px"><code>sudo certbot --nginx -d example.com
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
+        </div>
+        <div class="step">
+          <h3 data-ru="Разложите статику" data-en="Place the static files">Разложите статику</h3>
+          <pre style="margin-top:4px"><code>sudo mkdir -p /var/www/iot-site
+sudo chown -R "$USER" /var/www/iot-site
+# скопировать site/, собрать и положить panel/ и app/</code></pre>
+        </div>
+      </div>
+
+      <h2 id="peremennye" data-ru="Переменные окружения" data-en="Environment variables">Переменные окружения</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Переменная" data-en="Variable">Переменная</th>
+              <th data-ru="По умолчанию" data-en="Default">По умолчанию</th>
+              <th data-ru="Назначение" data-en="Purpose">Назначение</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">PORT</td>
+              <td class="mono">3000</td>
+              <td data-ru="Порт HTTP-сервера" data-en="HTTP server port">Порт HTTP-сервера</td>
+            </tr>
+            <tr>
+              <td class="mono">HOST</td>
+              <td class="mono">127.0.0.1</td>
+              <td data-ru="Адрес привязки; оставлять петлю для работы за nginx" data-en="Bind address; keep loopback when behind nginx">Адрес привязки</td>
+            </tr>
+            <tr>
+              <td class="mono">API_PREFIX</td>
+              <td class="mono">/api/v1</td>
+              <td data-ru="Префикс всех эндпоинтов" data-en="Prefix for every endpoint">Префикс эндпоинтов</td>
+            </tr>
+            <tr>
+              <td class="mono">REGISTER_TOKEN</td>
+              <td data-ru="пусто" data-en="empty">пусто</td>
+              <td data-ru="Токен для регистрации, удаления и чтения; пустое значение отключает проверку" data-en="Token for register, delete and reads; empty disables the check">Токен доступа</td>
+            </tr>
+            <tr>
+              <td class="mono">STALE_MS</td>
+              <td class="mono">180000</td>
+              <td data-ru="Через сколько миллисекунд без подтверждения считать устройство офлайн" data-en="Milliseconds without an acknowledgement before a device is stale">Таймаут офлайна</td>
+            </tr>
+            <tr>
+              <td class="mono">CLEANUP_INTERVAL_MS</td>
+              <td class="mono">30000</td>
+              <td data-ru="Как часто проверяются устаревшие записи" data-en="How often stale records are checked">Период проверки</td>
+            </tr>
+            <tr>
+              <td class="mono">MAX_DEVICES_PER_IP</td>
+              <td class="mono">20</td>
+              <td data-ru="Сколько устройств разрешено с одного адреса" data-en="Devices allowed per IP address">Устройств с одного адреса</td>
+            </tr>
+            <tr>
+              <td class="mono">RATE_LIMIT_REGISTER</td>
+              <td class="mono">20</td>
+              <td data-ru="Регистраций в минуту" data-en="Registrations per minute">Регистраций в минуту</td>
+            </tr>
+            <tr>
+              <td class="mono">RATE_LIMIT_HEARTBEAT</td>
+              <td class="mono">120</td>
+              <td data-ru="Подтверждений в минуту" data-en="Heartbeats per minute">Подтверждений в минуту</td>
+            </tr>
+            <tr>
+              <td class="mono">RATE_LIMIT_WRITE</td>
+              <td class="mono">60</td>
+              <td data-ru="Записей в минуту" data-en="Writes per minute">Записей в минуту</td>
+            </tr>
+            <tr>
+              <td class="mono">RATE_LIMIT_READ</td>
+              <td class="mono">120</td>
+              <td data-ru="Чтений в минуту" data-en="Reads per minute">Чтений в минуту</td>
+            </tr>
+            <tr>
+              <td class="mono">REGISTRY_FILE</td>
+              <td class="mono">data/devices.json</td>
+              <td data-ru="Файл реестра устройств" data-en="Device registry file">Файл реестра</td>
+            </tr>
+            <tr>
+              <td class="mono">ALERTS_FILE</td>
+              <td class="mono">data/alerts.json</td>
+              <td data-ru="Файл аварий" data-en="Alerts file">Файл аварий</td>
+            </tr>
+            <tr>
+              <td class="mono">RULES_FILE</td>
+              <td class="mono">data/rules.json</td>
+              <td data-ru="Файл правил" data-en="Rules file">Файл правил</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">🧪</div>
+        <div class="co-body">
+          <p data-ru="Проверка серверной части: 155 автотестов покрывают реестр, лимиты, аварии, правила, MQTT-клиент, хранилище метрик, SSE и HTTP-обработчики. Запуск — в каталоге сервера командой npm test." data-en="Server verification: 155 automated tests cover the registry, limits, alerts, rules, the MQTT client, metric storage, SSE and the HTTP handlers. Run them with npm test in the server directory.">155 автотестов серверной части.</p>
+        </div>
+      </div>
+
+      <h2 id="rezervnoe" data-ru="Резервное копирование" data-en="Backup &amp; restore">Резервное копирование</h2>
+
+      <p data-ru="Сохранять нужно три вещи: реестр устройств с авариями и правилами, каталог прошивок — и, если включён мост данных, каталог с JSONL-файлами метрик." data-en="Three things are worth saving: the registry with alerts and rules, the firmware directory — and, when the data bridge is enabled, the directory with the JSONL metric files.">Сохранять нужно реестр, каталог прошивок и метрики.</p>
+
+      <pre><code># реестр, аварии и правила
+tar czf iot-data-$(date +%F).tar.gz -C /opt/iot-server data
+
+# JSONL-файлы метрик (если включён MQTT_ENABLED с INGEST_DIR)
+tar czf iot-metrics-$(date +%F).tar.gz -C /opt/iot-server $(basename "${INGEST_DIR:-/opt/iot-server/ingest}")
+
+# каталог прошивок
+tar czf iot-fw-$(date +%F).tar.gz -C /var/www iot-site/fw</code></pre>
+
+      <div class="callout ok">
+        <div class="co-ic">🔁</div>
+        <div class="co-body">
+          <p data-ru="Восстановление сводится к распаковке архива на место и перезапуску сервиса. Данные на SD-картах устройств восстанавливаются отдельно — снимать карты нужно физически." data-en="Restoring means unpacking the archive back into place and restarting the service. Data on the device SD cards is restored separately — the cards have to be removed physically.">Восстановление сводится к распаковке на место.</p>
+        </div>
+      </div>
+
+      <h2 id="bezopasnost" data-ru="Безопасность" data-en="Security">Безопасность</h2>
+
+      <ul>
+        <li data-ru="Все учётные данные хранятся в файле окружения с правами на чтение только владельцем, а не внутри репозитория." data-en="All credentials live in an environment file readable only by its owner, never inside the repository.">Учётные данные — в файле окружения, не в репозитории.</li>
+        <li data-ru="Токен сервера обязателен на публичном развёртывании: без него любой может регистрировать и удалять устройства." data-en="The server token is mandatory on a public deployment: without it anyone can register and delete devices.">Токен обязателен на публичном развёртывании.</li>
+        <li data-ru="Для показания датчиков на сайте заведена отдельная учётная запись только на чтение, без права подписки на команды." data-en="Readings on the site use a separate read-only account with no permission to subscribe to commands.">Для сайта — отдельная учётная запись только на чтение.</li>
+        <li data-ru="Сертификат Let's Encrypt продлевается автоматически; после продления нужно перезагрузить nginx." data-en="The Let's Encrypt certificate renews automatically; reload nginx after a renewal.">Сертификат продлевается автоматически.</li>
+        <li data-ru="Панель закрыта паролем на уровне nginx, а не средствами приложения: пароль проверяется до того, как запрос дойдёт до бэкенда." data-en="The panel is closed with a password at the nginx level rather than in the application: the password is checked before the request reaches the backend.">Панель закрыта паролем на уровне nginx.</li>
+        <li data-ru="Пароль MQTT и токен сервера не зашиты в мобильное приложение: они вводятся пользователем и хранятся локально." data-en="The MQTT password and the server token are not baked into the mobile app: the user enters them and they are stored locally.">Пароли не зашиты в приложение.</li>
+      </ul>
+
+      <div class="callout danger">
+        <div class="co-ic">🚫</div>
+        <div class="co-body">
+          <p data-ru="Учётные данные из файлов конфигурации прошивки попадают в сборку и, следовательно, в публично доступный бинарник. Для любого публичного развёртывания их нужно выносить в окружение сборки, а значения по умолчанию заменить на пустые." data-en="Credentials in firmware configuration files end up in the build and therefore in a publicly downloadable binary. Any public deployment must move them into the build environment and leave the defaults empty.">Секреты в конфигурации прошивки попадают в бинарник.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+
+  <aside class="toc" id="toc"></aside>
+</div>
+
+<footer class="bottom">
+  <div class="foot-inner">
+    <div>Aeris Monitor · <span class="mono">spe4naz.online</span></div>
+    <div class="foot-links">
+      <a href="../index.html" data-ru="Главная" data-en="Home">Главная</a>
+      <a href="api.html">API</a>
+      <a href="faq.html">FAQ</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/wiki.js"></script>
+</body>
+</html>
