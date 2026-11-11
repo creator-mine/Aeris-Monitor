@@ -407,7 +407,7 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
                     labelText: _action == RuleAction.mqttCommand
                         ? 'Команда (MQTT-топик iot/<id>/commands)'
                         : 'Команда на устройство (REST)',
-                    hintText: 'Например: relay1_on',
+                    hintText: 'Например: relay:on',
                   ),
                   validator: (_) {
                     if (_payloadController.text.trim().isEmpty) {

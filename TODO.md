@@ -88,9 +88,8 @@
   - [x] Команды: `{"command":"relay","state":"on|off|toggle"}`, `{"relay":true|false}`,
         `relay:on|off|toggle` — в MQTT, WebSocket и HTTP.
   - [x] Публикация состояния: `iot/<id>/relay` и поле `relay` в статусе.
-  - [x] Сборка C3/S3 с модулем реле — успешно (по умолчанию `RELAY_PIN=-1`, выход отключён).
-  - [ ] **Уточнить GPIO реле** и задать `RELAY_PIN` (или `-DRELAY_PIN=<gpio>`).
-  - [ ] Проверить на железе: включение/выключение, восстановление после перезагрузки.
+  - [x] GPIO реле: **GPIO 3**, активный **HIGH** (C3); на S3 выход отключён (`-DRELAY_PIN=-1`).
+  - [ ] Пересобрать и проверить на железе: включение/выключение, состояние после перезагрузки.
 
 - [x] **P1 №5 — MQTT TLS (8883).** *(11.11.2026)*
   - [x] Mosquitto: listener `8883` + сертификаты (обновлены до 09.02.2027); `1883` — только
@@ -183,7 +182,7 @@
 
 ### Артефакты
 - APK: `deploy/installer/output/aeris-monitor-1.2.0.apk`
-  SHA256 `ea6ae25fd23f89118b78e672afa7f373a42ed0956fef5539593810a85fbdd9b7`.
+  SHA256 `2b3cbb62619e09b514a25a898747c464356ea0143380702f406724640823e07b`.
 - Прошивки: `firmware/main_controller/.pio/build/{esp32-c3,esp32-s3}/firmware.bin`.
 - USB-прошивки (с секретами): `deploy/installer/output/fw-usb/`.
 - Релизные прошивки (без секретов, проверено): `deploy/installer/output/fw-release/`.
