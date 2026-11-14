@@ -114,6 +114,14 @@
       </details>
 
       <details class="faq">
+        <summary data-ru="Сколько вольт нужно датчикам" data-en="How many volts do the sensors need">Сколько вольт нужно датчикам</summary>
+        <div class="faq-body">
+          <p data-ru-html="Почти всем — <b>3,3 В</b>. BME680, BMP280 и BH1750 работают примерно в диапазоне 1,7–3,6 В, INA219 — от 3,0 В. Исключение — SCD30: ему подходит и 3,3, и 5 В, но лучше по отдельной линии, потому что нагреватель потребляет до 75 мА." data-en-html="Almost all of them — <b>3.3 V</b>. The BME680, BMP280 and BH1750 work in roughly 1.7–3.6 V, the INA219 from 3.0 V. The exception is the SCD30: it accepts both 3.3 and 5 V, but a separate rail is better because its heater draws up to 75 mA.">Почти всем — 3,3 В.</p>
+          <p data-ru-html="Надпись «3–5 В» на модуле относится только к питанию платы: линии <code>SDA</code> и <code>SCL</code> всё равно должны быть 3,3 В. Полная таблица напряжений и токов — в разделе <a href=&quot;hardware.html#pitaniya&quot;>Питание</a>." data-en-html="The “3–5 V” label on a module refers to the board supply only: the <code>SDA</code> and <code>SCL</code> lines must still be 3.3 V. The full voltage and current table is in the <a href=&quot;hardware.html#pitaniya&quot;>Power</a> section.">Линии I²C — всегда 3,3 В.</p>
+        </div>
+      </details>
+
+      <details class="faq">
         <summary data-ru="Один и тот же датчик виден дважды" data-en="The same sensor is visible twice">Один датчик виден дважды</summary>
         <div class="faq-body">
           <p data-ru="Обычно это один физический датчик, но с двумя разными адресами — так ведёт себя BME680 и BMP280, если перемычками включены оба адреса одновременно. Уберите лишний адрес, и второе появление исчезнет." data-en="Usually it is one physical sensor exposing two addresses — that is how BME680 and BMP280 behave when jumpers enable both addresses at once. Remove the extra address and the duplicate disappears.">Один датчик с двумя адресами.</p>
@@ -239,7 +247,7 @@ pio run -e esp32c3</code></pre>
       <div class="callout info">
         <div class="co-ic">💬</div>
         <div class="co-body">
-          <p data-ru-html="Остались вопросы — посмотрите <a href="api.html">справочник API</a> и <a href="server.html">раздел про сервер</a>: там собраны точные форматы, коды и значения по умолчанию." data-en-html="Still have questions? See the <a href="api.html">API reference</a> and the <a href="server.html">server section</a>: the exact formats, codes and defaults are collected there.">Загляните в справочник API.</p>
+          <p data-ru-html="Остались вопросы — посмотрите <a href=&quot;api.html&quot;>справочник API</a> и <a href=&quot;server.html&quot;>раздел про сервер</a>: там собраны точные форматы, коды и значения по умолчанию." data-en-html="Still have questions? See the <a href=&quot;api.html&quot;>API reference</a> and the <a href=&quot;server.html&quot;>server section</a>: the exact formats, codes and defaults are collected there.">Загляните в справочник API.</p>
         </div>
       </div>
 

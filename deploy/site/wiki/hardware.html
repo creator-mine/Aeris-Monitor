@@ -165,12 +165,65 @@
 
       <h2 id="pitaniya" data-ru="Питание" data-en="Power">Питание</h2>
 
+      <p data-ru="Платы ESP32 питаются от USB или общего блока 5 В, но логика и шина I²C работают на 3,3 В. Датчики подключаются к линии 3,3 В — это главное правило, и почти все модули его придерживаются." data-en="The ESP32 boards run from USB or a shared 5 V supply, but the logic and the I²C bus work at 3.3 V. Sensors connect to the 3.3 V rail — the main rule that almost every module follows.">Платы питаются от 5 В, логика и датчики — от 3,3 В.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Датчик" data-en="Sensor">Датчик</th>
+              <th data-ru="Напряжение чипа" data-en="Chip supply">Напряжение чипа</th>
+              <th data-ru="Типичное питание" data-en="Typical supply">Типичное питание</th>
+              <th data-ru="Потребление" data-en="Current draw">Потребление</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="BME680" data-en="BME680">BME680</td>
+              <td class="mono">1,71–3,6 В</td>
+              <td class="mono">3,3 В</td>
+              <td class="mono">≈0,35 мА</td>
+            </tr>
+            <tr>
+              <td data-ru="BMP280" data-en="BMP280">BMP280</td>
+              <td class="mono">1,71–3,6 В</td>
+              <td class="mono">3,3 В</td>
+              <td class="mono">до 1 мА</td>
+            </tr>
+            <tr>
+              <td data-ru="BH1750" data-en="BH1750">BH1750</td>
+              <td class="mono">2,4–3,6 В</td>
+              <td class="mono">3,3 В</td>
+              <td class="mono">≈0,12 мА</td>
+            </tr>
+            <tr>
+              <td data-ru="SCD30" data-en="SCD30">SCD30</td>
+              <td class="mono">3,3–5,5 В</td>
+              <td class="mono">3,3 или 5 В</td>
+              <td class="mono">19 мА, пик 75 мА</td>
+            </tr>
+            <tr>
+              <td data-ru="INA219" data-en="INA219">INA219</td>
+              <td class="mono">3,0–5,5 В</td>
+              <td class="mono">3,3 В</td>
+              <td class="mono">≈1 мА</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <ul>
-        <li data-ru="Обе платы питаются от USB или от общего блока 5 В. Ток потребления сенсорного модуля без передачи по UART — десятки миллиампер." data-en="Both boards run from USB or a shared 5 V rail. The sensor module draws tens of milliamps when it is not streaming over UART.">Обе платы питаются от USB или общего блока 5 В.</li>
-        <li data-ru="Датчики на шине I²C питаются от 3,3 V. Подключение к 5 V в большинстве случаев недопустимо." data-en="Sensors on the I²C bus are powered from 3.3 V. Wiring them to 5 V is invalid in most cases.">Датчики питаются от 3,3 V.</li>
         <li data-ru="Общий провод GND обязателен: без него UART не работает, даже если провода данных подключены верно." data-en="A shared GND is mandatory: without it UART will not work even when the data wires are correct.">Общий провод GND обязателен.</li>
-        <li data-ru="Мощные датчики, вроде SCD30 с его собственным нагревателем, требуют отдельной линии питания и запаса по току." data-en="Power-hungry sensors such as the SCD30, with its heater, need their own supply rail and headroom.">Мощные датчики требуют отдельной линии питания.</li>
+        <li data-ru="SCD30 с нагревателем требует отдельной линии питания и запаса по току: в момент измерения он потребляет до 75 мА." data-en="The SCD30 with its heater needs its own supply rail and headroom: it draws up to 75 mA while measuring.">SCD30 требует отдельной линии питания.</li>
+        <li data-ru="INA219 питается от 3,3 В, но измеряет напряжение на своей входной клемме — до 26 В. Это разные вещи: питание микросхемы и измеряемая шина." data-en="The INA219 is powered from 3.3 V but measures the voltage on its input terminal — up to 26 V. These are different things: the chip supply and the measured bus.">INA219 питается от 3,3 В, а измеряет до 26 В.</li>
       </ul>
+
+      <div class="callout warn">
+        <div class="co-ic">⚠️</div>
+        <div class="co-body">
+          <p data-ru-html="Модули датчиков часто продаются с надписью «3–5 В»: на плате стоит стабилизатор. Это относится только к питанию модуля. Линии <code>SDA</code> и <code>SCL</code> всё равно должны быть 3,3 В, потому что GPIO у ESP32 не выдерживают 5 В. Если на модуле нет преобразователя уровней, питайте его от 3,3 В." data-en-html="Sensor modules are often sold as “3–5 V”: there is a regulator on the board. That applies to the module supply only. The <code>SDA</code> and <code>SCL</code> lines must still be 3.3 V, because ESP32 GPIOs are not 5 V tolerant. If the module has no level shifter, power it from 3.3 V.">«3–5 В» на модуле — только про питание, не про линии I²C.</p>
+        </div>
+      </div>
 
       <h2 id="uart" data-ru="Схема UART-связи" data-en="UART link schematic">Схема UART-связи</h2>
 
@@ -436,7 +489,7 @@
       <div class="callout info">
         <div class="co-ic">📖</div>
         <div class="co-body">
-          <p data-ru-html="Что подключать по адресам и какой у каждого датчика интервал опроса — в разделе <a href=\"sensors.html\">Датчики и драйверы</a>." data-en-html="What to attach by address and what polling interval each sensor uses — see <a href=\"sensors.html\">Sensors &amp; drivers</a>.">Что подключать по адресам.</p>
+          <p data-ru-html="Что подключать по адресам и какой у каждого датчика интервал опроса — в разделе <a href=&quot;sensors.html&quot;>Датчики и драйверы</a>." data-en-html="What to attach by address and what polling interval each sensor uses — see <a href=&quot;sensors.html&quot;>Sensors &amp; drivers</a>.">Что подключать по адресам.</p>
         </div>
       </div>
 

@@ -98,6 +98,7 @@
               <th data-ru="type_id" data-en="type_id">type_id</th>
               <th data-ru="Датчик" data-en="Sensor">Датчик</th>
               <th data-ru="Адреса I²C" data-en="I²C addresses">Адреса I²C</th>
+              <th data-ru="Питание" data-en="Supply">Питание</th>
               <th data-ru="Интервал опроса" data-en="Poll interval">Интервал опроса</th>
               <th data-ru="Метрики" data-en="Metrics">Метрики</th>
             </tr>
@@ -107,6 +108,7 @@
               <td class="mono">1</td>
               <td data-ru="BME680" data-en="BME680">BME680</td>
               <td class="mono">0x76, 0x77</td>
+              <td class="mono">3,3 В</td>
               <td class="mono">5000 мс</td>
               <td>
                 <div class="mono" style="font-size:12.5px;line-height:1.7">
@@ -121,6 +123,7 @@
               <td class="mono">2</td>
               <td data-ru="BH1750" data-en="BH1750">BH1750</td>
               <td class="mono">0x23, 0x5C</td>
+              <td class="mono">3,3 В</td>
               <td class="mono">5000 мс</td>
               <td>
                 <div class="mono" style="font-size:12.5px;line-height:1.7">illuminance · lux</div>
@@ -130,6 +133,7 @@
               <td class="mono">3</td>
               <td data-ru="SCD30" data-en="SCD30">SCD30</td>
               <td class="mono">0x61</td>
+              <td class="mono">3,3–5 В</td>
               <td class="mono">2000 мс</td>
               <td>
                 <div class="mono" style="font-size:12.5px;line-height:1.7">
@@ -143,6 +147,7 @@
               <td class="mono">4</td>
               <td data-ru="INA219" data-en="INA219">INA219</td>
               <td class="mono">0x40</td>
+              <td class="mono">3,3–5 В</td>
               <td class="mono">5000 мс</td>
               <td>
                 <div class="mono" style="font-size:12.5px;line-height:1.7">
@@ -156,6 +161,7 @@
               <td class="mono">5</td>
               <td data-ru="BMP280" data-en="BMP280">BMP280</td>
               <td class="mono">0x76, 0x77</td>
+              <td class="mono">3,3 В</td>
               <td class="mono">5000 мс</td>
               <td>
                 <div class="mono" style="font-size:12.5px;line-height:1.7">
@@ -167,6 +173,8 @@
           </tbody>
         </table>
       </div>
+
+      <p data-ru-html="Все датчики рассчитаны на питание <b>3,3 В</b>; SCD30 и INA219 допускают и 5 В. Подробные диапазоны, потребляемый ток и предупреждение про 5-вольтовые линии — в разделе <a href=&quot;hardware.html#pitaniya&quot;>Питание</a>." data-en-html="All sensors are designed for <b>3.3 V</b>; the SCD30 and INA219 also accept 5 V. Detailed ranges, current draw and the warning about 5 V lines are in the <a href=&quot;hardware.html#pitaniya&quot;>Power</a> section.">Все датчики рассчитаны на 3,3 В.</p>
 
       <div class="callout info">
         <div class="co-ic">🔢</div>

@@ -91,7 +91,7 @@
       ru: 'Датчики и драйверы', en: 'Sensors & drivers',
       ruDesc: 'Реестр драйверов, type_id, чип-детекция, метрики, отказоустойчивость и добавление своего датчика.',
       enDesc: 'Driver registry, type_id, chip detection, metrics, resilience and adding your own sensor.',
-      kw: 'датчики драйверы реестр type_id чип bme680 bmp280 sht scd30 ina219 bh1750 aht25 dht sensors drivers registry',
+      kw: 'датчики драйверы реестр type_id чип bme680 bmp280 sht scd30 ina219 bh1750 aht25 dht sensors drivers registry питание вольт напряжение 3.3v 5v supply voltage power',
       sec: [
         ['reestr', "Реестр драйверов", "Driver registry"],
         ['tipy-dannyh', "Типы и коды датчиков", "Sensor types & codes"],
