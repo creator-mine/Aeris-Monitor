@@ -21,13 +21,18 @@
 
 - [x] **Прошить ESP32-C6 по USB (16 МБ, factory-образ 1.2.4).**
   Выполнено 15.11.2026 через esptool 5.3.0: `write-flash 0x0` с `--erase-all`,
-  1 533 712 байт, hash verified. MAC `e8:f6:0a:fb:f2:50`, порт COM7
+  1 533 600 байт, hash verified. MAC `e8:f6:0a:fb:f2:50`, порт COM7
   (USB-Serial/JTAG).
-  - В serial после прошивки: ROM-баннер и ошибки `Preferences` (NVS пуст),
-    дальше тишина — устройство уходит в Wi-Fi provisioning.
+  - Найдено: у платы C6 в манифесте нет `ARDUINO_USB_CDC_ON_BOOT`, поэтому
+    `Serial` был UART0 — `CMD:*` не доходил до приложения, а логи уходили в
+    несоединённый UART-мост. Добавлены `ARDUINO_USB_MODE=1` и
+    `ARDUINO_USB_CDC_ON_BOOT=1` в `[env:esp32-c6]`.
+  - Найдено: `Provisioning::startAndWait()` блокировал `loop()`, поэтому USB
+    не отвечал до Wi-Fi. В цикл ожидания добавлен `serialCmdUpdate()`.
+  - [x] USB-вкладка «Настройка»: COM7 открывается, `info`/`status` приходят
+        (`1.2.4`, ESP32-C6, flash 16 МБ), зависания нет (CPU 0 с / 8 с).
   - [ ] Проверить с телефона: видна ли точка `Aeris-Setup-XXXX`
-        (`http://192.168.4.1`), сохраняются ли Wi-Fi-креды.
-  - [ ] После провижининга проверить USB-вкладку «Настройка» и
+        (`http://192.168.4.1`), сохраняются ли Wi-Fi-креды; после подключения
         `MQTT: Connected to spe4naz.online:8883`.
 
 - [ ] **Обновить токен в приложении.**
@@ -50,12 +55,11 @@
 
 ## P1 — важно
 
-- [ ] **USB-настройка на непровижиненном устройстве.**
-  Сейчас `Provisioning::startAndWait()` крутит `delay(20)` до 5 минут и не
-  вызывает `serialCmdUpdate()`, поэтому `CMD:info`/`CMD:wifi_set` по USB не
-  отвечают, пока устройство ждёт Wi-Fi через `Aeris-Setup-XXXX`.
-  - Добавить `serialCmdUpdate()` в цикл ожидания (`provisioning.cpp`).
-  - Пересобрать 1.2.4 (или 1.2.5) и перепрошить C6.
+- [x] **USB-настройка на непровижиненном устройстве.**
+  Сделано: `serialCmdUpdate()` вызывается в цикле ожидания провижининга
+  (`provisioning.cpp`), а для C6 `Serial` переведён на USB-Serial/JTAG
+  (`ARDUINO_USB_MODE=1`, `ARDUINO_USB_CDC_ON_BOOT=1`).
+  Проверено: `CMD:info`/`CMD:status` отвечают, пока устройство ждёт Wi-Fi.
 
 - [ ] **Восстановить исходники веб-панели.**
   В `server/web` только собранный `dist`; `npm run build:panel` падает
@@ -76,6 +80,11 @@
 ---
 
 ## P2 — улучшения и гигиена
+
+- [ ] **Решить, нужен ли USB CDC на ESP32-S3.**
+  У `esp32-s3-devkitc-1` нет `ARDUINO_USB_CDC_ON_BOOT`, поэтому `Serial` —
+  UART0 (порт моста). Если USB-настройка из приложения нужна через нативный
+  USB, добавить `-DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1`, как у C6.
 
 - [ ] **Проверить Windows-сборку.**
   Установщик: `deploy/installer/output/aeris_setup_1.2.1.exe`
