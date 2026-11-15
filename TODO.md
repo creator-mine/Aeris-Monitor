@@ -94,7 +94,7 @@
 
 - [ ] **Проверить Windows-сборку.**
   Установщик: `deploy/installer/output/aeris_setup_1.2.1.exe`
-  SHA256 `5b3432e7a5c178bf7484a9b36d9cb8f571f8c59e263c470918d4d1f59092d309`.
+  SHA256 `fba16d4d5c1c6ef31f232393c33de84690e0fd731ef78643983be9d67a4b2d17`.
   Портативная папка: `mobile_app/build/windows/x64/runner/Release/` (`aeris.exe`).
   Сборка: `powershell -File deploy/app_windows.ps1`.
   - [ ] Установка и запуск, проверка COM-портов и уведомлений.
