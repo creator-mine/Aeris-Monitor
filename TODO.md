@@ -6,10 +6,14 @@
 
 ## Текущее состояние
 
-- **C6 `esp32c6_001`** — прошит по USB (factory 16 МБ), онлайн в панели:
-  Wi-Fi `GGM-2G` (192.168.0.117), MQTT и API работают. Датчиков и SD-карты нет.
+- **C6 `esp32c6_001`** — прошит по USB (factory 16 МБ), Wi-Fi `GGM-2G`
+  (192.168.0.117), MQTT и API работают. Сейчас отключён от USB (офлайн).
+  Датчиков и SD-карты нет.
+- **S3 `esp32s3_001`** — прошит по USB 15.11.2026: **1.2.4** + USB CDC,
+  MAC `14:c1:9f:36:7e:9c`, COM6. `verify-flash` — digest совпал.
+  MQTT/API-доступы записаны в NVS из приложения. Wi-Fi ещё не задан:
+  висит в AP `Aeris-Setup-F6EC` (нужен пароль `GGM-2G`).
 - **C3** — не прошит после смены брокера, в `/fw` лежит 1.2.2 (см. P0).
-- **S3 `esp32s3_001`** — офлайн, прошивка 1.2.2.
 - **Публикации `/fw`:** C3 — 1.2.2, C6 — 1.2.3; 1.2.4 не опубликована.
 - **Артефакты:** прошивка 1.2.4 (C3/C6/S3) без секретов; APK 1.2.1;
   установщик Windows 1.2.1 (`a8c34245…`).
@@ -25,8 +29,16 @@
   - Критерий: в логе `MQTT: Connected to spe4naz.online:8883`, устройство онлайн.
   - Скрипт сохраняет NVS; `-EraseAll` — только для чистой платы.
 
+- [ ] **Довести S3 до онлайна (проверка 1.2.4 в сети).**
+  Плата прошита по USB и настроена по USB, но Wi-Fi не задан
+  (висит в AP `Aeris-Setup-F6EC`).
+  - Задать `GGM-2G` в приложении → «Настройка» → «Подключение к Wi-Fi».
+  - Критерий: `CMD:info` отдаёт `wifi_connected:true` и IP, в логе
+    `MQTT: Connected to spe4naz.online:8883`, устройство онлайн в панели
+    с версией 1.2.4.
+
 - [ ] **Опубликовать прошивку 1.2.4 в `/fw`.**
-  - Только после проверки на C3 и C6.
+  - Только после проверки на C3, C6 и S3 (S3 — ещё не выходил в сеть).
   - `powershell -File deploy/build_fw_release.ps1 -Publish`
   - Проверить, что `/fw` отдаёт 1.2.4 для C3, C6 и S3.
 
@@ -72,11 +84,6 @@
   - MQTT, OTA и экспорт CSV.
   - Установщик не подписан — Windows SmartScreen покажет предупреждение.
 
-- [ ] **Решить, нужен ли USB CDC на ESP32-S3.**
-  У `esp32-s3-devkitc-1` нет `ARDUINO_USB_CDC_ON_BOOT`, поэтому `Serial` —
-  UART0 (порт моста). Если USB-настройка из приложения нужна через нативный
-  USB, добавить `-DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1`, как у C6.
-
 ---
 
 ## Команды проверки
@@ -91,9 +98,16 @@ C:\Users\Spe4naz\.platformio\penv\Scripts\pio.exe run -e esp32-s3
 cd ..\sensor_module
 C:\Users\Spe4naz\.platformio\penv\Scripts\pio.exe run -e esp32-c6
 
-# USB-прошивка платы (NVS сохраняется)
+# USB-прошивка платы (NVS сохраняется: пишутся только bootloader/таблица/app)
+powershell -File C:\IoTs\deploy\flash_device.ps1 -Environment esp32-s3 -Port COM6
 powershell -File C:\IoTs\deploy\flash_device.ps1 -Environment esp32-c6 -Port COM7
 powershell -File C:\IoTs\deploy\flash_device.ps1 -Environment esp32-c3 -Port COMx -EraseAll
+
+# Проверка, что в плате именно собранный образ
+$py = 'C:\Users\Spe4naz\.platformio\penv\Scripts\python.exe'
+$esp = 'C:\Users\Spe4naz\.platformio\packages\tool-esptoolpy\esptool.py'
+& $py $esp --port COM6 --chip esp32s3 verify-flash 0x10000 `
+  C:\IoTs\firmware\main_controller\.pio\build\esp32-s3\firmware.bin
 
 # Сервер
 cd C:\IoTs\server
