@@ -264,6 +264,22 @@ class FirmwareService {
     yield* controller.stream;
   }
 
+  /// Command prefix for PlatformIO: the isolated penv Python, a launcher, or
+  /// system Python. Build/upload must use the same interpreter as detection,
+  /// otherwise `python` alone fails when PlatformIO lives in `~/.platformio`.
+  List<String> _platformioCommand() {
+    final py = _penvPythonPath();
+    if (py != null && File(py).existsSync()) {
+      return [py, '-m', 'platformio'];
+    }
+    for (final exe in _pioExecutableCandidates()) {
+      if (File(exe).existsSync()) return [exe];
+    }
+    return Platform.isWindows
+        ? ['python', '-m', 'platformio']
+        : ['python3', '-m', 'platformio'];
+  }
+
   void cancelActiveProcess() {
     _activeProcess?.kill();
     _activeProcess = null;
@@ -286,16 +302,18 @@ class FirmwareService {
       }
     } else if (Platform.isLinux || Platform.isMacOS) {
       try {
-        final result = await Process.run('ls', ['/dev/tty.*', '/dev/ttyUSB*', '/dev/ttyACM*']);
-        if (result.exitCode == 0) {
-          final output = result.stdout.toString().trim();
-          ports.addAll(
-            output
-                .split('\n')
-                .map((s) => s.trim())
-                .where((s) => s.isNotEmpty)
-                .map((s) => PortInfo(port: s)),
-          );
+        final dev = Directory('/dev');
+        if (await dev.exists()) {
+          final entries = await dev.list().toList();
+          for (final entity in entries) {
+            final name = p.basename(entity.path);
+            final matches = Platform.isLinux
+                ? name.startsWith('ttyUSB') || name.startsWith('ttyACM')
+                : name.startsWith('tty.') || name.startsWith('cu.');
+            if (matches) {
+              ports.add(PortInfo(port: entity.path));
+            }
+          }
         }
       } catch (_) {}
     }
@@ -412,12 +430,15 @@ class FirmwareService {
   String? _penvPythonPath() {
     final root = _platformioRoot();
     if (root == null) return null;
-    final script = p.join(root, 'penv', 'Scripts', 'python.exe');
-    return Platform.isWindows && File(script).existsSync()
-        ? script
-        : Platform.isWindows
-            ? null
-            : p.join(root, 'penv', 'bin', 'python');
+    final candidates = [
+      p.join(root, 'penv', 'Scripts', 'python.exe'),
+      p.join(root, 'penv', 'bin', 'python'),
+      p.join(root, 'penv', 'bin', 'python3'),
+    ];
+    for (final candidate in candidates) {
+      if (File(candidate).existsSync()) return candidate;
+    }
+    return null;
   }
 
   String? _esptoolScriptPath() {
@@ -461,10 +482,11 @@ class FirmwareService {
 
     () async {
       try {
-        final args = ['-m', 'platformio', 'run', '-e', environment];
+        final args = ['run', '-e', environment];
+        final cmd = _platformioCommand();
         final process = await Process.start(
-          'python',
-          args,
+          cmd.first,
+          [...cmd.skip(1), ...args],
           workingDirectory: projectPath,
           environment: _pythonEnv(),
         );
@@ -508,14 +530,15 @@ class FirmwareService {
     () async {
       try {
         final args = [
-          '-m', 'platformio', 'run',
+          'run',
           '-e', environment,
           '--target', 'upload',
           '--upload-port', port,
         ];
+        final cmd = _platformioCommand();
         final process = await Process.start(
-          'python',
-          args,
+          cmd.first,
+          [...cmd.skip(1), ...args],
           workingDirectory: projectPath,
           environment: _pythonEnv(),
         );
@@ -811,9 +834,10 @@ class FirmwareService {
     String environment,
   ) async {
     try {
+      final cmd = _platformioCommand();
       final result = await Process.run(
-        'python',
-        ['-m', 'platformio', 'pkg', 'list', '--environment', environment, '--json-output'],
+        cmd.first,
+        [...cmd.skip(1), 'pkg', 'list', '--environment', environment, '--json-output'],
         workingDirectory: projectPath,
         environment: _pythonEnv(),
       );

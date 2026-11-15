@@ -11,7 +11,7 @@ import '../../models/device.dart';
 import '../logs/logs_screen.dart';
 
 class DevicesScreen extends StatefulWidget {
-  const DevicesScreen({Key? key}) : super(key: key);
+  const DevicesScreen({super.key});
 
   @override
   State<DevicesScreen> createState() => _DevicesScreenState();
@@ -347,8 +347,17 @@ class _DevicesScreenState extends State<DevicesScreen> {
           ElevatedButton(
             onPressed: () async {
               final success = await provider.deleteDevice(device.id);
-              if (success && context.mounted) {
+              if (!context.mounted) return;
+              if (success) {
                 Navigator.of(context).pop();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      provider.error ?? 'Не удалось удалить устройство',
+                    ),
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(

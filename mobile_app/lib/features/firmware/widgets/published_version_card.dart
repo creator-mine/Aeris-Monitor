@@ -123,10 +123,10 @@ class PublishedVersionCard extends StatelessWidget {
             ),
           ],
         ),
-        if (manifest.sha256 != null) ...[
+        if (manifest.sha256 != null && manifest.sha256!.isNotEmpty) ...[
           const SizedBox(height: 4),
           Text(
-            'sha256: ${manifest.sha256!.substring(0, 16)}…${manifest.sha256!.substring(48)}',
+            'sha256: ${_shortHash(manifest.sha256!)}',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
         ],
@@ -135,9 +135,9 @@ class PublishedVersionCard extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withOpacity(0.4)),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
           ),
           child: Row(
             children: [
@@ -158,11 +158,18 @@ class PublishedVersionCard extends StatelessWidget {
     );
   }
 
+  /// Abbreviates a SHA-256 hash without assuming a 64-char string, so a
+  /// malformed/short manifest can never crash the firmware screen.
+  String _shortHash(String hash) {
+    if (hash.length <= 20) return hash;
+    return '${hash.substring(0, 16)}…${hash.substring(hash.length - 16)}';
+  }
+
   Widget _pill(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.blueGrey.withOpacity(0.12),
+        color: Colors.blueGrey.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(

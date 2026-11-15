@@ -9,7 +9,7 @@ import '../../../models/firmware_manifest.dart';
 
 class DevicesProvider extends ChangeNotifier {
   final SignalingApi _signalingApi;
-  final OtaApi? _otaApi;
+  OtaApi? _otaApi;
   final MqttService? _mqtt;
 
   List<Device> _devices = [];
@@ -39,14 +39,32 @@ class DevicesProvider extends ChangeNotifier {
   bool get isLoadingManifest => _isLoadingManifest;
   String? get manifestError => _manifestError;
 
-  /// The published manifest for the device's own type (falls back to the
-  /// legacy esp32-c3 manifest when the device type is unknown/not fetched).
-  FirmwareManifest? manifestFor(Device device) =>
-      _manifests[OtaApi.normalizeDeviceType(device.type)] ??
-      _manifests['esp32-c3'];
+  /// Rebuilds the OTA client after the user changes the OTA host in settings.
+  void setOtaBaseUrl(String url) {
+    _otaApi = OtaApi(baseUrl: url);
+    _manifests.clear();
+    _manifestError = null;
+    _safeNotify();
+  }
 
-  String? get latestPublishedVersion =>
-      _manifests.isEmpty ? null : _manifests.values.first.version;
+  /// The published manifest for the device's own type. Unknown/custom types
+  /// fall back to the legacy esp32-c3 manifest; a known type that failed to
+  /// load returns null instead of comparing against a different chip.
+  FirmwareManifest? manifestFor(Device device) {
+    final type = OtaApi.normalizeDeviceType(device.type);
+    final exact = _manifests[type];
+    if (exact != null) return exact;
+    const known = {'esp32-c3', 'esp32-c6', 'esp32-s3'};
+    if (known.contains(type)) return null;
+    return _manifests['esp32-c3'];
+  }
+
+  String? get latestPublishedVersion {
+    if (_manifests.isEmpty) return null;
+    // Prefer the C3 manifest; otherwise return a deterministic entry rather
+    // than whichever type happened to be fetched first.
+    return (_manifests['esp32-c3'] ?? _manifests.values.first).version;
+  }
 
   List<Device> get onlineDevices =>
       _devices.where((d) => d.isOnline).toList();
@@ -86,6 +104,7 @@ class DevicesProvider extends ChangeNotifier {
     final api = _otaApi;
     if (api == null) {
       _isLoadingManifest = false;
+      _safeNotify();
       return;
     }
 
@@ -145,16 +164,19 @@ class DevicesProvider extends ChangeNotifier {
     if (baseUrl != null) {
       try {
         final client = DirectDeviceClient(baseUrl: baseUrl);
-        final result = await client.sendOtaCommand();
-        client.dispose();
-        final started = result?['status'] == 'started' || result?['ok'] == true;
-        if (started) {
-          return 'Команда ОТА отправлена напрямую — устройство скачает прошивку и перезагрузится';
+        try {
+          final result = await client.sendOtaCommand();
+          final started = result?['status'] == 'started' || result?['ok'] == true;
+          if (started) {
+            return 'Команда ОТА отправлена напрямую — устройство скачает прошивку и перезагрузится';
+          }
+          if (result?['error'] == 'ota_busy') {
+            return 'Обновление уже запущено на устройстве';
+          }
+          return 'Устройство вернуло ошибку: ${result ?? 'нет ответа'}';
+        } finally {
+          client.dispose();
         }
-        if (result?['error'] == 'ota_busy') {
-          return 'Обновление уже запущено на устройстве';
-        }
-        return 'Устройство вернуло ошибку: ${result ?? 'нет ответа'}';
       } catch (e) {
         return 'Не удалось связаться с устройством напрямую: $e';
       }
@@ -183,16 +205,19 @@ class DevicesProvider extends ChangeNotifier {
     if (baseUrl != null) {
       try {
         final client = DirectDeviceClient(baseUrl: baseUrl);
-        final result = await client.sendCommand('ota_rollback');
-        client.dispose();
-        final started = result?['status'] == 'started' || result?['ok'] == true;
-        if (started) {
-          return 'Команда отката отправлена напрямую — устройство загрузит предыдущую прошивку и перезагрузится';
+        try {
+          final result = await client.sendCommand('ota_rollback');
+          final started = result?['status'] == 'started' || result?['ok'] == true;
+          if (started) {
+            return 'Команда отката отправлена напрямую — устройство загрузит предыдущую прошивку и перезагрузится';
+          }
+          if (result?['error'] == 'rollback_failed') {
+            return 'Не удалось переключить на предыдущую прошивку';
+          }
+          return 'Устройство вернуло ошибку: ${result ?? 'нет ответа'}';
+        } finally {
+          client.dispose();
         }
-        if (result?['error'] == 'rollback_failed') {
-          return 'Не удалось переключить на предыдущую прошивку';
-        }
-        return 'Устройство вернуло ошибку: ${result ?? 'нет ответа'}';
       } catch (e) {
         return 'Не удалось связаться с устройством напрямую: $e';
       }

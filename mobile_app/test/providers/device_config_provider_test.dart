@@ -36,9 +36,13 @@ class _FakeOtaApi extends OtaApi {
   _FakeOtaApi(this.manifest);
 
   final FirmwareManifest? manifest;
+  String? lastDeviceType;
 
   @override
-  Future<FirmwareManifest?> fetchManifest({String? deviceType}) async => manifest;
+  Future<FirmwareManifest?> fetchManifest({String? deviceType}) async {
+    lastDeviceType = deviceType;
+    return manifest;
+  }
 }
 
 void main() {
@@ -123,6 +127,27 @@ void main() {
 
       serial.push({'type': 'info', 'firmware': '1.2.3', 'device_type': 'esp32-s3'});
       await _flush();
+      expect(provider.isOutdated, isFalse);
+    });
+
+    test('info response rechecks the manifest for the reported device type',
+        () async {
+      final serial = _FakeSerial();
+      final ota = _FakeOtaApi(const FirmwareManifest(
+        version: '1.2.3',
+        deviceType: 'esp32-c6',
+      ));
+      final provider = DeviceConfigProvider(serial: serial, otaApi: ota);
+
+      serial.push({
+        'type': 'info',
+        'firmware': '1.2.3',
+        'device_type': 'esp32c6',
+      });
+      await _flush();
+
+      expect(ota.lastDeviceType, 'esp32c6');
+      expect(provider.manifest?.version, '1.2.3');
       expect(provider.isOutdated, isFalse);
     });
 

@@ -63,7 +63,7 @@ class FirmwareVersion extends HiveObject {
       case 'esp32-c3':
         return 'ESP32-C3 Main Controller';
       case 'esp32-c6':
-        return 'ESP32-C6 Sensor Module';
+        return 'ESP32-C6 Controller';
       case 'esp32-s3':
         return 'ESP32-S3 Main Controller';
       default:

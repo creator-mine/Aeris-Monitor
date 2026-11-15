@@ -54,7 +54,9 @@ class DeviceSelector extends StatelessWidget {
                       'Основной контроллер (LOLIN C3 mini): WiFi, MQTT, I2C, UART',
                     'esp32-s3' =>
                       'Основной контроллер (ESP32-S3 N16R8): WiFi, MQTT, I2C, UART',
-                    _ => 'Сенсорный модуль: BME680, BH1750, DS18B20',
+                    'esp32-c6' =>
+                      'Контроллер (ESP32-C6 N16, 16 МБ): WiFi, MQTT, I2C, UART, реле',
+                    _ => 'Неизвестное устройство',
                   },
                   style: TextStyle(
                     fontSize: 12,

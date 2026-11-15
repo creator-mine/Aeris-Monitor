@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../models/firmware_version.dart';
 import '../../../models/firmware_manifest.dart';
 import '../../../core/api/firmware_service.dart';
+import '../../../core/api/ota_api.dart';
 import '../../../core/storage/firmware_storage.dart';
 import '../../../core/utils/version.dart';
 import '../../../core/config/app_config.dart';
@@ -58,6 +59,7 @@ class FirmwareProvider extends ChangeNotifier {
 
   FirmwareManifest? _serverManifest;
   bool _isCheckingServer = false;
+  bool _manifestCheckQueued = false;
   String? _serverCheckError;
   String? _localVersion;
 
@@ -247,10 +249,17 @@ class FirmwareProvider extends ChangeNotifier {
   }
 
   Future<void> selectDeviceType(String type) async {
+    if (type == _selectedDeviceType) return;
     _selectedDeviceType = type;
+    _serverManifest = null;
+    _serverCheckError = null;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('firmware_last_device', type);
+
+    // The published manifest is per device type (C3/C6/S3 have their own
+    // files), so refresh it immediately instead of showing the old one.
+    await fetchServerManifest();
 
     if (_sourcePath != null) {
       await checkForUpdates();
@@ -289,26 +298,44 @@ class FirmwareProvider extends ChangeNotifier {
   /// Fetches the real published firmware version from the OTA site
   /// (/fw/version.json). No stubs: failures surface as a check error.
   Future<void> fetchServerManifest() async {
-    if (_isCheckingServer) return;
+    if (_isCheckingServer) {
+      // A device-type/host switch happened mid-request: re-run afterwards.
+      _manifestCheckQueued = true;
+      return;
+    }
     _isCheckingServer = true;
     _serverCheckError = null;
+    final requestedType = _selectedDeviceType;
     notifyListeners();
 
     try {
-      _serverManifest = await _service.fetchOtaManifest(
-        deviceType: _selectedDeviceType,
+      final manifest = await _service.fetchOtaManifest(
+        deviceType: requestedType,
         baseUrl: _otaBaseUrl,
       );
-      if (_serverManifest == null) {
+      // Ignore a response that belongs to a previously selected device type.
+      if (requestedType != _selectedDeviceType) {
+        _manifestCheckQueued = true;
+        return;
+      }
+      _serverManifest = manifest;
+      if (manifest == null) {
         _serverCheckError = 'Не удалось получить данные с сайта '
-            '${_otaBaseUrl ?? AppConfig.apiBaseUrl} (нет интернета или не опубликован /fw/version.json). '
-            'Опубликуйте прошивку через deploy/fw.ps1.';
+            '${_otaBaseUrl ?? AppConfig.apiBaseUrl} '
+            '(${OtaApi.manifestPathFor(requestedType)}). '
+            'Проверьте интернет или опубликуйте прошивку через deploy/fw.ps1.';
       }
     } catch (e) {
-      _serverCheckError = 'Ошибка проверки обновлений: $e';
+      if (requestedType == _selectedDeviceType) {
+        _serverCheckError = 'Ошибка проверки обновлений: $e';
+      }
     } finally {
       _isCheckingServer = false;
       notifyListeners();
+      if (_manifestCheckQueued) {
+        _manifestCheckQueued = false;
+        unawaited(fetchServerManifest());
+      }
     }
   }
 
@@ -356,13 +383,21 @@ class FirmwareProvider extends ChangeNotifier {
   Future<void> build() async {
     if (!canBuild || _sourcePath == null || _isInstallingPlatformio || kIsWeb) return;
 
+    // Capture everything the build is based on: the user can switch device
+    // type or folder while it runs, and the saved record must still describe
+    // the artifact that was actually produced.
+    final deviceType = _selectedDeviceType;
+    final sourcePath = _sourcePath!;
+    final pendingVersion = _pendingVersion;
+    final buildHash = _currentHash;
+
     _isBuilding = true;
     _buildStartedAt = DateTime.now();
     _lastBuildDuration = null;
     _buildLogs = [
-      'Start build for $_selectedDeviceType...',
-      'Path: $_sourcePath',
-      if (_pendingVersion != null) 'Version: v${_pendingVersion}',
+      'Start build for $deviceType...',
+      'Path: $sourcePath',
+      if (pendingVersion != null) 'Version: v$pendingVersion',
       if (_gitInfo['isRepo'] == true)
         'Git: ${_gitInfo['branch']} @ ${_gitInfo['commit']}${_gitInfo['message'].isNotEmpty ? ' (${_gitInfo['message']})' : ''}',
       '',
@@ -370,7 +405,7 @@ class FirmwareProvider extends ChangeNotifier {
     notifyListeners();
 
     _buildSubscription?.cancel();
-    final stream = _service.buildFirmware(_sourcePath!, _selectedDeviceType);
+    final stream = _service.buildFirmware(sourcePath, deviceType);
 
     _buildSubscription = stream.listen(
       (line) {
@@ -388,25 +423,25 @@ class FirmwareProvider extends ChangeNotifier {
           var snapshot = <String, dynamic>{};
           Map<String, String> fileHashesMap = <String, String>{};
           try {
-            snapshot = await _service.captureConfigSnapshot(_sourcePath!);
+            snapshot = await _service.captureConfigSnapshot(sourcePath);
           } catch (_) {}
           try {
-            fileHashesMap = await _service.calculateSourceFileHashes(_sourcePath!);
+            fileHashesMap = await _service.calculateSourceFileHashes(sourcePath);
           } catch (_) {}
 
           final version = FirmwareVersion(
             id: _uuid.v4(),
-            version: _pendingVersion ?? _storage.getNextVersion(_selectedDeviceType),
-            deviceType: _selectedDeviceType,
-            sourcePath: _sourcePath!,
+            version: pendingVersion ?? _storage.getNextVersion(deviceType),
+            deviceType: deviceType,
+            sourcePath: sourcePath,
             buildDate: DateTime.now(),
-            buildHash: _currentHash,
+            buildHash: buildHash,
             isBuilt: true,
-            firmwarePath: _service.findFirmwareBin(_sourcePath!, _selectedDeviceType),
+            firmwarePath: _service.findFirmwareBin(sourcePath, deviceType),
             configSnapshot: snapshot,
             fileHashes: fileHashesMap,
           );
-          _pendingVersion = null;
+          if (_pendingVersion == pendingVersion) _pendingVersion = null;
 
           await _storage.save(version);
           _versions = _storage.getAll();
@@ -422,15 +457,19 @@ class FirmwareProvider extends ChangeNotifier {
   Future<void> upload() async {
     if (!canUpload || _sourcePath == null || _selectedPort == null || _isInstallingPlatformio || kIsWeb) return;
 
+    final deviceType = _selectedDeviceType;
+    final sourcePath = _sourcePath!;
+    final port = _selectedPort!;
+
     _isUploading = true;
-    _buildLogs = ['Uploading to $_selectedPort...', ''];
+    _buildLogs = ['Uploading to $port...', ''];
     notifyListeners();
 
     _buildSubscription?.cancel();
     final stream = _service.uploadFirmware(
-      _sourcePath!,
-      _selectedDeviceType,
-      _selectedPort!,
+      sourcePath,
+      deviceType,
+      port,
     );
 
     _buildSubscription = stream.listen(
@@ -442,9 +481,9 @@ class FirmwareProvider extends ChangeNotifier {
         _isUploading = false;
 
         if (_buildLogs.any((l) => l.contains('[SUCCESS]'))) {
-          final latest = _storage.getLatestByDevice(_selectedDeviceType);
+          final latest = _storage.getLatestByDevice(deviceType);
           if (latest != null) {
-            latest.lastUploadPort = _selectedPort;
+            latest.lastUploadPort = port;
             latest.lastUploadDate = DateTime.now();
             await _storage.save(latest);
             _versions = _storage.getAll();

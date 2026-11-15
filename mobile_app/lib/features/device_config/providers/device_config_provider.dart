@@ -14,7 +14,7 @@ import '../../../models/firmware_manifest.dart';
 /// against the published manifest.
 class DeviceConfigProvider extends ChangeNotifier {
   final SerialService _serial;
-  final OtaApi? _otaApi;
+  OtaApi? _otaApi;
 
   Timer? _logTimer;
   List<String> _ports = [];
@@ -28,6 +28,7 @@ class DeviceConfigProvider extends ChangeNotifier {
 
   FirmwareManifest? _manifest;
   bool _isCheckingManifest = false;
+  bool _manifestCheckQueued = false;
   String? _manifestError;
   bool _isSendingOta = false;
 
@@ -59,6 +60,14 @@ class DeviceConfigProvider extends ChangeNotifier {
 
   FirmwareFreshness get freshness =>
       firmwareFreshness(firmwareVersion, _manifest?.version);
+
+  /// Point the version checker at the configured OTA host.
+  void setOtaBaseUrl(String url) {
+    _otaApi = OtaApi(baseUrl: url);
+    _manifest = null;
+    _manifestError = null;
+    notifyListeners();
+  }
 
   /// Refresh the list of available COM ports (called on tab open / refresh).
   Future<void> loadDevices() async {
@@ -119,6 +128,9 @@ class DeviceConfigProvider extends ChangeNotifier {
       case 'info':
         _info = data;
         notifyListeners();
+        // The device type (C3/C6/S3) is only known now, so re-check the
+        // manifest against the right published artifact.
+        checkManifest();
         break;
       case 'status':
         _status = data;
@@ -149,7 +161,10 @@ class DeviceConfigProvider extends ChangeNotifier {
   /// Fetches the real published firmware version from the OTA site
   /// and compares it with the connected device's reported firmware.
   Future<void> checkManifest() async {
-    if (_isCheckingManifest) return;
+    if (_isCheckingManifest) {
+      _manifestCheckQueued = true;
+      return;
+    }
     _isCheckingManifest = true;
     _manifestError = null;
     notifyListeners();
@@ -157,6 +172,7 @@ class DeviceConfigProvider extends ChangeNotifier {
     final api = _otaApi;
     if (api == null) {
       _isCheckingManifest = false;
+      notifyListeners();
       return;
     }
     try {
@@ -170,6 +186,10 @@ class DeviceConfigProvider extends ChangeNotifier {
     } finally {
       _isCheckingManifest = false;
       notifyListeners();
+      if (_manifestCheckQueued) {
+        _manifestCheckQueued = false;
+        await checkManifest();
+      }
     }
   }
 

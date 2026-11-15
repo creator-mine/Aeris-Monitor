@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -16,13 +18,28 @@ class AndroidOtaCard extends StatefulWidget {
 
 class _AndroidOtaCardState extends State<AndroidOtaCard> {
   String? _deviceId;
+  StreamSubscription<bool>? _mqttSub;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DevicesProvider>().loadDevices();
+      context.read<DevicesProvider>()
+        ..loadDevices()
+        ..loadManifest();
     });
+    _mqttSub = context
+        .read<MqttService>()
+        .connectionStream
+        .listen((_) {
+          if (mounted) setState(() {});
+        });
+  }
+
+  @override
+  void dispose() {
+    _mqttSub?.cancel();
+    super.dispose();
   }
 
   void _send(String command, {bool force = false}) {
@@ -85,7 +102,7 @@ class _AndroidOtaCardState extends State<AndroidOtaCard> {
 
         final current = selected.firmwareVersion ?? '—';
         final published = provider.manifestFor(selected)?.version ?? '—';
-        final mqtt = context.watch<MqttService>();
+        final mqtt = context.read<MqttService>();
         final canSend = mqtt.isConnected;
 
         return Card(
@@ -106,7 +123,8 @@ class _AndroidOtaCardState extends State<AndroidOtaCard> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: selected.id,
+                  key: ValueKey(selected.id),
+                  initialValue: selected.id,
                   decoration: const InputDecoration(
                     labelText: 'Устройство',
                     border: OutlineInputBorder(),
