@@ -134,6 +134,13 @@ class DeviceConfigProvider extends ChangeNotifier {
     _serial.requestLogs();
   }
 
+  /// Re-read device info (firmware, credential flags) without reconnecting.
+  void refreshInfo() {
+    if (!_serial.isConnected) return;
+    _serial.requestInfo();
+    _serial.requestStatus();
+  }
+
   void _onResponse(Map<String, dynamic> data) {
     switch (data['type']) {
       case 'info':
@@ -233,6 +240,21 @@ class DeviceConfigProvider extends ChangeNotifier {
   void clearWifi() {
     _serial.clearWifi();
   }
+
+  /// Stores MQTT/API credentials in the device NVS (empty fields are kept).
+  bool setCredentials({
+    required String user,
+    required String password,
+    required String token,
+  }) {
+    if (!_serial.isConnected) return false;
+    _serial.setCredentials(user, password, token);
+    return true;
+  }
+
+  bool get mqttUserSet => _info?['mqtt_user_set'] == true;
+  bool get mqttPasswordSet => _info?['mqtt_pass_set'] == true;
+  bool get apiTokenSet => _info?['api_token_set'] == true;
 
   void restart() {
     _serial.restart();

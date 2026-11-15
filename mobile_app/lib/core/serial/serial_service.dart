@@ -99,6 +99,19 @@ class SerialService {
   void clearWifi() => _send('wifi_clear');
   void restart() => _send('restart');
 
+  /// Stores MQTT + API credentials in the device NVS.
+  ///
+  /// Empty fields keep whatever is already stored on the device. The device
+  /// applies them on the next MQTT reconnect, no reboot is required.
+  void setCredentials(String user, String password, String token) {
+    final payload = jsonEncode({
+      'user': user,
+      'password': password,
+      'token': token,
+    });
+    _send('secrets_set:$payload');
+  }
+
   /// Ask the device to pull and apply the latest published firmware via OTA.
   void requestOta({bool force = false}) {
     _send(force ? 'ota:force' : 'ota');
