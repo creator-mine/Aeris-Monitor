@@ -11,7 +11,7 @@ import '../../models/log_entry.dart';
 import '../settings/providers/settings_provider.dart';
 
 class DeviceConfigScreen extends StatefulWidget {
-  const DeviceConfigScreen({Key? key}) : super(key: key);
+  const DeviceConfigScreen({super.key});
 
   @override
   State<DeviceConfigScreen> createState() => _DeviceConfigScreenState();
@@ -367,9 +367,9 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: color.withOpacity(0.4)),
+                  border: Border.all(color: color.withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   children: [
@@ -589,7 +589,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
             decoration: BoxDecoration(
-              color: tagColor.withOpacity(0.15),
+              color: tagColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(

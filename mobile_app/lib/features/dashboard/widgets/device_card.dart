@@ -9,11 +9,11 @@ class DeviceCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const DeviceCard({
-    Key? key,
+    super.key,
     required this.device,
     this.isSelected = false,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +38,8 @@ class DeviceCard extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: isSelected
-                  ? AppTheme.primaryColor.withOpacity(0.3)
-                  : Colors.black.withOpacity(0.08),
+                  ? AppTheme.primaryColor.withValues(alpha: 0.3)
+                  : Colors.black.withValues(alpha: 0.08),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

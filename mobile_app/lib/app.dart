@@ -15,7 +15,7 @@ import 'features/firmware/firmware_screen.dart';
 import 'features/smart_home/smart_home_screen.dart';
 
 class IoTApp extends StatelessWidget {
-  const IoTApp({Key? key}) : super(key: key);
+  const IoTApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +33,7 @@ class IoTApp extends StatelessWidget {
 }
 
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({Key? key}) : super(key: key);
+  const MainNavigation({super.key});
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();

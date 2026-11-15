@@ -83,10 +83,10 @@ class FirmwareScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-              if (!isAndroid) DeviceSelector(),
-              if (!isAndroid) PortSelector(),
+              if (!isAndroid) const DeviceSelector(),
+              if (!isAndroid) const PortSelector(),
               const SizedBox(height: 8),
-              PublishedVersionCard(),
+              const PublishedVersionCard(),
               const SizedBox(height: 8),
               if (!isAndroid) Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -206,9 +206,9 @@ class FirmwareScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              if (!isAndroid) FirmwareInfoCard(),
+              if (!isAndroid) const FirmwareInfoCard(),
               const SizedBox(height: 8),
-              if (!isAndroid) PreflightCard(),
+              if (!isAndroid) const PreflightCard(),
               const SizedBox(height: 8),
               if (!isAndroid)
                 Padding(
@@ -291,8 +291,8 @@ class FirmwareScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              if (!isAndroid) BuildLogWidget(),
-              VersionHistory(),
+              if (!isAndroid) const BuildLogWidget(),
+              const VersionHistory(),
               const SizedBox(height: 16),
             ],
           );

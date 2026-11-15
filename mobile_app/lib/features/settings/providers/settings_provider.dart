@@ -52,10 +52,20 @@ class SettingsProvider extends ChangeNotifier {
   ConnectionMode get connectionMode => _connectionMode;
 
   /// OTA/firmware host actually used: explicit value if set, else the API URL
-  /// (the self-hosted stack serves /fw from the same nginx).
+  /// (the self-hosted stack serves /fw from the same nginx). `OtaApi`
+  /// normalizes trailing slashes before building paths.
   String get effectiveOtaUrl {
     final v = _otaUrl.trim();
     return v.isEmpty ? _apiUrl : v;
+  }
+
+  /// Trims whitespace and trailing slashes from a server URL.
+  static String normalizeUrl(String value) {
+    var url = value.trim();
+    while (url.endsWith('/')) {
+      url = url.substring(0, url.length - 1);
+    }
+    return url;
   }
 
   Future<void> init() async {
@@ -125,8 +135,8 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   Future<void> setApiUrl(String url) async {
-    _apiUrl = url;
-    await _prefs.setString('api_url', url);
+    _apiUrl = url.trim();
+    await _prefs.setString('api_url', _apiUrl);
     notifyListeners();
   }
 
@@ -137,8 +147,8 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   Future<void> setMqttBroker(String broker) async {
-    _mqttBroker = broker;
-    await _prefs.setString('mqtt_broker', broker);
+    _mqttBroker = broker.trim();
+    await _prefs.setString('mqtt_broker', _mqttBroker);
     notifyListeners();
   }
 

@@ -73,7 +73,8 @@ class PortSelector extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: effectivePort,
+                    key: ValueKey(effectivePort),
+                    initialValue: effectivePort,
                     decoration: const InputDecoration(
                       labelText: 'Изменить порт',
                       border: OutlineInputBorder(),

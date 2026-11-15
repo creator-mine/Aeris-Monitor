@@ -9,14 +9,14 @@ class AppScaffold extends StatelessWidget {
   final bool showBackButton;
 
   const AppScaffold({
-    Key? key,
+    super.key,
     required this.title,
     required this.body,
     this.floatingActionButton,
     this.bottomNavigationBar,
     this.actions,
     this.showBackButton = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

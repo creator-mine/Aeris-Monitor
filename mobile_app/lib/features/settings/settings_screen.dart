@@ -16,6 +16,7 @@ import '../../core/config/log_mode.dart';
 import '../devices/providers/devices_provider.dart';
 import '../alerts/providers/alerts_provider.dart';
 import '../dashboard/providers/dashboard_provider.dart';
+import '../device_config/providers/device_config_provider.dart';
 import '../firmware/providers/firmware_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -246,7 +247,7 @@ class SettingsScreen extends StatelessWidget {
                   boxShadow: [
                     if (isSelected)
                       BoxShadow(
-                        color: color.withOpacity(0.5),
+                        color: color.withValues(alpha: 0.5),
                         blurRadius: 12,
                         spreadRadius: 2,
                       ),
@@ -367,17 +368,33 @@ class SettingsScreen extends StatelessWidget {
       BuildContext context, SettingsProvider provider) async {
     if (!context.mounted) return;
 
+    // Resolve providers before any await so no BuildContext is used across
+    // an async gap.
+    final signalingApi = context.read<SignalingApi>();
+    final apiClient = context.read<ApiClient>();
+    final mqtt = context.read<MqttService>();
+    final devicesProvider = context.read<DevicesProvider>();
+    final deviceConfigProvider = context.read<DeviceConfigProvider>();
+    final alertsProvider = context.read<AlertsProvider>();
+    final dashboardProvider = context.read<DashboardProvider>();
+    final firmwareProvider = context.read<FirmwareProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+
     // Apply the API base URL + bearer token at runtime (no restart needed).
-    final apiUrl = '${provider.apiUrl}/api/v1';
-    context.read<SignalingApi>()..setBaseUrl(apiUrl)..setToken(provider.signalingToken);
-    context.read<ApiClient>()..setBaseUrl(apiUrl)..setToken(provider.signalingToken);
+    final apiUrl =
+        '${SettingsProvider.normalizeUrl(provider.apiUrl)}${AppConfig.apiVersion}';
+    signalingApi
+      ..setBaseUrl(apiUrl)
+      ..setToken(provider.signalingToken);
+    apiClient
+      ..setBaseUrl(apiUrl)
+      ..setToken(provider.signalingToken);
 
     // The background SSE isolate reads api_url/signaling_token only on start,
     // so restart it to pick up a rotated token or a new host immediately.
     unawaited(startBackgroundMonitor());
 
     // Reconnect MQTT with the new broker/port/credentials.
-    final mqtt = context.read<MqttService>();
     final mqttPort = kIsWeb ? AppConfig.mqttWssPort : provider.mqttPort;
     final ok = await mqtt.reconnect(
       broker: provider.mqttBroker,
@@ -392,18 +409,19 @@ class SettingsScreen extends StatelessWidget {
     );
 
     // Refresh data from the newly configured endpoints.
-    context.read<DevicesProvider>().refreshDevices();
-    context.read<AlertsProvider>().loadAlerts();
-    context.read<DashboardProvider>().loadDevices();
+    devicesProvider
+      ..setOtaBaseUrl(provider.effectiveOtaUrl)
+      ..refreshDevices();
+    deviceConfigProvider.setOtaBaseUrl(provider.effectiveOtaUrl);
+    alertsProvider.loadAlerts();
+    dashboardProvider.loadDevices();
 
     // Point the OTA/firmware checker at the configured host.
-    context
-        .read<FirmwareProvider>()
+    firmwareProvider
       ..setOtaBaseUrl(provider.effectiveOtaUrl)
       ..fetchServerManifest();
 
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
           ok ? 'Настройки применены, MQTT переподключён' : 'Настройки применены, MQTT не подключился',
@@ -482,18 +500,13 @@ class SettingsScreen extends StatelessWidget {
     TextInputType keyboardType = TextInputType.text,
     bool obscureText = false,
   }) {
-    return TextField(
-      controller: TextEditingController(text: value),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
+    return _SettingsTextField(
+      label: label,
+      value: value,
+      onChanged: onChanged,
+      icon: icon,
       keyboardType: keyboardType,
       obscureText: obscureText,
-      onChanged: onChanged,
     );
   }
 
@@ -524,6 +537,73 @@ class SettingsScreen extends StatelessWidget {
       title: Text(title),
       subtitle: Text(value),
       contentPadding: EdgeInsets.zero,
+    );
+  }
+}
+
+/// Stateful text field that keeps its own controller.
+///
+/// Creating `TextEditingController(text: value)` directly in build (as the
+/// settings screen used to do) resets the caret on every keystroke, because
+/// each provider notification rebuilds the field with a fresh controller.
+class _SettingsTextField extends StatefulWidget {
+  final String label;
+  final String value;
+  final ValueChanged<String> onChanged;
+  final IconData icon;
+  final TextInputType keyboardType;
+  final bool obscureText;
+
+  const _SettingsTextField({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    required this.icon,
+    this.keyboardType = TextInputType.text,
+    this.obscureText = false,
+  });
+
+  @override
+  State<_SettingsTextField> createState() => _SettingsTextFieldState();
+}
+
+class _SettingsTextFieldState extends State<_SettingsTextField> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.value);
+  final FocusNode _focus = FocusNode();
+
+  @override
+  void didUpdateWidget(covariant _SettingsTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reflect external changes (e.g. URL normalization) only while the field
+    // is not being edited, so the user's caret never jumps.
+    if (!_focus.hasFocus && widget.value != _controller.text) {
+      _controller.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      focusNode: _focus,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        prefixIcon: Icon(widget.icon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      keyboardType: widget.keyboardType,
+      obscureText: widget.obscureText,
+      onChanged: widget.onChanged,
     );
   }
 }
