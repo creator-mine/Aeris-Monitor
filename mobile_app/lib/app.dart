@@ -10,6 +10,7 @@ import 'features/charts/charts_screen.dart';
 import 'features/charts/providers/charts_provider.dart';
 import 'features/devices/devices_screen.dart';
 import 'features/device_config/device_config_screen.dart';
+import 'features/provisioning/provisioning_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/firmware/firmware_screen.dart';
 import 'features/smart_home/smart_home_screen.dart';
@@ -42,15 +43,22 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    DashboardScreen(),
-    ChartsScreen(),
-    DevicesScreen(),
-    DeviceConfigScreen(),
-    FirmwareScreen(),
-    SettingsScreen(),
-    SmartHomeScreen(),
-  ];
+  /// Phones have no USB COM port, so the "Настройка" tab would be dead weight:
+  /// it becomes the Wi-Fi provisioning screen instead.
+  bool get _isMobile =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  List<Widget> get _screens => [
+        const DashboardScreen(),
+        const ChartsScreen(),
+        const DevicesScreen(),
+        _isMobile ? const ProvisioningScreen() : const DeviceConfigScreen(),
+        const FirmwareScreen(),
+        const SettingsScreen(),
+        const SmartHomeScreen(),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -83,38 +91,38 @@ class _MainNavigationState extends State<MainNavigation> {
                 _currentIndex = index;
               });
             },
-            destinations: const [
-              NavigationDestination(
+            destinations: [
+              const NavigationDestination(
                 icon: Icon(Icons.dashboard_outlined),
                 selectedIcon: Icon(Icons.dashboard),
                 label: 'Главная',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.show_chart_outlined),
                 selectedIcon: Icon(Icons.show_chart),
                 label: 'Графики',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.devices_other_outlined),
                 selectedIcon: Icon(Icons.devices_other),
                 label: 'Устройства',
               ),
               NavigationDestination(
-                icon: Icon(Icons.tune),
-                selectedIcon: Icon(Icons.tune),
-                label: 'Настройка',
+                icon: Icon(_isMobile ? Icons.wifi : Icons.tune),
+                selectedIcon: Icon(_isMobile ? Icons.wifi : Icons.tune),
+                label: _isMobile ? 'Wi-Fi' : 'Настройка',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.memory_outlined),
                 selectedIcon: Icon(Icons.memory),
                 label: 'Прошивка',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.settings_outlined),
                 selectedIcon: Icon(Icons.settings),
                 label: 'Настройки',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.smart_toy_outlined),
                 selectedIcon: Icon(Icons.smart_toy),
                 label: 'Умный дом',
