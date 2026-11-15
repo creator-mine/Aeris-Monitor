@@ -19,6 +19,17 @@
   - Сейчас устройство не подключено (виден только COM1).
   - Бинарники: `deploy/installer/output/fw-usb/`.
 
+- [x] **Прошить ESP32-C6 по USB (16 МБ, factory-образ 1.2.4).**
+  Выполнено 15.11.2026 через esptool 5.3.0: `write-flash 0x0` с `--erase-all`,
+  1 533 712 байт, hash verified. MAC `e8:f6:0a:fb:f2:50`, порт COM7
+  (USB-Serial/JTAG).
+  - В serial после прошивки: ROM-баннер и ошибки `Preferences` (NVS пуст),
+    дальше тишина — устройство уходит в Wi-Fi provisioning.
+  - [ ] Проверить с телефона: видна ли точка `Aeris-Setup-XXXX`
+        (`http://192.168.4.1`), сохраняются ли Wi-Fi-креды.
+  - [ ] После провижининга проверить USB-вкладку «Настройка» и
+        `MQTT: Connected to spe4naz.online:8883`.
+
 - [ ] **Обновить токен в приложении.**
   - Новый `SIGNALING_TOKEN` — в `firmware/main_controller/include/secrets.h`.
   - Приложение → Настройки → **«Токен доступа (API)»** → «Применить».
@@ -38,6 +49,13 @@
 ---
 
 ## P1 — важно
+
+- [ ] **USB-настройка на непровижиненном устройстве.**
+  Сейчас `Provisioning::startAndWait()` крутит `delay(20)` до 5 минут и не
+  вызывает `serialCmdUpdate()`, поэтому `CMD:info`/`CMD:wifi_set` по USB не
+  отвечают, пока устройство ждёт Wi-Fi через `Aeris-Setup-XXXX`.
+  - Добавить `serialCmdUpdate()` в цикл ожидания (`provisioning.cpp`).
+  - Пересобрать 1.2.4 (или 1.2.5) и перепрошить C6.
 
 - [ ] **Восстановить исходники веб-панели.**
   В `server/web` только собранный `dist`; `npm run build:panel` падает
