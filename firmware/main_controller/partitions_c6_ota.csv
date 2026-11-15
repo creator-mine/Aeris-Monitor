@@ -1,0 +1,10 @@
+# Aeris Monitor - ESP32-C6 controller, 4 MB flash, dual OTA.
+# Same layout as the C3 controller: two 1.875 MB app slots with ~500 KB
+# headroom. A 4 MB image also runs on 8 MB DevKitC-1 boards (lower 4 MB).
+# nvs 0x9000+0x5000, otadata 0xe000+0x2000, coredump 0x3D0000+0x20000.
+# Name,   Type, SubType, Offset,   Size,    Flags
+nvs,      data, nvs,     0x9000,   0x5000,
+otadata,  data, ota,     0xe000,   0x2000,
+app0,     app,  ota_0,   0x10000,  0x1E0000,
+app1,     app,  ota_1,   0x1F0000, 0x1E0000,
+coredump, data, coredump,0x3D0000, 0x20000,
