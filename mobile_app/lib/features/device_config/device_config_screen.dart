@@ -175,11 +175,32 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _disconnect(context, provider),
-                        icon: const Icon(Icons.link_off, size: 18),
-                        label: const Text('Отключиться'),
-                      ),
+                      child: provider.isReconnecting
+                          ? Row(
+                              children: [
+                                const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Устройство перезагружается, переподключаюсь...',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.color),
+                                ),
+                              ],
+                            )
+                          : OutlinedButton.icon(
+                              onPressed: () => _disconnect(context, provider),
+                              icon: const Icon(Icons.link_off, size: 18),
+                              label: const Text('Отключиться'),
+                            ),
                     ),
                   ],
                 ),

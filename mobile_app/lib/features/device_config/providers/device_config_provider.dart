@@ -17,6 +17,9 @@ class DeviceConfigProvider extends ChangeNotifier {
   OtaApi? _otaApi;
 
   Timer? _logTimer;
+  Timer? _statusTimer;
+  Timer? _reconnectTimer;
+  bool _isReconnecting = false;
   List<String> _ports = [];
   String? _selectedPort;
   List<LogEntry> _logs = [];
@@ -50,6 +53,8 @@ class DeviceConfigProvider extends ChangeNotifier {
   String? get selectedPort => _selectedPort;
   bool get isConnected => _serial.isConnected;
   bool get isConnecting => _isConnecting;
+  /// True while the board is rebooting and the port is being reopened.
+  bool get isReconnecting => _isReconnecting;
   List<LogEntry> get logs => _logs;
   Map<String, dynamic>? get info => _info;
   Map<String, dynamic>? get status => _status;
@@ -101,6 +106,7 @@ class DeviceConfigProvider extends ChangeNotifier {
       _serial.requestInfo();
       _serial.requestStatus();
       startLogStream();
+      _startStatusPoll();
       return _serial.isConnected;
     } finally {
       _isConnecting = false;
@@ -110,6 +116,11 @@ class DeviceConfigProvider extends ChangeNotifier {
 
   Future<void> disconnect() async {
     stopLogStream();
+    _statusTimer?.cancel();
+    _statusTimer = null;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _isReconnecting = false;
     await _serial.disconnect();
     _logs.clear();
     _info = null;
@@ -127,6 +138,50 @@ class DeviceConfigProvider extends ChangeNotifier {
   void stopLogStream() {
     _logTimer?.cancel();
     _logTimer = null;
+  }
+
+  /// Keeps uptime / Wi-Fi / RSSI fresh and notices a board that went away.
+  void _startStatusPoll() {
+    _statusTimer?.cancel();
+    _statusTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_serial.isConnected) _serial.requestStatus();
+    });
+  }
+
+  /// The device reboots itself after a Wi-Fi change, a manual restart or an
+  /// OTA command. That re-enumerates the USB CDC port, so the current handle
+  /// is dead: every later command would be written into nothing and the UI
+  /// would keep showing stale data. Wait for the port to come back and reopen
+  /// it, so the user does not have to reconnect by hand.
+  void _scheduleReconnect(
+      {Duration delay = const Duration(seconds: 4)}) {
+    final port = _selectedPort;
+    if (port == null) return;
+    _reconnectTimer?.cancel();
+    _isReconnecting = true;
+    notifyListeners();
+    _reconnectTimer = Timer(delay, () => _reconnect(port));
+  }
+
+  Future<void> _reconnect(String port) async {
+    stopLogStream();
+    _statusTimer?.cancel();
+    _statusTimer = null;
+    try {
+      await _serial.disconnect();
+    } catch (_) {}
+    for (var attempt = 0; attempt < 15; attempt++) {
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      if (!SerialService.listPorts().contains(port)) continue;
+      if (await connect(port)) {
+        _isReconnecting = false;
+        await refreshPorts();
+        notifyListeners();
+        return;
+      }
+    }
+    _isReconnecting = false;
+    notifyListeners();
   }
 
   void fetchLogs() {
@@ -220,6 +275,9 @@ class DeviceConfigProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _serial.requestOta();
+      // The board downloads the image, reboots into the new slot and
+      // re-enumerates USB, so give it time and reopen the port afterwards.
+      _scheduleReconnect(delay: const Duration(seconds: 30));
       // ack/error will come through _onResponse; simulate an immediate
       // informational result because the device may need a few seconds
       // to start downloading.
@@ -234,11 +292,14 @@ class DeviceConfigProvider extends ChangeNotifier {
   bool setWifi(String ssid, String password) {
     if (!_serial.isConnected) return false;
     _serial.setWifi(ssid, password);
+    // The firmware reboots to apply the new credentials.
+    _scheduleReconnect();
     return true;
   }
 
   void clearWifi() {
     _serial.clearWifi();
+    _scheduleReconnect();
   }
 
   /// Stores MQTT/API credentials in the device NVS (empty fields are kept).
@@ -258,11 +319,14 @@ class DeviceConfigProvider extends ChangeNotifier {
 
   void restart() {
     _serial.restart();
+    _scheduleReconnect(delay: const Duration(seconds: 3));
   }
 
   @override
   void dispose() {
     stopLogStream();
+    _statusTimer?.cancel();
+    _reconnectTimer?.cancel();
     _respSub.cancel();
     _errorSub.cancel();
     _serial.dispose();
