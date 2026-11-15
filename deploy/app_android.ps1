@@ -46,9 +46,16 @@ try {
 $src = Join-Path $app "build\app\outputs\flutter-apk\app-release.apk"
 if (-not (Test-Path $src)) { throw "APK not found: $src" }
 
+# Read the app version from pubspec.yaml so the artifact name can never drift
+# from the version actually compiled into the APK.
+$versionLine = Select-String -Path (Join-Path $app "pubspec.yaml") -Pattern '^version:\s*([0-9]+\.[0-9]+\.[0-9]+)' |
+    Select-Object -First 1
+if (-not $versionLine) { throw "Cannot read version from pubspec.yaml" }
+$version = $versionLine.Matches[0].Groups[1].Value
+
 $outDir = Join-Path $PSScriptRoot "installer\output"
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-$dst = Join-Path $outDir "aeris-monitor-1.2.0.apk"
+$dst = Join-Path $outDir "aeris-monitor-$version.apk"
 Copy-Item $src $dst -Force
 
 $hash = (Get-FileHash $dst -Algorithm SHA256).Hash.ToLower()
