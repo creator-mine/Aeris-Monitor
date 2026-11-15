@@ -102,16 +102,45 @@ $versionText = (& $python $esptool version 2>&1 | Out-String)
 $esptoolMajor = 4
 if ($versionText -match '(?m)^\s*(\d+)\.\d+') { $esptoolMajor = [int]$Matches[1] }
 
-$eraseArgs = if ($EraseAll) { @("--erase-all") } else { @() }
-if ($esptoolMajor -ge 5) {
-    $flashArgs = @("write-flash", "--no-progress", "--flash-size", $flashSize) +
-        $eraseArgs + @("0x0", $factory)
+$writeCmd = if ($esptoolMajor -ge 5) { "write-flash" } else { "write_flash" }
+$eraseCmd = if ($esptoolMajor -ge 5) { "erase-region" } else { "erase_region" }
+$noProgress = if ($esptoolMajor -ge 5) { @("--no-progress") } else { @() }
+$flashSizeArg = if ($esptoolMajor -ge 5) { "--flash-size" } else { "--flash_size" }
+
+# The merged factory image is padded with 0xFF in every gap, so writing it at
+# 0x0 replaces the NVS partition (0x9000) and wipes Wi-Fi/MQTT credentials.
+# That is why a normal flash writes the segments one by one instead; the
+# factory image is only used together with --erase-all, where the wipe is the
+# point.
+$segments = @(
+    @{ Offset = "0x0";     Path = Join-Path $project ".pio\build\$Environment\bootloader.bin" },
+    @{ Offset = "0x8000";  Path = Join-Path $project ".pio\build\$Environment\partitions.bin" },
+    @{ Offset = "0x10000"; Path = Join-Path $project ".pio\build\$Environment\firmware.bin" }
+)
+
+if ($EraseAll -or $esptoolMajor -lt 5) {
+    if ($EraseAll) {
+        $flashArgs = @($writeCmd) + $noProgress + @($flashSizeArg, $flashSize,
+            "--erase-all", "0x0", $factory)
+    } else {
+        $flashArgs = @($writeCmd, $flashSizeArg, $flashSize, "0x0", $factory)
+    }
+    Write-Host "Flashing $Environment via $Port (esptool $esptoolMajor.x, $flashSize, full factory image)"
 } else {
-    $flashArgs = @("write_flash", "--flash_size", $flashSize) + $eraseArgs +
-        @("0x0", $factory)
+    $missing = $segments | Where-Object { -not (Test-Path $_.Path) }
+    if ($missing) { throw "missing build artifact: $($missing[0].Path)" }
+    $flashArgs = @($writeCmd) + $noProgress + @($flashSizeArg, $flashSize) +
+        @($segments | ForEach-Object { $_.Offset; $_.Path })
+    Write-Host "Flashing $Environment via $Port (esptool $esptoolMajor.x, $flashSize, NVS preserved)"
 }
 
-Write-Host "Flashing $Environment via $Port (esptool $esptoolMajor.x, $flashSize)"
+if (-not $EraseAll -and $esptoolMajor -ge 5) {
+    # Invalidate the OTA selector so the freshly written app0 is booted even if
+    # an older update left app1 marked as the active slot.
+    & $python $esptool --port $Port --chip $chip $eraseCmd 0xe000 0x2000
+    if ($LASTEXITCODE -ne 0) { throw "erase of otadata failed (exit $LASTEXITCODE)" }
+}
+
 & $python $esptool --port $Port --chip $chip -b 460800 @flashArgs
 if ($LASTEXITCODE -ne 0) { throw "flash failed (exit $LASTEXITCODE)" }
 
