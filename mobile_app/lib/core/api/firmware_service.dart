@@ -829,6 +829,11 @@ class FirmwareService {
   Future<String?> getPlatformIOVersion() => _detectPlatformioVersion();
 
   /// Lists installed packages (platforms/frameworks/tools) for an env.
+  ///
+  /// `pio pkg list` has no JSON output on Core 6.x, so its human-readable
+  /// tree is parsed instead. UTF-8 is forced both in the environment (PIO
+  /// draws box characters and crashes on a cp1251 console) and when decoding
+  /// stdout, otherwise the tree glyphs come back garbled.
   Future<List<Map<String, dynamic>>> platformioPkgList(
     String projectPath,
     String environment,
@@ -837,18 +842,46 @@ class FirmwareService {
       final cmd = _platformioCommand();
       final result = await Process.run(
         cmd.first,
-        [...cmd.skip(1), 'pkg', 'list', '--environment', environment, '--json-output'],
+        [...cmd.skip(1), 'pkg', 'list', '--environment', environment],
         workingDirectory: projectPath,
         environment: _pythonEnv(),
+        stdoutEncoding: utf8,
+        stderrEncoding: utf8,
       );
       if (result.exitCode == 0) {
-        final data = jsonDecode(result.stdout.toString());
-        if (data is List) {
-          return data.whereType<Map<String, dynamic>>().toList();
-        }
+        return _parsePkgList(result.stdout.toString());
       }
     } catch (_) {}
     return [];
+  }
+
+  List<Map<String, dynamic>> _parsePkgList(String text) {
+    final packages = <Map<String, dynamic>>[];
+    final platformRe = RegExp(r'^Platform\s+(\S+)\s+@\s+([^\s(]+)');
+    final frameworkRe =
+        RegExp(r'^[\s\W]*?(framework-[\w.\-]+)\s+@\s+([^\s(]+)');
+    for (final line in text.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      final platform = platformRe.firstMatch(trimmed);
+      if (platform != null) {
+        packages.add({
+          'type': 'platform',
+          'name': platform.group(1),
+          'version': platform.group(2),
+        });
+        continue;
+      }
+      final framework = frameworkRe.firstMatch(trimmed);
+      if (framework != null) {
+        packages.add({
+          'type': 'framework',
+          'name': framework.group(1),
+          'version': framework.group(2),
+        });
+      }
+    }
+    return packages;
   }
 
   /// Basic git info about the project source (branch / last commit).
