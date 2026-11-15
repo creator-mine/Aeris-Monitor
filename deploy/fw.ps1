@@ -3,6 +3,7 @@
 #
 # Per-device-type artifacts:
 #   esp32-c3 -> /fw/main.bin + /fw/version.json               (legacy layout)
+#   esp32-c6 -> /fw/main_esp32-c6.bin + /fw/version-esp32-c6.json
 #   esp32-s3 -> /fw/main_esp32-s3.bin + /fw/version-esp32-s3.json
 #
 # Usage: powershell -File fw.ps1 [-Project main_controller] [-Environment esp32-c3]

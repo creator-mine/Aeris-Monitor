@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("esp32-c3", "esp32-s3")]
+    [ValidateSet("esp32-c3", "esp32-c6", "esp32-s3")]
     [string]$Environment = "esp32-c3",
     [string]$Port = ""
 )
@@ -12,7 +12,7 @@ param(
 #
 # Usage:
 #   powershell -File deploy/flash_device.ps1 -Environment esp32-c3
-#   powershell -File deploy/flash_device.ps1 -Environment esp32-c3 -Port COM5
+#   powershell -File deploy/flash_device.ps1 -Environment esp32-c6 -Port COM5
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -34,5 +34,5 @@ if ($LASTEXITCODE -ne 0) { throw "flash failed (exit $LASTEXITCODE)" }
 
 Write-Host ""
 Write-Host "Flash done. Verify in the serial log:"
-Write-Host "  MQTT: Connected to spe4naz.online:1883"
+Write-Host "  MQTT: Connected to spe4naz.online:8883"
 Write-Host "Then the device appears online in the panel; later updates go via OTA."

@@ -25,7 +25,7 @@ if (-not (Test-Path $pio)) {
     $pio = $cmd.Source
 }
 
-$envs = @("esp32-c3", "esp32-s3")
+$envs = @("esp32-c3", "esp32-s3", "esp32-c6")
 $oldFlags = $env:PLATFORMIO_BUILD_FLAGS
 $env:PLATFORMIO_BUILD_FLAGS = (($oldFlags, "-DAERIS_NO_COMPILED_SECRETS") |
     Where-Object { $_ }) -join " "
@@ -67,6 +67,8 @@ if ($Publish) {
     if ($LASTEXITCODE -ne 0) { throw "publish esp32-c3 failed" }
     & (Join-Path $PSScriptRoot "fw.ps1") -Environment esp32-s3
     if ($LASTEXITCODE -ne 0) { throw "publish esp32-s3 failed" }
+    & (Join-Path $PSScriptRoot "fw.ps1") -Environment esp32-c6
+    if ($LASTEXITCODE -ne 0) { throw "publish esp32-c6 failed" }
 }
 
 Write-Host "Done."
