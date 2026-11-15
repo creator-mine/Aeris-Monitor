@@ -32,17 +32,17 @@ class SerialService {
 
   static List<String> listPorts() => SerialIo.listPorts();
 
-  bool connect(String name) {
-    disconnect();
+  Future<bool> connect(String name) async {
+    await disconnect();
 
-    if (!_io.connect(name, baudRate)) {
+    if (!await _io.connect(name, baudRate)) {
       _errors.add(_io.lastError ?? 'Не удалось открыть порт $name');
       return false;
     }
 
     _lineBuffer = '';
 
-    _ioSub?.cancel();
+    await _ioSub?.cancel();
     _ioSub = _io.data.listen(
       _onData,
       onError: (Object e) => _errors.add('$e'),
@@ -50,10 +50,10 @@ class SerialService {
     return true;
   }
 
-  void disconnect() {
-    _ioSub?.cancel();
+  Future<void> disconnect() async {
+    await _ioSub?.cancel();
     _ioSub = null;
-    _io.disconnect();
+    await _io.disconnect();
     _lineBuffer = '';
   }
 
@@ -107,7 +107,7 @@ class SerialService {
   void dispose() {
     _ioSub?.cancel();
     _ioSub = null;
-    _io.dispose();
+    unawaited(_io.dispose());
     _responses.close();
     _errors.close();
   }

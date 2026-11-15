@@ -14,13 +14,13 @@ class SerialIo {
 
   static List<String> listPorts() => const [];
 
-  bool connect(String name, int baudRate) => false;
+  Future<bool> connect(String name, int baudRate) async => false;
 
   void sendBytes(Uint8List bytes) {}
 
-  void disconnect() {}
+  Future<void> disconnect() async {}
 
-  void dispose() {
-    _data.close();
+  Future<void> dispose() async {
+    if (!_data.isClosed) await _data.close();
   }
 }

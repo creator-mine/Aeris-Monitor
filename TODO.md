@@ -61,10 +61,16 @@
 
 - [ ] **Проверить Windows-сборку.**
   Установщик: `deploy/installer/output/aeris_setup_1.2.1.exe`
-  SHA256 `180549907dd95649b2880d26bf62cb2bdcfc540d670e6ea79252b858f05c6060`.
+  SHA256 `5b3432e7a5c178bf7484a9b36d9cb8f571f8c59e263c470918d4d1f59092d309`.
   Портативная папка: `mobile_app/build/windows/x64/runner/Release/` (`aeris.exe`).
   Сборка: `powershell -File deploy/app_windows.ps1`.
   - [ ] Установка и запуск, проверка COM-портов и уведомлений.
+  - [x] Подключение к плате на вкладке «Настройка»: порт открывается без
+        зависания (проверено на COM7, CPU 0.03 с / 8 с, окно отвечает).
+        Причина прежнего зависания: `SerialPortReader` + блокирующий `drain()`
+        в UI-изоляте. Serial I/O вынесен в worker-изолят.
+  - [ ] Статус/логи с платы: сейчас C6 в цикле перезагрузки
+        (`No bootable app partitions`) — нужна USB-прошивка 16 МБ.
   - [ ] Проверить MQTT, OTA и экспорт CSV.
   - Установщик не подписан — Windows SmartScreen покажет предупреждение.
 

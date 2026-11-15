@@ -42,9 +42,14 @@ class DeviceConfigProvider extends ChangeNotifier {
     });
   }
 
+  /// True while the COM port is being opened (the worker isolate may need a
+  /// second or two on a fresh USB connection).
+  bool _isConnecting = false;
+
   List<String> get ports => _ports;
   String? get selectedPort => _selectedPort;
   bool get isConnected => _serial.isConnected;
+  bool get isConnecting => _isConnecting;
   List<LogEntry> get logs => _logs;
   Map<String, dynamic>? get info => _info;
   Map<String, dynamic>? get status => _status;
@@ -81,25 +86,31 @@ class DeviceConfigProvider extends ChangeNotifier {
   }
 
   Future<bool> connect(String portName) async {
+    if (_isConnecting) return false;
+    _isConnecting = true;
     _selectedPort = portName;
-    if (_serial.connect(portName)) {
-      _error = null;
-      notifyListeners();
+    _error = null;
+    notifyListeners();
+    try {
+      if (!await _serial.connect(portName)) {
+        _selectedPort = null;
+        return false;
+      }
+      // Give the ESP32 a moment to finish booting before the first command.
       await Future<void>.delayed(const Duration(milliseconds: 800));
       _serial.requestInfo();
       _serial.requestStatus();
       startLogStream();
-      return true;
-    } else {
-      _selectedPort = null;
+      return _serial.isConnected;
+    } finally {
+      _isConnecting = false;
       notifyListeners();
-      return false;
     }
   }
 
-  void disconnect() {
+  Future<void> disconnect() async {
     stopLogStream();
-    _serial.disconnect();
+    await _serial.disconnect();
     _logs.clear();
     _info = null;
     _status = null;

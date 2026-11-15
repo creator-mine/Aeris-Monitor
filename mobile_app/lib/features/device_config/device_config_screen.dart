@@ -143,16 +143,25 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                   for (final port in provider.ports)
                     DropdownMenuItem(value: port, child: Text(port)),
                 ],
-                onChanged: (port) => setState(() => _selectedPort = port),
+                onChanged: provider.isConnecting
+                    ? null
+                    : (port) => setState(() => _selectedPort = port),
               ),
               const SizedBox(height: 16),
               if (!provider.isConnected)
                 FilledButton.icon(
-                  onPressed: _selectedPort == null
+                  onPressed: _selectedPort == null || provider.isConnecting
                       ? null
                       : () => _connect(context, provider, _selectedPort!),
-                  icon: const Icon(Icons.link, size: 18),
-                  label: const Text('Подключиться'),
+                  icon: provider.isConnecting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.link, size: 18),
+                  label: Text(
+                      provider.isConnecting ? 'Подключение...' : 'Подключиться'),
                 )
               else
                 Row(
@@ -627,7 +636,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
 
   Future<void> _disconnect(
       BuildContext context, DeviceConfigProvider provider) async {
-    provider.disconnect();
+    await provider.disconnect();
     if (!context.mounted) return;
     _showSnack(context, 'Отключено');
   }
