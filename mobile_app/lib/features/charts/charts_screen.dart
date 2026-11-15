@@ -545,11 +545,11 @@ class _ChartsScreenState extends State<ChartsScreen> {
   Future<void> _openCompareDialog(BuildContext context) async {
     final devicesProvider = context.read<DevicesProvider>();
     if (devicesProvider.devices.isEmpty) {
-      devicesProvider.loadDevices();
+      await devicesProvider.loadDevices();
     }
+    if (!context.mounted) return;
     final devices = devicesProvider.devices.toList();
 
-    if (!context.mounted) return;
     await showDialog<void>(
       context: context,
       builder: (context) => _CompareDevicesDialog(

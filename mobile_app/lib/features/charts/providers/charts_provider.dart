@@ -8,7 +8,7 @@ import '../../../core/config/app_config.dart';
 class ChartsProvider extends ChangeNotifier {
   DirectDeviceClient? _deviceClient;
 
-  Map<String, SensorDataSeries> _dataSeries = {};
+  final Map<String, SensorDataSeries> _dataSeries = {};
   String? _selectedDeviceId;
   String _selectedSensorType = '';
   DateTimeRange _timeRange = DateTimeRange(
@@ -18,6 +18,7 @@ class ChartsProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   List<MetricInfo> _deviceMetrics = [];
+  int _loadSeq = 0;
 
   // Multi-device comparison state (deviceId -> series / name).
   Map<String, SensorDataSeries> _compareSeries = {};
@@ -44,6 +45,9 @@ class ChartsProvider extends ChangeNotifier {
     _selectedDeviceId = deviceId;
     _deviceMetrics = metrics;
     _dataSeries.clear();
+    _loadSeq++; // invalidate any request still running for the old device
+    _isLoading = false;
+    _error = null;
 
     _deviceClient?.dispose();
     _deviceClient = null;
@@ -63,8 +67,13 @@ class ChartsProvider extends ChangeNotifier {
   }
 
   void setSelectedSensorType(String sensorType) {
+    if (sensorType == _selectedSensorType) return;
     _selectedSensorType = sensorType;
     notifyListeners();
+    // Each sensor has its own history endpoint; fetch it on first selection.
+    if (!_dataSeries.containsKey(sensorType)) {
+      loadData();
+    }
   }
 
   void setTimeRange(DateTimeRange timeRange) {
@@ -79,28 +88,37 @@ class ChartsProvider extends ChangeNotifier {
       return;
     }
 
+    final seq = ++_loadSeq;
+    final sensorType = _selectedSensorType;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       final series = await client.getHistory(
-        _selectedSensorType,
-        unit: getSensorUnit(_selectedSensorType),
+        sensorType,
+        unit: getSensorUnit(sensorType),
         since: _timeRange.start,
         limit: _calculateLimit(),
       );
-      _dataSeries[_selectedSensorType] = series;
+      // A newer request (device/sensor/range change) may have started while
+      // this one was in flight — discard the stale response.
+      if (_disposed || seq != _loadSeq) return;
+      _dataSeries[sensorType] = series;
     } catch (e) {
+      if (_disposed || seq != _loadSeq) return;
       _error = e.toString();
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (!_disposed && seq == _loadSeq) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
-  int _calculateLimit() {
-    final hours = _timeRange.end.difference(_timeRange.start).inHours;
+  int _calculateLimit([DateTimeRange? range]) {
+    final r = range ?? _timeRange;
+    final hours = r.end.difference(r.start).inHours;
     if (hours <= 1) return 60;
     if (hours <= 24) return 500;
     return 1000;
@@ -142,7 +160,7 @@ class ChartsProvider extends ChangeNotifier {
             sensorType,
             unit: _unitFor(sensorType, device),
             since: range.start,
-            limit: _calculateLimit(),
+            limit: _calculateLimit(range),
           );
           if (series.points.isNotEmpty) {
             results[device.id] = series;
@@ -154,11 +172,12 @@ class ChartsProvider extends ChangeNotifier {
       for (final client in clients) {
         client.dispose();
       }
-      if (_disposed) return;
-      _compareSeries = results;
-      _compareNames = names;
-      _isLoadingComparison = false;
-      notifyListeners();
+      if (!_disposed) {
+        _compareSeries = results;
+        _compareNames = names;
+        _isLoadingComparison = false;
+        notifyListeners();
+      }
     }
   }
 
