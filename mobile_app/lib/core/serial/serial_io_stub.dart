@@ -5,7 +5,7 @@ import 'dart:typed_data';
 /// (e.g. web). Keeps the app compilable and reports no ports.
 class SerialIo {
   final StreamController<Uint8List> _data =
-      StreamController<Uint8List>();
+      StreamController<Uint8List>.broadcast();
 
   Stream<Uint8List> get data => _data.stream;
   String? get lastError => null;

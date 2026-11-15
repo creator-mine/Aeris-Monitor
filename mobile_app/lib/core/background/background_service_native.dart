@@ -32,7 +32,9 @@ class AerisBackgroundTaskHandler extends TaskHandler {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      _apiUrl = prefs.getString('api_url') ?? _defaultApiUrl;
+      final stored = prefs.getString('api_url') ?? _defaultApiUrl;
+      _apiUrl = stored.trim().replaceAll(RegExp(r'/+$'), '');
+      if (_apiUrl.isEmpty) _apiUrl = _defaultApiUrl;
       _token = prefs.getString('signaling_token') ?? '';
     } catch (_) {}
 

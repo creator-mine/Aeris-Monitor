@@ -32,6 +32,29 @@ void main() {
       expect(sd.getValue('unit'), isNull);
     });
 
+    test('accepts timestamps in seconds and ISO strings', () {
+      final seconds = SensorData.fromJson({
+        'device_id': 'd',
+        'sensor': 's',
+        'timestamp': 1700000000,
+        'data': {'x': 1},
+      });
+      expect(seconds.timestamp.millisecondsSinceEpoch, 1700000000000);
+
+      final iso = SensorData.fromJson({
+        'device_id': 'd',
+        'sensor': 's',
+        'timestamp': '2026-01-02T03:04:05Z',
+        'data': {'x': 1},
+      });
+      expect(iso.timestamp.toUtc(), DateTime.utc(2026, 1, 2, 3, 4, 5));
+    });
+
+    test('missing timestamp does not throw', () {
+      final sd = SensorData.fromJson({'device_id': 'd', 'sensor': 's'});
+      expect(sd.timestamp.year, greaterThan(2000));
+    });
+
     test('missing data becomes empty map', () {
       final sd = SensorData.fromJson({'device_id': 'd', 'sensor': 's'});
       expect(sd.data, isEmpty);
@@ -209,9 +232,9 @@ void main() {
     });
 
     test('equality is value-based', () {
-      final a = LogEntry(ts: 1, tag: 'Boot', msg: 'ready');
-      final b = LogEntry(ts: 1, tag: 'Boot', msg: 'ready');
-      final c = LogEntry(ts: 2, tag: 'Boot', msg: 'ready');
+      const a = LogEntry(ts: 1, tag: 'Boot', msg: 'ready');
+      const b = LogEntry(ts: 1, tag: 'Boot', msg: 'ready');
+      const c = LogEntry(ts: 2, tag: 'Boot', msg: 'ready');
       expect(a, b);
       expect(a == c, isFalse);
     });

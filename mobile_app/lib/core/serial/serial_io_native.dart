@@ -9,7 +9,7 @@ class SerialIo {
   SerialPort? _port;
   StreamSubscription<Uint8List>? _readerSub;
   final StreamController<Uint8List> _data =
-      StreamController<Uint8List>();
+      StreamController<Uint8List>.broadcast();
   String? _lastError;
 
   /// Raw data received from the open port.

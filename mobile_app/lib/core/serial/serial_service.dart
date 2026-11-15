@@ -18,6 +18,7 @@ class SerialService {
   final StreamController<String> _errors =
       StreamController<String>.broadcast();
 
+  StreamSubscription<Uint8List>? _ioSub;
   String _lineBuffer = '';
 
   /// Stream of parsed responses (each a JSON object with a "type" field).
@@ -41,7 +42,8 @@ class SerialService {
 
     _lineBuffer = '';
 
-    _io.data.listen(
+    _ioSub?.cancel();
+    _ioSub = _io.data.listen(
       _onData,
       onError: (Object e) => _errors.add('$e'),
     );
@@ -49,6 +51,8 @@ class SerialService {
   }
 
   void disconnect() {
+    _ioSub?.cancel();
+    _ioSub = null;
     _io.disconnect();
     _lineBuffer = '';
   }
@@ -101,6 +105,8 @@ class SerialService {
   }
 
   void dispose() {
+    _ioSub?.cancel();
+    _ioSub = null;
     _io.dispose();
     _responses.close();
     _errors.close();

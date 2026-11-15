@@ -68,11 +68,16 @@ class DeviceWsClient {
 
   void _handleMessage(dynamic raw) {
     Map<String, dynamic> message;
-    if (raw is String) {
-      message = jsonDecode(raw) as Map<String, dynamic>;
-    } else if (raw is List<int>) {
-      message = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
-    } else {
+    try {
+      if (raw is String) {
+        message = jsonDecode(raw) as Map<String, dynamic>;
+      } else if (raw is List<int>) {
+        message = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
+      } else {
+        return;
+      }
+    } catch (_) {
+      // Ignore malformed frames instead of breaking the socket subscription.
       return;
     }
 

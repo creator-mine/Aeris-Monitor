@@ -12,6 +12,8 @@ class MqttService {
       StreamController<SensorData>.broadcast();
   final StreamController<String> _statusController =
       StreamController<String>.broadcast();
+  final StreamController<bool> _connectionController =
+      StreamController<bool>.broadcast();
 
   bool _isConnected = false;
   String? _currentDeviceId;
@@ -20,7 +22,18 @@ class MqttService {
 
   Stream<SensorData> get sensorDataStream => _sensorDataController.stream;
   Stream<String> get statusStream => _statusController.stream;
+
+  /// Connection state only (unlike [statusStream], which also carries device
+  /// status payloads). Emits `true` on connect and `false` on disconnect.
+  Stream<bool> get connectionStream => _connectionController.stream;
   bool get isConnected => _isConnected;
+
+  void _setConnected(bool value) {
+    _isConnected = value;
+    if (!_connectionController.isClosed) {
+      _connectionController.add(value);
+    }
+  }
 
   Future<bool> connect({
     String? broker,
@@ -53,7 +66,7 @@ class MqttService {
   }) async {
     _updatesSub?.cancel();
     _client?.disconnect();
-    _isConnected = false;
+    _setConnected(false);
     return connect(
       broker: broker,
       port: port,
@@ -87,7 +100,7 @@ class MqttService {
       _client!.onAutoReconnected = _onAutoReconnected;
 
       final connMessage = MqttConnectMessage()
-          .withClientIdentifier(clientId ?? 'flutter_app')
+          .withClientIdentifier(id)
           .startClean()
           .withWillQos(MqttQos.atMostOnce);
       final user = username ?? AppConfig.mqttUsername;
@@ -99,16 +112,16 @@ class MqttService {
       await _client!.connect();
 
       if (_client!.connectionStatus?.state == MqttConnectionState.connected) {
-        _isConnected = true;
+        _setConnected(true);
         _statusController.add('connected');
         return true;
       } else {
-        _isConnected = false;
+        _setConnected(false);
         _statusController.add('disconnected');
         return false;
       }
     } catch (e) {
-      _isConnected = false;
+      _setConnected(false);
       _statusController.add('error: $e');
       _client?.disconnect();
       return false;
@@ -119,7 +132,7 @@ class MqttService {
     _updatesSub?.cancel();
     _updatesSub = null;
     _client?.disconnect();
-    _isConnected = false;
+    _setConnected(false);
     _statusController.add('disconnected');
   }
 
@@ -140,20 +153,7 @@ class MqttService {
     _client!.subscribe('$prefix/$deviceId/sensors/#', MqttQos.atMostOnce);
     _client!.subscribe('$prefix/$deviceId/status', MqttQos.atMostOnce);
 
-    _updatesSub?.cancel();
-    final updates = _client!.updates;
-    if (updates == null) return;
-
-    _updatesSub = updates.listen((List<MqttReceivedMessage<MqttMessage?>> messages) {
-      for (final message in messages) {
-        final topic = message.topic;
-        final payload = message.payload as MqttPublishMessage;
-        final messageBytes = payload.payload.message;
-        final payloadString = utf8.decode(messageBytes);
-
-        _handleMessage(topic, payloadString);
-      }
-    });
+    _ensureUpdatesListener();
   }
 
   void unsubscribeFromDevice(String deviceId) {
@@ -175,6 +175,27 @@ class MqttService {
     const prefix = AppConfig.mqttTopicPrefix;
     _client!.subscribe('$prefix/+/sensors/#', MqttQos.atMostOnce);
     _client!.subscribe('$prefix/+/status', MqttQos.atMostOnce);
+    _ensureUpdatesListener();
+  }
+
+  /// Single listener for `client.updates`, shared by per-device and wildcard
+  /// subscriptions. Without this, smart-home-only use (no selected device)
+  /// would never receive any messages.
+  void _ensureUpdatesListener() {
+    final updates = _client?.updates;
+    if (updates == null) return;
+
+    _updatesSub?.cancel();
+    _updatesSub = updates.listen(
+      (List<MqttReceivedMessage<MqttMessage?>> messages) {
+        for (final message in messages) {
+          final payload = message.payload;
+          if (payload is! MqttPublishMessage) continue;
+          final payloadString = utf8.decode(payload.payload.message);
+          _handleMessage(message.topic, payloadString);
+        }
+      },
+    );
   }
 
   void unsubscribeAllDevices() {
@@ -246,7 +267,7 @@ class MqttService {
   }
 
   void _onConnected() {
-    _isConnected = true;
+    _setConnected(true);
     _statusController.add('connected');
 
     if (_resubscribeAll()) return;
@@ -261,7 +282,7 @@ class MqttService {
   }
 
   void _onDisconnected() {
-    _isConnected = false;
+    _setConnected(false);
     _statusController.add('disconnected');
   }
 
@@ -270,7 +291,7 @@ class MqttService {
   }
 
   void _onAutoReconnected() {
-    _isConnected = true;
+    _setConnected(true);
     _statusController.add('connected');
 
     if (_resubscribeAll()) return;
@@ -283,6 +304,7 @@ class MqttService {
     _updatesSub?.cancel();
     _sensorDataController.close();
     _statusController.close();
+    _connectionController.close();
     _client?.disconnect();
   }
 }

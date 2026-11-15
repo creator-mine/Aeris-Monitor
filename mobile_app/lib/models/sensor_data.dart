@@ -31,9 +31,7 @@ class SensorData extends Equatable {
     return SensorData(
       deviceId: json['device_id'] as String? ?? '',
       sensorType: json['sensor'] as String? ?? '',
-      timestamp: DateTime.fromMillisecondsSinceEpoch(
-        json['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch,
-      ),
+      timestamp: _parseTimestamp(json['timestamp']),
       data: dataMap,
     );
   }
@@ -45,6 +43,21 @@ class SensorData extends Equatable {
       'timestamp': timestamp.millisecondsSinceEpoch,
       'data': data,
     };
+  }
+
+  static DateTime _parseTimestamp(dynamic value) {
+    if (value is num) {
+      // Accept seconds or milliseconds since epoch.
+      final raw = value.toInt();
+      final ms = raw < 100000000000 ? raw * 1000 : raw;
+      return DateTime.fromMillisecondsSinceEpoch(ms);
+    }
+    if (value is String) {
+      final asInt = int.tryParse(value);
+      if (asInt != null) return _parseTimestamp(asInt);
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    return DateTime.now();
   }
 
   double? getValue(String key) {

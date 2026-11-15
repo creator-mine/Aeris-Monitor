@@ -13,7 +13,7 @@ import '../../models/device.dart';
 import '../settings/providers/settings_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -212,15 +212,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             OutlinedButton.icon(
               onPressed: () async {
-                provider.sendCommand('wifi_reconfigure');
+                final sent = provider.sendCommand('wifi_reconfigure');
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
+                  SnackBar(
                     content: Text(
-                      'Устройство перейдёт в режим настройки Wi-Fi. '
-                      'Подключитесь к его сети Aeris-Setup-XXXX и откройте http://192.168.4.1',
+                      sent
+                          ? 'Устройство перейдёт в режим настройки Wi-Fi. '
+                              'Подключитесь к его сети Aeris-Setup-XXXX и откройте http://192.168.4.1'
+                          : 'Нет связи с устройством: команда не отправлена',
                     ),
-                    duration: Duration(seconds: 6),
+                    duration: const Duration(seconds: 6),
                   ),
                 );
               },
@@ -230,11 +232,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(width: 12),
             OutlinedButton.icon(
               onPressed: () {
-                provider.sendCommand('restart');
+                final sent = provider.sendCommand('restart');
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Команда перезагрузки отправлена'),
-                    duration: Duration(seconds: 2),
+                  SnackBar(
+                    content: Text(
+                      sent
+                          ? 'Команда перезагрузки отправлена'
+                          : 'Нет связи с устройством: команда не отправлена',
+                    ),
+                    duration: const Duration(seconds: 2),
                   ),
                 );
               },

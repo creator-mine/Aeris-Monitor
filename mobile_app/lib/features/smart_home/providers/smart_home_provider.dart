@@ -37,6 +37,7 @@ class SmartHomeProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _disposed = false;
+  bool _started = false;
 
   SmartHomeProvider({
     required ApiClient apiClient,
@@ -55,6 +56,8 @@ class SmartHomeProvider extends ChangeNotifier {
 
   /// Activates telemetry subscriptions and loads the rule set.
   void start() {
+    if (_started || _disposed) return;
+    _started = true;
     _sensorSub = _mqtt?.sensorDataStream.listen(evaluateSensorData);
     _mqtt?.subscribeAllDevices();
     loadRules();
@@ -272,6 +275,7 @@ class SmartHomeProvider extends ChangeNotifier {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _started = false;
     _sensorSub?.cancel();
     _sensorSub = null;
     _pollTimer?.cancel();
