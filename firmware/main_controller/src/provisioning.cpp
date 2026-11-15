@@ -41,10 +41,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <title>Aeris Monitor - Wi-Fi Setup</title>
 <style>
   body{font-family:system-ui,Arial,sans-serif;background:#0f172a;color:#e2e8f0;
-       margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center}
+       margin:0;padding:16px;display:flex;min-height:100vh;align-items:center;
+       justify-content:center}
   .card{background:#1e293b;padding:28px;border-radius:14px;width:100%;max-width:380px;
-        box-shadow:0 10px 30px rgba(0,0,0,.4)}
-  h1{font-size:20px;margin:0 0 6px;color:#38bdf8}
+        box-sizing:border-box;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+  h1{font-size:20px;margin:0;color:#38bdf8}
   p{color:#94a3b8;font-size:14px;margin:0 0 18px}
   label{display:block;font-size:13px;color:#cbd5e1;margin:12px 0 4px}
   input{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;
@@ -52,37 +54,89 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
   button{width:100%;margin-top:20px;padding:12px;border:0;border-radius:8px;
          background:#0ea5e9;color:#fff;font-size:16px;font-weight:600;cursor:pointer}
   button:hover{background:#0284c7}
+  .lang{display:flex;gap:6px;flex:0 0 auto}
+  .lang button{width:auto;margin:0;padding:5px 10px;font-size:12px;font-weight:600;
+               border-radius:999px;background:#0f172a;color:#94a3b8;
+               border:1px solid #334155}
+  .lang button.active{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
   .status{margin-top:16px;font-size:14px;text-align:center;display:none}
   .ok{color:#4ade80}
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>Aeris Monitor Setup</h1>
-  <p>Enter your router (2.4 GHz) credentials. Optionally set the MQTT and API
+  <div class="top">
+    <h1 data-en="Aeris Monitor Setup" data-ru="Настройка Aeris Monitor">Aeris Monitor Setup</h1>
+    <div class="lang">
+      <button type="button" id="lang-ru" onclick="applyLang('ru')">RU</button>
+      <button type="button" id="lang-en" onclick="applyLang('en')">EN</button>
+    </div>
+  </div>
+  <p data-en="Enter your router (2.4 GHz) credentials. Optionally set the MQTT and API credentials; they are stored on the device (NVS), not compiled into the firmware."
+     data-ru="Укажите данные вашей Wi-Fi сети (2,4 ГГц). При необходимости задайте логин и пароль MQTT, а также API-токен — они хранятся на устройстве (NVS), а не в прошивке.">Enter your router (2.4 GHz) credentials. Optionally set the MQTT and API
      credentials; they are stored on the device (NVS), not compiled into the firmware.</p>
   <form id="f">
-    <label for="ssid">Wi-Fi SSID</label>
+    <label for="ssid" data-en="Wi-Fi SSID" data-ru="Имя Wi-Fi сети (SSID)">Wi-Fi SSID</label>
     <input id="ssid" name="ssid" autocomplete="off" required>
-    <label for="password">Password</label>
+    <label for="password" data-en="Password" data-ru="Пароль">Password</label>
     <input id="password" name="password" type="password" autocomplete="off">
-    <label for="mqtt_user">MQTT user (optional)</label>
+    <label for="mqtt_user" data-en="MQTT user (optional)" data-ru="Пользователь MQTT (необязательно)">MQTT user (optional)</label>
     <input id="mqtt_user" name="mqtt_user" autocomplete="off" placeholder="main">
-    <label for="mqtt_password">MQTT password (blank = keep)</label>
+    <label for="mqtt_password" data-en="MQTT password (blank = keep)" data-ru="Пароль MQTT (пусто — не менять)">MQTT password (blank = keep)</label>
     <input id="mqtt_password" name="mqtt_password" type="password" autocomplete="off">
-    <label for="signaling_token">API token (blank = keep)</label>
+    <label for="signaling_token" data-en="API token (blank = keep)" data-ru="API-токен (пусто — не менять)">API token (blank = keep)</label>
     <input id="signaling_token" name="signaling_token" type="password" autocomplete="off">
-    <button type="submit">Save &amp; Reconnect</button>
+    <button type="submit" id="save" data-en="Save &amp; Reconnect" data-ru="Сохранить и подключиться">Save &amp; Reconnect</button>
   </form>
   <div id="status" class="status"></div>
 </div>
 <script>
+const T = {
+  en: { title:'Aeris Monitor - Wi-Fi Setup', saving:'Saving...',
+        saved:'Saved. Rebooting...', error:'Error: ' },
+  ru: { title:'Aeris Monitor - Настройка Wi-Fi', saving:'Сохранение...',
+        saved:'Сохранено. Перезагрузка...', error:'Ошибка: ' }
+};
+let lang = storedLang() ||
+    ((navigator.language || 'en').toLowerCase().startsWith('ru') ? 'ru' : 'en');
+let statusState = null;
+
+function storedLang() {
+  try { return localStorage.getItem('aeris_lang'); } catch (e) { return null; }
+}
+
+function storeLang(l) {
+  try { localStorage.setItem('aeris_lang', l); } catch (e) {}
+}
+
+function renderStatus() {
+  const st = document.getElementById('status');
+  if (!statusState) { st.style.display = 'none'; return; }
+  st.style.display = 'block';
+  st.className = statusState.key === 'error' ? 'status' : 'status ok';
+  st.textContent = statusState.key === 'error'
+      ? T[lang].error + statusState.msg
+      : T[lang][statusState.key];
+}
+
+function applyLang(l) {
+  lang = l;
+  storeLang(l);
+  document.documentElement.lang = l;
+  document.title = T[l].title;
+  document.querySelectorAll('[data-en]').forEach((el) => {
+    const text = el.getAttribute('data-' + l);
+    if (text) el.textContent = text;
+  });
+  document.getElementById('lang-ru').classList.toggle('active', l === 'ru');
+  document.getElementById('lang-en').classList.toggle('active', l === 'en');
+  renderStatus();
+}
+
 document.getElementById('f').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const st = document.getElementById('status');
-  st.style.display = 'block';
-  st.className = 'status ok';
-  st.textContent = 'Saving...';
+  statusState = { key:'saving' };
+  renderStatus();
   const body = JSON.stringify({
     ssid: e.target.ssid.value.trim(),
     password: e.target.password.value,
@@ -97,13 +151,20 @@ document.getElementById('f').addEventListener('submit', async (e) => {
       body
     });
     const j = await r.json();
-    if (j.ok) { st.textContent = 'Saved. Rebooting...'; setTimeout(()=>location.reload(), 1500); }
-    else throw new Error(j.error||'save failed');
+    if (j.ok) {
+      statusState = { key:'saved' };
+      renderStatus();
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      throw new Error(j.error || 'save failed');
+    }
   } catch (err) {
-    st.className = 'status';
-    st.textContent = 'Error: ' + err.message;
+    statusState = { key:'error', msg: err.message };
+    renderStatus();
   }
 });
+
+applyLang(lang);
 </script>
 </body>
 </html>
