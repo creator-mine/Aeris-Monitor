@@ -76,6 +76,7 @@
 # Прошивки
 cd C:\IoTs\firmware\main_controller
 C:\Users\Spe4naz\.platformio\penv\Scripts\pio.exe run -e esp32-c3
+C:\Users\Spe4naz\.platformio\penv\Scripts\pio.exe run -e esp32-c6
 C:\Users\Spe4naz\.platformio\penv\Scripts\pio.exe run -e esp32-s3
 cd ..\sensor_module
 C:\Users\Spe4naz\.platformio\penv\Scripts\pio.exe run -e esp32-c6

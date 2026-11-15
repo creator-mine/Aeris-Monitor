@@ -90,6 +90,7 @@ curl -s http://127.0.0.1/api/v1/health
 
 - `runtime/site/fw/main.bin` + `runtime/site/fw/version.json` (esp32-c3)
 - `runtime/site/fw/main_esp32-s3.bin` + `runtime/site/fw/version-esp32-s3.json` (esp32-s3)
+- `runtime/site/fw/main_esp32-c6.bin` + `runtime/site/fw/version-esp32-c6.json` (esp32-c6 controller)
 
 Проще всего — существующий `deploy/fw.ps1`: он генерирует манифесты (sha256/version)
 прямо в `deploy/site/fw`; скопируйте их в `runtime/site/fw/` на сервере (или публикуйте

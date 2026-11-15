@@ -623,12 +623,13 @@
         <h3><span class="step-num">1</span><span data-i18n="b1t">Прошивка контроллеров</span></h3>
         <p><span data-i18n="b1p1a">Код лежит в репозитории проекта, папка </span><span class="mono">firmware/</span><span data-i18n="b1p1b">. Для каждого контроллера своя прошивка:</span></p>
         <ul>
-          <li><span class="mono">main_controller</span> <span data-i18n="b1l1a">— главный контроллер на </span><span class="chip">ESP32-C3</span><span data-i18n="b1l1b"> (Wi-Fi, MQTT, WebSocket, SD-карта, I²C-датчики)</span></li>
+          <li><span class="mono">main_controller</span> <span data-i18n="b1l1a">— главный контроллер на </span><span class="chip">ESP32-C3 / C6 / S3</span><span data-i18n="b1l1b"> (Wi-Fi, MQTT, WebSocket, SD-карта, I²C-датчики)</span></li>
           <li><span class="mono">sensor_module</span> <span data-i18n="b1l2a">— сенсорный модуль на </span><span class="chip">ESP32-C6</span><span data-i18n="b1l2b"> (читает датчики и шлёт их по UART на контроллер)</span></li>
         </ul>
         <p data-i18n="b1p2">Среда сборки — PlatformIO. Из командной строки:</p>
         <code class="code">cd firmware/main_controller
-pio run -e esp32-c3                       # сборка
+pio run -e esp32-c3                       # сборка (C3)
+pio run -e esp32-c6                       # сборка (C6-контроллер)
 pio run -t upload --upload-port COM5      # прошивка на плату</code>
         <code class="code">cd firmware/sensor_module
 pio run -e esp32-c6                       # сборка
