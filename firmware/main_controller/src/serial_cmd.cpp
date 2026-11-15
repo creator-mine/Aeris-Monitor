@@ -3,6 +3,7 @@
 #include "ring_logger.h"
 #include "wifi_config.h"
 #include "mqtt_config.h"
+#include "device_secrets.h"
 #include "ota_updater.h"
 #include "sensor_registry.h"
 #include "time_util.h"
@@ -100,7 +101,11 @@ static void cmdInfo() {
     json += "\"sketch_size\":" + String(ESP.getSketchSize()) + ",";
     json += "\"reset_reason\":\"" + String(resetReasonStr()) + "\",";
     json += "\"wifi_ssid\":\"" + String(WiFi.SSID()) + "\",";
-    json += "\"mqtt_enabled\":" + String(MqttConfig::enabled() ? "true" : "false");
+    json += "\"mqtt_enabled\":" + String(MqttConfig::enabled() ? "true" : "false") + ",";
+    // Whether credentials are present in NVS (values themselves are never sent).
+    json += "\"mqtt_user_set\":" + String(DeviceSecrets::mqttUser().isEmpty() ? "false" : "true") + ",";
+    json += "\"mqtt_pass_set\":" + String(DeviceSecrets::mqttPassword().isEmpty() ? "false" : "true") + ",";
+    json += "\"api_token_set\":" + String(DeviceSecrets::signalingToken().isEmpty() ? "false" : "true");
     json += "}";
     respond(json.c_str());
 }
@@ -146,6 +151,32 @@ static void cmdRestart() {
     delay(300);
     RingLogger::save();
     ESP.restart();
+}
+
+// CMD:secrets_set:{"user":"...","password":"...","token":"..."}
+// Blank fields keep the value currently stored in NVS. Applies immediately:
+// DeviceSecrets::save() updates the RAM cache, so the next MQTT retry uses
+// the new credentials without a reboot.
+static void cmdSecretsSet(const char* json) {
+    JsonDocument doc;
+    if (deserializeJson(doc, json)) {
+        respond("{\"type\":\"error\",\"error\":\"bad_json\"}");
+        return;
+    }
+    String user = doc["user"] | "";
+    String pass = doc["password"] | "";
+    String token = doc["token"] | "";
+    user.trim();
+    if (user.isEmpty() && pass.isEmpty() && token.isEmpty()) {
+        respond("{\"type\":\"error\",\"error\":\"empty_credentials\"}");
+        return;
+    }
+    if (!DeviceSecrets::save(user, pass, token)) {
+        respond("{\"type\":\"error\",\"error\":\"nvs_write_failed\"}");
+        return;
+    }
+    LOG_INFO("Secrets", "MQTT/API credentials updated over USB");
+    respond("{\"type\":\"ack\",\"command\":\"secrets_set\"}");
 }
 
 static void cmdOta(const char* arg) {
@@ -197,6 +228,7 @@ static void processCmd(const char* line) {
     else if (strncmp(p, "wifi_clear", 10) == 0) { cmdWifiClear(); }
     else if (strncmp(p, "mqtt_enable", 11) == 0) { cmdMqttEnable(true); }
     else if (strncmp(p, "mqtt_disable", 12) == 0) { cmdMqttEnable(false); }
+    else if (strncmp(p, "secrets_set:", 12) == 0) { cmdSecretsSet(p + 12); }
     else if (strncmp(p, "ota_rollback", 12) == 0) { cmdOtaRollback(); }
     else if (strncmp(p, "ota", 3) == 0) { cmdOta(p + 3); }
     else if (strncmp(p, "restart", 7) == 0) { cmdRestart(); }
