@@ -35,6 +35,9 @@
         в localStorage, по умолчанию — из `navigator.language`).
   - [x] MQTT/API-доступы теперь можно задать из приложения («Настройка» →
         «MQTT и API» → `CMD:secrets_set:{json}`), без режима точки доступа.
+  - [x] «Прошивка»: версия сборки берётся из `FIRMWARE_VERSION` в `config.h`
+        (было — инкремент по истории, из-за чего сборка получала v1.0.1),
+        preflight парсит `pio pkg list` как текст (в Core 6.x нет `--json-output`).
   - [ ] Wi-Fi после factory-прошивки стёрт (`-EraseAll`): ввести SSID/пароль
         заново (из приложения или через `Aeris-Setup`).
   - [ ] Проверить с телефона: видна ли точка `Aeris-Setup-XXXX`
@@ -94,7 +97,7 @@
 
 - [ ] **Проверить Windows-сборку.**
   Установщик: `deploy/installer/output/aeris_setup_1.2.1.exe`
-  SHA256 `fba16d4d5c1c6ef31f232393c33de84690e0fd731ef78643983be9d67a4b2d17`.
+  SHA256 `a8c342456cca659074788d2168ec223be7f3d211217648d3aa27fbe07205010f`.
   Портативная папка: `mobile_app/build/windows/x64/runner/Release/` (`aeris.exe`).
   Сборка: `powershell -File deploy/app_windows.ps1`.
   - [ ] Установка и запуск, проверка COM-портов и уведомлений.
