@@ -805,6 +805,10 @@ void sensorsRead() {
 
 void setup() {
     Serial.begin(115200);
+#if defined(ARDUINO_USB_CDC_ON_BOOT) && ARDUINO_USB_CDC_ON_BOOT
+    // Do not stall the firmware when no USB host is attached.
+    Serial.setTxTimeoutMs(50);
+#endif
     delay(1000);
 
     RingLogger::init();   // restore persisted logs (survive reboot history)

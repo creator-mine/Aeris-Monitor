@@ -3,6 +3,7 @@
 #include "device_secrets.h"
 #include "wifi_config.h"
 #include "ring_logger.h"
+#include "serial_cmd.h"
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
@@ -185,6 +186,7 @@ bool startAndWait() {
     Serial.println("  SSID  : " + apName());
     if (PROVISION_AP_PASSWORD[0]) Serial.println("  Pass  : " + String(PROVISION_AP_PASSWORD));
     Serial.println("  Web   : http://" + ip.toString() + "/");
+    Serial.println("  USB   : CMD:info / CMD:wifi_set:SSID:PASS");
     Serial.println("=========================================");
     LOG_INFO("WiFi", "Config mode: AP %s, http://%s", apName().c_str(), ip.toString().c_str());
 
@@ -207,6 +209,11 @@ bool startAndWait() {
 
     unsigned long start = millis();
     while (g_keepLoop && millis() - start < PROVISION_TIMEOUT_MS) {
+        // Keep the USB/serial setup usable while the SoftAP waits for a
+        // client: without this, loop() (and thus CMD:*) is blocked for the
+        // whole provisioning window and a blank device cannot be configured
+        // from the desktop app.
+        serialCmdUpdate();
         delay(20);
     }
 
