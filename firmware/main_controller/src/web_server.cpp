@@ -247,14 +247,18 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
         if (request->hasParam("since")) since = strtoull(request->getParam("since")->value().c_str(), nullptr, 10);
         if (request->hasParam("limit")) limit = (uint16_t)request->getParam("limit")->value().toInt();
     }
+    if (limit == 0) limit = 1000;
 
-    // Parse CSV: timestamp,key,value,unit — keep matching points in a ring buffer.
+    // Parse CSV: timestamp,key,value,unit. Points are collected newest-first
+    // and then reversed, so charts always get the freshest data even when the
+    // card holds days of 5-second samples.
     struct Point {
         uint64_t ts;
         float value;
     };
-    static Point points[1024];  // 20KB — keep off the task stack (BSS)
-    uint16_t count = 0, start = 0;
+    static Point points[1024];  // ~16KB — keep off the task stack (BSS)
+    uint16_t count = 0;
+    bool stopAll = false;
 
     // Collect log files: legacy flat file (pre-NTP-sync) + daily-rotated files.
     struct LogFile {
@@ -291,10 +295,11 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
         }
         root.close();
 
-        // sort ascending by mtime (oldest first)
+        // Sort descending by mtime: newest file first, so a bounded scan
+        // reaches recent samples instead of spending the budget on old ones.
         for (int i = 0; i < fileCount - 1; i++) {
             for (int j = i + 1; j < fileCount; j++) {
-                if (files[j].mtime < files[i].mtime) {
+                if (files[j].mtime > files[i].mtime) {
                     LogFile t = files[i];
                     files[i] = files[j];
                     files[j] = t;
@@ -303,59 +308,108 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
         }
     }
 
-    // Bound total scan time on slow SD cards; 4096 parsed lines is plenty for charts.
-    const uint32_t MAX_SCAN = 4096;
-    uint32_t scanned = 0;
+    auto parseLine = [&](const String& raw) {
+        if (stopAll || count >= 1024) return;
+        int c1 = raw.indexOf(',');
+        if (c1 < 0) return;
+        int c2 = raw.indexOf(',', c1 + 1);
+        if (c2 < 0) return;
+        int c3 = raw.indexOf(',', c2 + 1);
+        if (c3 < 0) c3 = raw.length();
 
-    for (int fi = 0; fi < fileCount && scanned < MAX_SCAN; fi++) {
+        if (!filterType.isEmpty() && raw.substring(c1 + 1, c2) != filterType) return;
+
+        uint64_t ts = strtoull(raw.substring(0, c1).c_str(), nullptr, 10);
+        if (ts == 0) return;  // pre-NTP sample, not placeable on a timeline
+        if (since != 0 && ts < since) {
+            // Lines are chronological: everything older can be skipped too.
+            stopAll = true;
+            return;
+        }
+
+        points[count].ts = ts;
+        points[count].value = raw.substring(c2 + 1, c3).toFloat();
+        count++;
+    };
+
+    // Read each file backwards in chunks, so the scan budget is spent on the
+    // newest samples. ~384KB is enough for >1000 points even with several
+    // metrics per timestamp.
+    const size_t CHUNK = 2048;
+    const int MAX_CHUNKS = 192;
+    static uint8_t buf[CHUNK];
+    int chunksRead = 0;
+
+    for (int fi = 0; fi < fileCount && !stopAll && count < 1024; fi++) {
         String path = (files[fi].name[0] == '/') ? String(files[fi].name) : String("/") + files[fi].name;
         File f = SD.open(path, FILE_READ);
         if (!f) continue;
 
-        while (f.available() && scanned < MAX_SCAN) {
-            String line = f.readStringUntil('\n');
-            line.trim();
-            if (line.isEmpty()) continue;
-            scanned++;
+        uint64_t pos = f.size();
+        String carry;  // head of a line that continues into the newer chunk
 
-            int c1 = line.indexOf(',');
-            if (c1 < 0) continue;
-            int c2 = line.indexOf(',', c1 + 1);
-            if (c2 < 0) continue;
-            int c3 = line.indexOf(',', c2 + 1);
-            if (c3 < 0) c3 = line.length();
+        while (pos > 0 && !stopAll && count < 1024 && chunksRead < MAX_CHUNKS) {
+            uint64_t startPos = (pos > CHUNK) ? pos - CHUNK : 0;
+            size_t want = (size_t)(pos - startPos);
 
-            String key = line.substring(c1 + 1, c2);
-            if (!filterType.isEmpty() && key != filterType) continue;
+            // Does this chunk begin exactly at a line boundary? If not, its
+            // first partial line continues into the older chunk.
+            bool headComplete = (startPos == 0);
+            if (!headComplete) {
+                uint8_t prev = 0;
+                if (f.seek((uint32_t)(startPos - 1)) && f.read(&prev, 1) == 1 &&
+                    prev == '\n') {
+                    headComplete = true;
+                }
+            }
 
-            uint64_t ts = strtoull(line.substring(0, c1).c_str(), nullptr, 10);
-            if (ts < since) continue;
+            if (!f.seek((uint32_t)startPos)) break;
+            int n = f.read(buf, want);
+            if (n <= 0) break;
+            chunksRead++;
+            pos = startPos;
 
-            float value = line.substring(c2 + 1, c3).toFloat();
+            String chunk((const char*)buf, (unsigned)n);
+            if (!carry.isEmpty()) chunk += carry;  // complete the split line
+            carry = "";
 
-            if (count < 1024) {
-                points[count].ts = ts;
-                points[count].value = value;
-                count++;
+            int end = chunk.length();
+            while (end > 0 && !stopAll && count < 1024) {
+                int nl = chunk.lastIndexOf('\n', end - 1);
+                if (nl < 0) break;
+                String line = chunk.substring(nl + 1, end);
+                end = nl;
+                line.trim();
+                if (!line.isEmpty()) parseLine(line);
+            }
+
+            String head = chunk.substring(0, end);
+            if (headComplete) {
+                head.trim();
+                if (!head.isEmpty()) parseLine(head);
             } else {
-                points[start % 1024].ts = ts;
-                points[start % 1024].value = value;
-                start++;
+                carry = head;
             }
         }
         f.close();
     }
 
-    uint16_t total = (count < 1024) ? count : 1024;
-    uint16_t offset = (count < 1024) ? 0 : start % 1024;
-    uint16_t n = total < limit ? total : limit;
+    // Collected newest-first; expose chronological order to the client.
+    for (uint16_t i = 0; i < count / 2; i++) {
+        Point t = points[i];
+        points[i] = points[count - 1 - i];
+        points[count - 1 - i] = t;
+    }
+
+    uint16_t n = count < limit ? count : limit;
+    uint16_t offset = count > n ? (uint16_t)(count - n) : 0;
 
     String json = "{\"points\":[";
     for (uint16_t i = 0; i < n; i++) {
-        uint16_t idx = (offset + total - n + i) % 1024;
+        const Point& p = points[offset + i];
         if (i > 0) json += ",";
-        json += "{\"timestamp\":" + String((uint64_t)points[idx].ts) + ",";
-        json += "\"value\":" + String(points[idx].value, 2) + "}";
+        json += "{\"timestamp\":" + String((uint64_t)p.ts) + ",";
+        json += "\"value\":" + String(p.value, 2) + "}";
     }
     json += "]}";
     return json;
