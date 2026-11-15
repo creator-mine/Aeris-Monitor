@@ -99,7 +99,13 @@ class FirmwareProvider extends ChangeNotifier {
   String? get detectedChip => _detectedChip;
   String? get detectChipError => _detectChipError;
   String get expectedChipName => expectedChipNameFor(_selectedDeviceType);
-  String get autoNextVersion => _storage.getNextVersion(_selectedDeviceType);
+  String get autoNextVersion {
+    // Prefer the project's own FIRMWARE_VERSION (include/config.h) so builds
+    // are labelled with the real version instead of a history-based bump.
+    final config = _localVersion;
+    if (config != null && config.isNotEmpty) return config;
+    return _storage.getNextVersion(_selectedDeviceType);
+  }
 
   FirmwareManifest? get serverManifest => _serverManifest;
   bool get isCheckingServer => _isCheckingServer;
@@ -389,6 +395,7 @@ class FirmwareProvider extends ChangeNotifier {
     final deviceType = _selectedDeviceType;
     final sourcePath = _sourcePath!;
     final pendingVersion = _pendingVersion;
+    final autoVersion = autoNextVersion;
     final buildHash = _currentHash;
 
     _isBuilding = true;
@@ -431,7 +438,7 @@ class FirmwareProvider extends ChangeNotifier {
 
           final version = FirmwareVersion(
             id: _uuid.v4(),
-            version: pendingVersion ?? _storage.getNextVersion(deviceType),
+            version: pendingVersion ?? autoVersion,
             deviceType: deviceType,
             sourcePath: sourcePath,
             buildDate: DateTime.now(),
