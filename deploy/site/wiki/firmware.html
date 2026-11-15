@@ -79,8 +79,7 @@
 ├── shared/
 │   └── sensor_modules/     общие драйверы датчиков и реестр
 ├── test_simple/            минимальный проверочный проект
-├── partitions_c3_ota.csv   разметка C3: два OTA-слота
-└── partitions_c6_ota.csv   разметка C6: два OTA-слота</code></pre>
+└── partitions_c3_ota.csv   разметка C3: два OTA-слота</code></pre>
 
       <h2 id="sborka" data-ru="Сборка прошивок" data-en="Building the firmware">Сборка прошивок</h2>
 
@@ -98,7 +97,7 @@ pip install -U platformio</code></pre>
           <pre style="margin-top:4px"><code>cd firmware/main_controller
 pio run -e esp32-c3</code></pre>
           <p data-ru="Для платы ESP32-S3 N16R8 вместо этого собирается среда esp32-s3: она объявляет 16 МБ флеша и восьмиканальную PSRAM." data-en="For an ESP32-S3 N16R8 board build the esp32-s3 environment instead: it declares 16 MB of flash and octal PSRAM.">Для платы ESP32-S3 — среда esp32-s3.</p>
-          <p data-ru="Для ESP32-C6 в этом же проекте есть среда esp32-c6 — это полноценный контроллер с Wi-Fi, MQTT, веб-сервером и OTA, а не сенсорный модуль. У неё своя разметка flash с двумя OTA-слотами." data-en="For an ESP32-C6 the same project has an esp32-c6 environment — a full controller with Wi-Fi, MQTT, web server and OTA, not the sensor module. It uses its own dual-OTA flash layout.">Для ESP32-C6 — среда esp32-c6 (контроллер).</p>
+          <p data-ru="Для ESP32-C6 в этом же проекте есть среда esp32-c6 — это полноценный контроллер с Wi-Fi, MQTT, веб-сервером и OTA, а не сенсорный модуль. Она рассчитана на 16 МБ флеша и штатную разметку с двумя OTA-слотами по 6,25 МБ." data-en="For an ESP32-C6 the same project has an esp32-c6 environment — a full controller with Wi-Fi, MQTT, web server and OTA, not the sensor module. It targets 16 MB of flash and the stock layout with two 6.25 MB OTA slots.">Для ESP32-C6 — среда esp32-c6 (контроллер, 16 МБ).</p>
         </div>
         <div class="step">
           <h3 data-ru="Соберите сенсорный модуль" data-en="Build the sensor module">Соберите сенсорный модуль</h3>
@@ -140,7 +139,7 @@ pio run -e esp32-c6 -t upload</code></pre>
             <tr>
               <td class="mono">esp32-c6 (контроллер)</td>
               <td class="mono">esp32-c6-devkitc-1</td>
-              <td data-ru="около 71 %" data-en="about 71 %">около 71 %</td>
+              <td data-ru="около 21 %" data-en="about 21 %">около 21 %</td>
               <td data-ru="около 25 %" data-en="about 25 %">около 25 %</td>
             </tr>
             <tr>
@@ -162,7 +161,7 @@ pio run -e esp32-c6 -t upload</code></pre>
       <div class="callout warn">
         <div class="co-ic">📏</div>
         <div class="co-body">
-          <p data-ru="У C3 и C6-контроллера флеш заполнен примерно на 71 %. Под оба сделана отдельная разметка памяти с двумя OTA-слотами по 1,875 МБ, потому что штатная уже не вмещает бинарник. Дальнейшее добавление крупных зависимостей потребует либо перехода на S3, либо уменьшения приложения." data-en="The C3 and the C6 controller use about 71 % of their flash. Both have a dedicated memory layout with two 1.875 MB OTA slots, because the stock one no longer fits the binary. Adding large dependencies from here means moving to S3 or trimming the app.">У C3 и C6-контроллера флеш заполнен примерно на 71 %.</p>
+          <p data-ru="У C3 флеш заполнен примерно на 71 %. Под него сделана отдельная разметка памяти с двумя OTA-слотами по 1,875 МБ, потому что штатная уже не вмещает бинарник. У C6-контроллера 16 МБ и штатная разметка с двумя слотами по 6,25 МБ, поэтому запаса там много." data-en="The C3 uses about 71 % of its flash. It has a dedicated layout with two 1.875 MB OTA slots, because the stock one no longer fits the binary. The C6 controller has 16 MB and the stock layout with two 6.25 MB slots, so there is plenty of headroom.">У C3 флеш заполнен примерно на 71 %.</p>
         </div>
       </div>
 
