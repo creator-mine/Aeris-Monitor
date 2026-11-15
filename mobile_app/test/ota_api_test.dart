@@ -54,6 +54,12 @@ void main() {
       expect(OtaApi.manifestPathFor('esp32s3'), '/fw/version-esp32-s3.json');
       expect(OtaApi.binaryPathFor('esp32-s3'), '/fw/main_esp32-s3.bin');
     });
+    test('esp32-c6 controller has its own files', () {
+      expect(OtaApi.manifestPathFor('esp32-c6'), '/fw/version-esp32-c6.json');
+      expect(OtaApi.manifestPathFor('esp32c6'), '/fw/version-esp32-c6.json');
+      expect(OtaApi.binaryPathFor('esp32-c6'), '/fw/main_esp32-c6.bin');
+      expect(OtaApi.binaryPathFor('esp32c6'), '/fw/main_esp32-c6.bin');
+    });
     test('unknown types fall back to legacy files', () {
       expect(OtaApi.manifestPathFor('custom'), '/fw/version.json');
       expect(OtaApi.binaryPathFor('custom'), '/fw/main.bin');

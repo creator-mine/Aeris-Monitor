@@ -18,7 +18,7 @@ class DevicesProvider extends ChangeNotifier {
   bool _disposed = false;
 
   /// Published manifests keyed by canonical device type ("esp32-c3",
-  /// "esp32-s3"), each fetched from its own /fw/version*.json.
+  /// "esp32-c6", "esp32-s3"), each fetched from its own /fw/version*.json.
   final Map<String, FirmwareManifest> _manifests = {};
   bool _isLoadingManifest = false;
   String? _manifestError;
@@ -89,7 +89,7 @@ class DevicesProvider extends ChangeNotifier {
       return;
     }
 
-    final types = <String>{'esp32-c3', 'esp32-s3'};
+    final types = <String>{'esp32-c3', 'esp32-c6', 'esp32-s3'};
     for (final device in _devices) {
       types.add(OtaApi.normalizeDeviceType(device.type));
     }
