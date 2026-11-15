@@ -2,7 +2,7 @@ param(
     [ValidateSet("esp32-c3", "esp32-c6", "esp32-s3")]
     [string]$Environment = "esp32-c3",
     [string]$Port = "",
-    [switch]$KeepNvs
+    [switch]$EraseAll
 )
 
 # One-time USB bootstrap flash for the Aeris Monitor main controller.
@@ -13,13 +13,13 @@ param(
 # app); every later update is delivered via OTA.
 #
 # Writes the factory image, so a changed flash layout (e.g. 8 MB -> 16 MB) is
-# applied as well. NVS is erased unless -KeepNvs is given, which is what a
-# fresh device needs: Wi-Fi credentials are then entered via Aeris-Setup-XXXX
-# or over USB from the app ("Настройка" -> CMD:wifi_set).
+# applied as well. NVS is preserved by default: Wi-Fi and MQTT credentials that
+# were already provisioned survive a firmware update. Pass -EraseAll for a
+# truly blank device (new board, forgotten credentials, layout change).
 #
 # Usage:
 #   powershell -File deploy/flash_device.ps1 -Environment esp32-c6 -Port COM7
-#   powershell -File deploy/flash_device.ps1 -Environment esp32-c3 -KeepNvs
+#   powershell -File deploy/flash_device.ps1 -Environment esp32-c3 -EraseAll
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -102,7 +102,7 @@ $versionText = (& $python $esptool version 2>&1 | Out-String)
 $esptoolMajor = 4
 if ($versionText -match '(?m)^\s*(\d+)\.\d+') { $esptoolMajor = [int]$Matches[1] }
 
-$eraseArgs = if ($KeepNvs) { @() } else { @("--erase-all") }
+$eraseArgs = if ($EraseAll) { @("--erase-all") } else { @() }
 if ($esptoolMajor -ge 5) {
     $flashArgs = @("write-flash", "--no-progress", "--flash-size", $flashSize) +
         $eraseArgs + @("0x0", $factory)
