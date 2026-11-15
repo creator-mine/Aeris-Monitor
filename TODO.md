@@ -59,6 +59,15 @@
 
 ## P2 — улучшения и гигиена
 
+- [ ] **Проверить Windows-сборку.**
+  Установщик: `deploy/installer/output/aeris_setup_1.2.1.exe`
+  SHA256 `180549907dd95649b2880d26bf62cb2bdcfc540d670e6ea79252b858f05c6060`.
+  Портативная папка: `mobile_app/build/windows/x64/runner/Release/` (`aeris.exe`).
+  Сборка: `powershell -File deploy/app_windows.ps1`.
+  - [ ] Установка и запуск, проверка COM-портов и уведомлений.
+  - [ ] Проверить MQTT, OTA и экспорт CSV.
+  - Установщик не подписан — Windows SmartScreen покажет предупреждение.
+
 - [ ] **Проверить APK на реальном телефоне.**
   APK: `deploy/installer/output/aeris-monitor-1.2.1.apk`
   SHA256 `d82730748d9aea7691f3d161e870e6d8f05185778bd867b9b21128f70d0d5deb`.
@@ -92,9 +101,10 @@ cd C:\IoTs\mobile_app
 C:\flutter\flutter\bin\flutter.bat analyze --no-fatal-infos
 C:\flutter\flutter\bin\flutter.bat test
 
-# Web + APK
+# Web + APK + Windows
 C:\flutter\flutter\bin\flutter.bat build web --release
 powershell -NoProfile -ExecutionPolicy Bypass -File C:\IoTs\deploy\app_android.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\IoTs\deploy\app_windows.ps1
 
 # Сайты (с VPS)
 curl -s -o /dev/null -w '%{http_code}\n' https://spe4naz.online/

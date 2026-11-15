@@ -45,6 +45,11 @@ function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
 endfunction()
 
+# VS 2026 / MSVC 14.5x turns the deprecated <experimental/coroutine> header
+# used by C++/WinRT into a hard error. flutter_local_notifications_windows
+# still includes it; Microsoft's documented escape hatch is this define.
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Flutter library and tool build rules.
 set(FLUTTER_MANAGED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/flutter")
 add_subdirectory(${FLUTTER_MANAGED_DIR})

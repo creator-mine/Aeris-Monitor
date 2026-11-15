@@ -2,7 +2,9 @@
 ; Build: ISCC.exe deploy\installer\windesktop.iss
 
 #define AppName       "Aeris Monitor"
-#define AppVersion    "1.1.0"
+#ifndef AppVersion
+  #define AppVersion  "1.2.1"
+#endif
 #define AppPublisher  "Aeris Monitor"
 #define AppExe        "aeris.exe"
 #define AppRoot       "..\..\mobile_app"
