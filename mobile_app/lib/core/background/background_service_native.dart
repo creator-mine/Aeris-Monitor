@@ -8,6 +8,8 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'background_prefs.dart';
+
 const String _defaultApiUrl = 'https://spe4naz.online';
 
 /// Entry point for the foreground-task isolate.
@@ -134,10 +136,9 @@ class AerisBackgroundTaskHandler extends TaskHandler {
 
   @override
   void onRepeatEvent(DateTime timestamp) {
-    FlutterForegroundTask.updateService(
-      notificationTitle: 'Aeris Monitor',
-      notificationText: 'Слежу за устройствами…',
-    );
+    // Intentionally empty: this used to call updateService() every minute,
+    // which re-posts the ongoing notification and made it pop up again and
+    // again. The notification only needs to be shown once, at start.
   }
 
   @override
@@ -148,22 +149,40 @@ class AerisBackgroundTaskHandler extends TaskHandler {
 }
 
 /// Starts the Android foreground monitor. No-op on other platforms.
-Future<void> startBackgroundMonitor() async {
+///
+/// [force] restarts an already running service (needed after the API URL or
+/// the token changes, because the isolate reads them once at start). Without
+/// it an existing service is left untouched: restarting it would cancel and
+/// re-post the notification on every app launch.
+Future<void> startBackgroundMonitor({bool force = false}) async {
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  if (!(prefs.getBool(backgroundMonitorPrefKey) ?? true)) return;
 
   FlutterForegroundTask.init(
     androidNotificationOptions: AndroidNotificationOptions(
-      channelId: 'aeris_service',
+      // A new channel id is required: Android keeps the settings of an
+      // existing channel forever, so an old high-importance channel would
+      // keep peeking even after the code changes.
+      channelId: 'aeris_service_v2',
       channelName: 'Aeris Monitor',
       channelDescription: 'Фоновый мониторинг устройств',
+      channelImportance: NotificationChannelImportance.LOW,
+      priority: NotificationPriority.LOW,
       onlyAlertOnce: true,
+      enableVibration: false,
+      playSound: false,
+      showBadge: false,
     ),
     iosNotificationOptions: const IOSNotificationOptions(
       showNotification: false,
       playSound: false,
     ),
     foregroundTaskOptions: ForegroundTaskOptions(
-      eventAction: ForegroundTaskEventAction.repeat(60000),
+      // No periodic event: the handler keeps its own SSE loop, and a repeat
+      // action would only re-post the notification.
+      eventAction: ForegroundTaskEventAction.nothing(),
       autoRunOnBoot: false,
       autoRunOnMyPackageReplaced: true,
       allowWakeLock: true,
@@ -181,14 +200,24 @@ Future<void> startBackgroundMonitor() async {
 
   try {
     if (await FlutterForegroundTask.isRunningService) {
-      await FlutterForegroundTask.restartService();
-    } else {
-      await FlutterForegroundTask.startService(
-        serviceId: 256,
-        notificationTitle: 'Aeris Monitor',
-        notificationText: 'Слежу за устройствами…',
-        callback: backgroundStartCallback,
-      );
+      if (force) await FlutterForegroundTask.restartService();
+      return;
+    }
+    await FlutterForegroundTask.startService(
+      serviceId: 256,
+      notificationTitle: 'Aeris Monitor',
+      notificationText: 'Слежу за устройствами…',
+      callback: backgroundStartCallback,
+    );
+  } catch (_) {}
+}
+
+/// Stops the foreground monitor and removes its notification.
+Future<void> stopBackgroundMonitor() async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+  try {
+    if (await FlutterForegroundTask.isRunningService) {
+      await FlutterForegroundTask.stopService();
     }
   } catch (_) {}
 }

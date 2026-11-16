@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/config/connection_mode.dart';
 import '../../../core/config/log_mode.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/background/background_prefs.dart';
 
 class SettingsProvider extends ChangeNotifier {
   late SharedPreferences _prefs;
@@ -34,6 +35,7 @@ class SettingsProvider extends ChangeNotifier {
   Uint8List? _backgroundImageBytes;
   double _backgroundOpacity = 0.3;
   ConnectionMode _connectionMode = ConnectionMode.auto;
+  bool _backgroundMonitor = true;
 
   String get apiUrl => _apiUrl;
   String get otaUrl => _otaUrl;
@@ -50,6 +52,9 @@ class SettingsProvider extends ChangeNotifier {
   Uint8List? get backgroundImageBytes => _backgroundImageBytes;
   double get backgroundOpacity => _backgroundOpacity;
   ConnectionMode get connectionMode => _connectionMode;
+
+  /// Android only: keeps the "Слежу за устройствами" foreground service alive.
+  bool get backgroundMonitor => _backgroundMonitor;
 
   /// OTA/firmware host actually used: explicit value if set, else the API URL
   /// (the self-hosted stack serves /fw from the same nginx). `OtaApi`
@@ -108,6 +113,8 @@ class SettingsProvider extends ChangeNotifier {
       }
     }
     _backgroundOpacity = _prefs.getDouble('background_opacity') ?? 0.3;
+    _backgroundMonitor =
+        _prefs.getBool(backgroundMonitorPrefKey) ?? true;
 
     final storedMode = _prefs.getString('connection_mode');
     _connectionMode = ConnectionMode.values.firstWhere(
@@ -185,6 +192,14 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setLanguage(String lang) async {
     _language = lang;
     await _prefs.setString('language', lang);
+    notifyListeners();
+  }
+
+  /// Enables/disables the Android foreground monitor (and its persistent
+  /// notification). The caller starts or stops the service afterwards.
+  Future<void> setBackgroundMonitor(bool enabled) async {
+    _backgroundMonitor = enabled;
+    await _prefs.setBool(backgroundMonitorPrefKey, enabled);
     notifyListeners();
   }
 

@@ -187,6 +187,36 @@ class SettingsScreen extends StatelessWidget {
                   _buildBackgroundSelector(context, provider),
                 ],
               ),
+              if (!kIsWeb &&
+                  defaultTargetPlatform == TargetPlatform.android) ...[
+                const SizedBox(height: 24),
+                _buildSection(
+                  context,
+                  'Фоновая работа',
+                  [
+                    _buildSwitchTile(
+                      context,
+                      'Слежу за устройствами',
+                      provider.backgroundMonitor,
+                      (value) {
+                        provider.setBackgroundMonitor(value);
+                        if (value) {
+                          unawaited(startBackgroundMonitor(force: true));
+                        } else {
+                          unawaited(stopBackgroundMonitor());
+                        }
+                      },
+                      icon: Icons.notifications_active_outlined,
+                    ),
+                    Text(
+                      'Постоянное уведомление нужно Android, чтобы события '
+                      'правил приходили при закрытом приложении. Выключите — '
+                      'уведомление исчезнет, фоновый мониторинг остановится.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 24),
               _buildSection(
                 context,
@@ -392,7 +422,7 @@ class SettingsScreen extends StatelessWidget {
 
     // The background SSE isolate reads api_url/signaling_token only on start,
     // so restart it to pick up a rotated token or a new host immediately.
-    unawaited(startBackgroundMonitor());
+    unawaited(startBackgroundMonitor(force: true));
 
     // Reconnect MQTT with the new broker/port/credentials.
     final mqttPort = kIsWeb ? AppConfig.mqttWssPort : provider.mqttPort;
