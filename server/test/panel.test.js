@@ -270,6 +270,16 @@ test('unknown panel api routes are 404 for authorized users', async () => {
   assert.equal(r.json.error, 'not_found');
 });
 
+test('health tells the caller whether it has a panel session', async () => {
+  const anon = await get('/api/v1/health');
+  assert.equal(anon.status, 200);
+  assert.equal(anon.json.panel_session, false);
+
+  const authed = await get('/api/v1/health', { cookie: sessionCookie });
+  assert.equal(authed.status, 200);
+  assert.equal(authed.json.panel_session, true);
+});
+
 test('login is rate limited after 5 attempts', async () => {
   // Fresh server instance => fresh rate-limit buckets.
   const fresh = createServer().server;

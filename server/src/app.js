@@ -857,6 +857,7 @@ function createServer(options = {}) {
         devices: { total, online, offline },
         alerts: alertStore.list().length,
         rules: ruleStore.list().length,
+        panel_session: panelRequest(req),
       });
     }
 

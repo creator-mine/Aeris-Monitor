@@ -70,6 +70,7 @@ test('health returns shapes', async () => {
   assert.equal(r.json.ok, true);
   assert.equal(typeof r.json.devices.total, 'number');
   assert.equal(typeof r.json.alerts, 'number');
+  assert.equal(typeof r.json.panel_session, 'boolean');
 });
 
 test('meta reports auth enabled', async () => {
