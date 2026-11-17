@@ -31,7 +31,7 @@ class ProvisioningApi {
     }
   }
 
-  /// Saves Wi-Fi (and optionally MQTT/API) credentials on the device.
+  /// Saves Wi-Fi (and optionally the MQTT login) on the device.
   ///
   /// Returns `null` on success, otherwise a short reason: `missing_ssid`,
   /// `nvs_write_failed`, `no_connection`, `HTTP <code>`.
@@ -40,7 +40,6 @@ class ProvisioningApi {
     required String password,
     String mqttUser = '',
     String mqttPassword = '',
-    String signalingToken = '',
   }) async {
     try {
       final response = await _dio.post(
@@ -50,7 +49,6 @@ class ProvisioningApi {
           'password': password,
           'mqtt_user': mqttUser,
           'mqtt_password': mqttPassword,
-          'signaling_token': signalingToken,
         }),
         options: Options(headers: {'Content-Type': 'application/json'}),
       );

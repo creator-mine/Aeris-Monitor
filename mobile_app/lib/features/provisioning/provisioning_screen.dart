@@ -30,7 +30,6 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _mqttUserController = TextEditingController();
   final TextEditingController _mqttPasswordController = TextEditingController();
-  final TextEditingController _tokenController = TextEditingController();
 
   bool _obscure = true;
   bool _showAdvanced = false;
@@ -56,7 +55,6 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
     _passwordController.dispose();
     _mqttUserController.dispose();
     _mqttPasswordController.dispose();
-    _tokenController.dispose();
     super.dispose();
   }
 
@@ -94,7 +92,6 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
       password: _passwordController.text,
       mqttUser: _mqttUserController.text.trim(),
       mqttPassword: _mqttPasswordController.text,
-      signalingToken: _tokenController.text.trim(),
     );
     if (!mounted) return;
     setState(() {
@@ -105,7 +102,6 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
         _reachable = true;
         _passwordController.clear();
         _mqttPasswordController.clear();
-        _tokenController.clear();
       } else {
         _error = _describe(error);
         if (error == 'no_connection') _reachable = false;
@@ -120,7 +116,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
       case 'nvs_write_failed':
         return 'Не удалось сохранить данные в памяти устройства.';
       case 'secrets_write_failed':
-        return 'Не удалось сохранить MQTT/API-доступы на устройстве.';
+        return 'Не удалось сохранить MQTT-доступы на устройстве.';
       case 'bad_json':
         return 'Устройство не поняло запрос. Обновите прошивку.';
       case 'no_connection':
@@ -141,7 +137,6 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
       _passwordController.clear();
       _mqttUserController.clear();
       _mqttPasswordController.clear();
-      _tokenController.clear();
     });
     _check();
   }
@@ -381,7 +376,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
             initiallyExpanded: _showAdvanced,
             onExpansionChanged: (v) => setState(() => _showAdvanced = v),
             leading: const Icon(Icons.key),
-            title: const Text('MQTT и API (необязательно)'),
+            title: const Text('MQTT (необязательно)'),
             subtitle: const Text(
               'Пустые поля оставляют текущие значения устройства',
               style: TextStyle(fontSize: 11),
@@ -401,14 +396,6 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
                 obscureText: true,
                 decoration: const InputDecoration(
                   labelText: 'Пароль MQTT',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _tokenController,
-                decoration: const InputDecoration(
-                  labelText: 'API-токен',
                   border: OutlineInputBorder(),
                 ),
               ),

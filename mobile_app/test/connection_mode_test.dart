@@ -34,16 +34,13 @@ void main() {
     expect(settings.mqttUsername.isNotEmpty, true);
     // Live secret is never baked in: the user must enter it in Настройки.
     expect(settings.mqttPassword, '');
-    expect(settings.signalingToken, '');
 
     await settings.setMqttUsername('app');
     await settings.setMqttPassword('secret');
-    await settings.setSignalingToken('tok-123');
 
     final restored = SettingsProvider();
     await restored.init();
     expect(restored.mqttUsername, 'app');
     expect(restored.mqttPassword, 'secret');
-    expect(restored.signalingToken, 'tok-123');
   });
 }

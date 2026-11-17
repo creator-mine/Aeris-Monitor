@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../config/app_config.dart';
+import 'auth_header.dart';
 import '../../models/device.dart';
 import '../../models/sensor_data.dart';
 import '../../models/alert.dart';
@@ -8,15 +9,18 @@ import '../../models/smart_rule.dart';
 class ApiClient {
   late final Dio _dio;
   String _baseUrl;
-  String _token;
+  String _username;
+  String _password;
 
-  ApiClient({String? baseUrl, String token = ''})
+  ApiClient({String? baseUrl, String username = '', String password = ''})
       : _baseUrl = baseUrl ?? '${AppConfig.apiBaseUrl}${AppConfig.apiVersion}',
-        _token = token {
+        _username = username,
+        _password = password {
     _initDio();
   }
 
   void _initDio() {
+    final auth = basicAuthHeader(_username, _password);
     _dio = Dio(BaseOptions(
       baseUrl: _baseUrl,
       connectTimeout: AppConfig.connectionTimeout,
@@ -24,8 +28,7 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        if (_token.isNotEmpty)
-          'Authorization': 'Bearer $_token',
+        if (auth != null) 'Authorization': auth,
       },
     ));
 
@@ -40,11 +43,14 @@ class ApiClient {
     _dio.options.baseUrl = url;
   }
 
-  /// Updates the bearer token at runtime (settings change). Empty clears it.
-  void setToken(String token) {
-    _token = token;
-    if (token.isNotEmpty) {
-      _dio.options.headers['Authorization'] = 'Bearer $token';
+  /// Updates the MQTT (and HTTP Basic) credentials at runtime. An empty
+  /// password clears the `Authorization` header.
+  void setCredentials(String username, String password) {
+    _username = username;
+    _password = password;
+    final auth = basicAuthHeader(_username, _password);
+    if (auth != null) {
+      _dio.options.headers['Authorization'] = auth;
     } else {
       _dio.options.headers.remove('Authorization');
     }

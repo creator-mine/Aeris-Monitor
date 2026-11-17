@@ -99,15 +99,15 @@ class SerialService {
   void clearWifi() => _send('wifi_clear');
   void restart() => _send('restart');
 
-  /// Stores MQTT + API credentials in the device NVS.
+  /// Stores the MQTT login in the device NVS.
   ///
   /// Empty fields keep whatever is already stored on the device. The device
-  /// applies them on the next MQTT reconnect, no reboot is required.
-  void setCredentials(String user, String password, String token) {
+  /// applies them on the next MQTT reconnect, no reboot is required, and the
+  /// same login is used for the registry API (HTTP Basic).
+  void setCredentials(String user, String password) {
     final payload = jsonEncode({
       'user': user,
       'password': password,
-      'token': token,
     });
     _send('secrets_set:$payload');
   }

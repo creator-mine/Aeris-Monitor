@@ -302,20 +302,18 @@ class DeviceConfigProvider extends ChangeNotifier {
     _scheduleReconnect();
   }
 
-  /// Stores MQTT/API credentials in the device NVS (empty fields are kept).
+  /// Stores the MQTT login (also used for the HTTP API) in the device NVS.
   bool setCredentials({
     required String user,
     required String password,
-    required String token,
   }) {
     if (!_serial.isConnected) return false;
-    _serial.setCredentials(user, password, token);
+    _serial.setCredentials(user, password);
     return true;
   }
 
   bool get mqttUserSet => _info?['mqtt_user_set'] == true;
   bool get mqttPasswordSet => _info?['mqtt_pass_set'] == true;
-  bool get apiTokenSet => _info?['api_token_set'] == true;
 
   void restart() {
     _serial.restart();

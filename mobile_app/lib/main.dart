@@ -40,12 +40,14 @@ void main() async {
 
   final signalingApi = SignalingApi(
     baseUrl: '${settingsProvider.apiUrl}/api/v1',
-    token: settingsProvider.signalingToken,
+    username: settingsProvider.mqttUsername,
+    password: settingsProvider.mqttPassword,
   );
 
   final apiClient = ApiClient(
     baseUrl: '${settingsProvider.apiUrl}/api/v1',
-    token: settingsProvider.signalingToken,
+    username: settingsProvider.mqttUsername,
+    password: settingsProvider.mqttPassword,
   );
 
   final mqttService = MqttService();

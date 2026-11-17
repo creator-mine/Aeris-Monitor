@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppConfig {
   static const String appName = 'Aeris Monitor';
-  static const String appVersion = '1.2.1';
+  static const String appVersion = '1.2.2';
   
   // API Configuration
   static const String apiBaseUrl = 'https://spe4naz.online';
@@ -26,9 +26,8 @@ class AppConfig {
   // The user enters it once in Настройки; it persists in local storage.
   static const String mqttPassword = '';
 
-  // Signaling server write/read-token (register/delete/devices require it).
-  // Live credential — entered by the user in Настройки, never baked in.
-  static const String signalingToken = '';
+  // Signaling server write/read access uses the MQTT app login (HTTP Basic).
+  // Live password — entered by the user in Настройки, never baked in.
   
   // Timeouts
   static const Duration connectionTimeout = Duration(seconds: 30);

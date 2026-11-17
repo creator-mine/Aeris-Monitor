@@ -75,7 +75,7 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   _buildTextField(
                     context,
-                    'MQTT Логин',
+                    'Логин (MQTT и API)',
                     provider.mqttUsername,
                     (value) => provider.setMqttUsername(value),
                     icon: Icons.person,
@@ -83,22 +83,9 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   _buildTextField(
                     context,
-                    'MQTT Пароль',
+                    'Пароль (MQTT и API)',
                     provider.mqttPassword,
                     (value) => provider.setMqttPassword(value),
-                    icon: Icons.key,
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    context,
-                    'Токен записи (API)',
-                    provider.signalingToken,
-                    (value) {
-                      provider.setSignalingToken(value);
-                      context.read<SignalingApi>().setToken(value);
-                      context.read<ApiClient>().setToken(value);
-                    },
                     icon: Icons.key,
                     obscureText: true,
                   ),
@@ -410,18 +397,18 @@ class SettingsScreen extends StatelessWidget {
     final firmwareProvider = context.read<FirmwareProvider>();
     final messenger = ScaffoldMessenger.of(context);
 
-    // Apply the API base URL + bearer token at runtime (no restart needed).
+    // Apply the API base URL + MQTT login (HTTP Basic) at runtime.
     final apiUrl =
         '${SettingsProvider.normalizeUrl(provider.apiUrl)}${AppConfig.apiVersion}';
     signalingApi
       ..setBaseUrl(apiUrl)
-      ..setToken(provider.signalingToken);
+      ..setCredentials(provider.mqttUsername, provider.mqttPassword);
     apiClient
       ..setBaseUrl(apiUrl)
-      ..setToken(provider.signalingToken);
+      ..setCredentials(provider.mqttUsername, provider.mqttPassword);
 
-    // The background SSE isolate reads api_url/signaling_token only on start,
-    // so restart it to pick up a rotated token or a new host immediately.
+    // The background SSE isolate reads api_url and the credentials only on
+    // start, so restart it to pick up a rotated password or a new host.
     unawaited(startBackgroundMonitor(force: true));
 
     // Reconnect MQTT with the new broker/port/credentials.

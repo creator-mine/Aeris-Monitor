@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../config/app_config.dart';
+import 'auth_header.dart';
 import '../../models/device.dart';
 
 /// Client for the Signaling Server (device discovery/registry only).
@@ -8,11 +9,14 @@ import '../../models/device.dart';
 class SignalingApi {
   late final Dio _dio;
   String _baseUrl;
-  String _token;
+  String _username;
+  String _password;
 
-  SignalingApi({String? baseUrl, String token = ''})
+  SignalingApi({String? baseUrl, String username = '', String password = ''})
       : _baseUrl = baseUrl ?? '${AppConfig.signalingUrl}${AppConfig.signalingApiVersion}',
-        _token = token {
+        _username = username,
+        _password = password {
+    final auth = basicAuthHeader(_username, _password);
     _dio = Dio(BaseOptions(
       baseUrl: _baseUrl,
       connectTimeout: AppConfig.connectionTimeout,
@@ -20,8 +24,7 @@ class SignalingApi {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        if (_token.isNotEmpty)
-          'Authorization': 'Bearer $_token',
+        if (auth != null) 'Authorization': auth,
       },
     ));
   }
@@ -31,11 +34,14 @@ class SignalingApi {
     _dio.options.baseUrl = url;
   }
 
-  /// Updates the bearer token at runtime (settings change). Empty clears it.
-  void setToken(String token) {
-    _token = token;
-    if (token.isNotEmpty) {
-      _dio.options.headers['Authorization'] = 'Bearer $token';
+  /// Updates the MQTT (and HTTP Basic) credentials at runtime. An empty
+  /// password clears the `Authorization` header.
+  void setCredentials(String username, String password) {
+    _username = username;
+    _password = password;
+    final auth = basicAuthHeader(_username, _password);
+    if (auth != null) {
+      _dio.options.headers['Authorization'] = auth;
     } else {
       _dio.options.headers.remove('Authorization');
     }

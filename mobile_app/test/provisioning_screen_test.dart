@@ -21,7 +21,6 @@ class _FakeProvisioningApi extends ProvisioningApi {
     required String password,
     String mqttUser = '',
     String mqttPassword = '',
-    String signalingToken = '',
   }) async {
     saveCalls++;
     lastSave = {
@@ -29,7 +28,6 @@ class _FakeProvisioningApi extends ProvisioningApi {
       'password': password,
       'mqtt_user': mqttUser,
       'mqtt_password': mqttPassword,
-      'signaling_token': signalingToken,
     };
     return saveError;
   }

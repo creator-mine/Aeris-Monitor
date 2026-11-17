@@ -22,7 +22,6 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _mqttUserController = TextEditingController();
   final TextEditingController _mqttPasswordController = TextEditingController();
-  final TextEditingController _apiTokenController = TextEditingController();
   String? _selectedPort;
 
   @override
@@ -39,7 +38,6 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     _passwordController.dispose();
     _mqttUserController.dispose();
     _mqttPasswordController.dispose();
-    _apiTokenController.dispose();
     super.dispose();
   }
 
@@ -576,7 +574,6 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 children: [
                   _credentialChip('Логин MQTT', provider.mqttUserSet),
                   _credentialChip('Пароль MQTT', provider.mqttPasswordSet),
-                  _credentialChip('API-токен', provider.apiTokenSet),
                 ],
               ),
               const SizedBox(height: 16),
@@ -585,7 +582,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 autofillHints: const [AutofillHints.username],
                 decoration: InputDecoration(
                   labelText: 'Пользователь MQTT',
-                  hintText: 'по умолчанию: main',
+                  hintText: 'по умолчанию: device',
                   prefixIcon: const Icon(Icons.person_outline),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -606,24 +603,11 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _apiTokenController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'API-токен',
-                  hintText: 'пусто — не менять',
-                  prefixIcon: const Icon(Icons.vpn_key_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
               const SizedBox(height: 8),
               Text(
                 'Доступы сохраняются в NVS на устройстве и в приложение не '
-                'передаются. Пустые поля остаются без изменений; пароль и '
-                'токен вводятся заново при каждой смене.',
+                'передаются. Пустые поля остаются без изменений; пароль '
+                'вводится заново при каждой смене.',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 16),
@@ -804,19 +788,16 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
       BuildContext context, DeviceConfigProvider provider) async {
     final user = _mqttUserController.text.trim();
     final password = _mqttPasswordController.text;
-    final token = _apiTokenController.text.trim();
-    if (user.isEmpty && password.isEmpty && token.isEmpty) {
+    if (user.isEmpty && password.isEmpty) {
       _showSnack(context, 'Заполните хотя бы одно поле');
       return;
     }
-    if (!provider.setCredentials(
-        user: user, password: password, token: token)) {
+    if (!provider.setCredentials(user: user, password: password)) {
       _showSnack(context, 'Устройство не подключено');
       return;
     }
     _mqttUserController.clear();
     _mqttPasswordController.clear();
-    _apiTokenController.clear();
     _showSnack(context, 'Доступы сохранены. MQTT переподключится.');
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!context.mounted) return;

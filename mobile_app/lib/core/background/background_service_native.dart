@@ -26,7 +26,8 @@ class AerisBackgroundTaskHandler extends TaskHandler {
   bool _running = false;
   FlutterLocalNotificationsPlugin? _notifications;
   String _apiUrl = _defaultApiUrl;
-  String _token = '';
+  String _username = 'app';
+  String _password = '';
 
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
@@ -37,7 +38,8 @@ class AerisBackgroundTaskHandler extends TaskHandler {
       final stored = prefs.getString('api_url') ?? _defaultApiUrl;
       _apiUrl = stored.trim().replaceAll(RegExp(r'/+$'), '');
       if (_apiUrl.isEmpty) _apiUrl = _defaultApiUrl;
-      _token = prefs.getString('signaling_token') ?? '';
+      _username = prefs.getString('mqtt_username') ?? 'app';
+      _password = prefs.getString('mqtt_password') ?? '';
     } catch (_) {}
 
     _notifications = FlutterLocalNotificationsPlugin();
@@ -69,8 +71,9 @@ class AerisBackgroundTaskHandler extends TaskHandler {
     try {
       final req = await client.getUrl(Uri.parse('$_apiUrl/api/v1/stream'));
       req.headers.set(HttpHeaders.acceptHeader, 'text/event-stream');
-      if (_token.isNotEmpty) {
-        req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $_token');
+      if (_password.isNotEmpty) {
+        final raw = base64Encode(utf8.encode('$_username:$_password'));
+        req.headers.set(HttpHeaders.authorizationHeader, 'Basic $raw');
       }
       final res = await req.close();
 
@@ -151,7 +154,7 @@ class AerisBackgroundTaskHandler extends TaskHandler {
 /// Starts the Android foreground monitor. No-op on other platforms.
 ///
 /// [force] restarts an already running service (needed after the API URL or
-/// the token changes, because the isolate reads them once at start). Without
+/// the credentials change, because the isolate reads them once at start). Without
 /// it an existing service is left untouched: restarting it would cancel and
 /// re-post the notification on every app launch.
 Future<void> startBackgroundMonitor({bool force = false}) async {

@@ -26,7 +26,6 @@ class SettingsProvider extends ChangeNotifier {
   int _mqttPort = _defaultMqttPort;
   String _mqttUsername = AppConfig.mqttUsername;
   String _mqttPassword = AppConfig.mqttPassword;
-  String _signalingToken = AppConfig.signalingToken;
   bool _darkMode = false;
   String _language = 'ru';
   LogMode _logMode = LogMode.standard;
@@ -43,7 +42,6 @@ class SettingsProvider extends ChangeNotifier {
   int get mqttPort => _mqttPort;
   String get mqttUsername => _mqttUsername;
   String get mqttPassword => _mqttPassword;
-  String get signalingToken => _signalingToken;
   bool get darkMode => _darkMode;
   String get language => _language;
   LogMode get logMode => _logMode;
@@ -94,7 +92,6 @@ class SettingsProvider extends ChangeNotifier {
 
     _mqttUsername = _prefs.getString('mqtt_username') ?? _defaultMqttUsername;
     _mqttPassword = _prefs.getString('mqtt_password') ?? _defaultMqttPassword;
-    _signalingToken = _prefs.getString('signaling_token') ?? AppConfig.signalingToken;
 
     _darkMode = _prefs.getBool('dark_mode') ?? false;
     _language = _prefs.getString('language') ?? 'ru';
@@ -174,12 +171,6 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setMqttPassword(String password) async {
     _mqttPassword = password;
     await _prefs.setString('mqtt_password', password);
-    notifyListeners();
-  }
-
-  Future<void> setSignalingToken(String token) async {
-    _signalingToken = token;
-    await _prefs.setString('signaling_token', token);
     notifyListeners();
   }
 
