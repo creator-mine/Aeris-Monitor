@@ -7,6 +7,7 @@
 #include "root_ca.h"
 #include "ring_logger.h"
 #include "esp_task_wdt.h"
+#include "esp_idf_version.h"
 #include "mbedtls/md.h"
 #include <ArduinoJson.h>
 
@@ -15,6 +16,33 @@ namespace {
 volatile bool pendingRequest = false;
 volatile bool forceRequest = false;
 portMUX_TYPE otaMux = portMUX_INITIALIZER_UNLOCKED;
+
+// A firmware download runs on the loop task: TLS handshakes and flash writes
+// are blocking, so the normal 20 s task watchdog is too tight and used to
+// abort the update. Widen it for the duration of apply() and restore it after.
+constexpr uint32_t OTA_WDT_TIMEOUT_MS = 180000;
+
+void setWdtTimeout(uint32_t ms) {
+#if defined(ESP_IDF_VERSION) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0)
+    esp_task_wdt_config_t cfg = {};
+    cfg.timeout_ms = ms;
+    cfg.idle_core_mask = (1 << CONFIG_FREERTOS_NUMBER_OF_CORES) - 1;
+    cfg.trigger_panic = true;
+    if (esp_task_wdt_reconfigure(&cfg) != ESP_OK) {
+        // TWDT not initialised yet: create it with the requested timeout.
+        if (esp_task_wdt_init(&cfg) == ESP_OK) {
+            esp_task_wdt_add(NULL);
+        }
+    }
+#else
+    (void)ms;
+#endif
+}
+
+struct OtaWdtGuard {
+    OtaWdtGuard() { setWdtTimeout(OTA_WDT_TIMEOUT_MS); }
+    ~OtaWdtGuard() { setWdtTimeout((uint32_t)WDT_TIMEOUT_SECONDS * 1000); }
+};
 
 // Fetch a small HTTPS resource (headers stripped). Returns false on any failure.
 bool httpsGet(const char* path, String& out, size_t maxBytes) {
@@ -49,10 +77,15 @@ bool httpsGet(const char* path, String& out, size_t maxBytes) {
         return false;
     }
 
-    // Skip the remaining header lines.
+    // Skip the remaining header lines (stop at the blank line, NOT when the
+    // socket runs dry: the body may already be arriving).
     String line;
-    while (line != "\r" && client.available()) {
+    while (true) {
         line = client.readStringUntil('\n');
+        line.trim();
+        if (line.isEmpty()) break;
+        if (!client.available() && !client.connected()) break;
+        esp_task_wdt_reset();
     }
 
     out = "";
@@ -109,6 +142,7 @@ bool pending() {
 }
 
 bool apply() {
+    OtaWdtGuard wdtGuard;
     portENTER_CRITICAL(&otaMux);
     bool force = forceRequest;
     pendingRequest = false;
@@ -121,6 +155,7 @@ bool apply() {
     bool haveManifest = httpsGet(OTA_VERSION_PATH, manifest, 1024);
     String publishedVersion;
     String expectedSha256;
+    long manifestSize = 0;
     bool manifestOk = false;
 
     if (haveManifest) {
@@ -131,6 +166,7 @@ bool apply() {
             const char* h = doc["sha256"];
             if (v && v[0]) publishedVersion = String(v);
             if (h && h[0]) expectedSha256 = String(h);
+            manifestSize = (long)(doc["size"] | 0);
         }
     }
 
@@ -147,11 +183,21 @@ bool apply() {
         LOG_INFO("OTA", "No version manifest, downloading %s", OTA_FW_PATH);
     }
 
+    // Start the update BEFORE opening the firmware connection: erasing the
+    // OTA slot takes seconds, and doing it while the TLS socket is open makes
+    // the link drop before the first body byte arrives.
+    size_t beginSize = manifestSize > 0 ? (size_t)manifestSize : (size_t)UPDATE_SIZE_UNKNOWN;
+    if (!Update.begin(beginSize)) {
+        LOG_INFO("OTA", "Update.begin failed: %s", Update.errorString());
+        return false;
+    }
+
     WiFiClientSecure client;
     client.setCACert(ROOT_CA_CERT);
 
     if (!client.connect(OTA_FW_HOST, OTA_FW_PORT)) {
         LOG_INFO("OTA", "HTTPS connect failed");
+        Update.abort();
         return false;
     }
 
@@ -167,6 +213,7 @@ bool apply() {
     if (client.available() == 0) {
         LOG_INFO("OTA", "No HTTP response (timeout)");
         client.stop();
+        Update.abort();
         return false;
     }
 
@@ -175,30 +222,36 @@ bool apply() {
     if (statusLine.indexOf(" 200 ") < 0 && !statusLine.startsWith("HTTP/1.1 200")) {
         LOG_INFO("OTA", "HTTP error: %s", statusLine.c_str());
         client.stop();
+        Update.abort();
         return false;
     }
 
     int contentLength = -1;
     String line;
-    while (line != "\r" && client.available()) {
+    while (true) {
         line = client.readStringUntil('\n');
         line.trim();
+        if (line.isEmpty()) break;  // blank line: headers are over, body follows
         if (line.startsWith("Content-Length:")) {
             String cl = line.substring(15);
             cl.trim();
             contentLength = cl.toInt();
         }
+        if (!client.available() && !client.connected()) break;
+        esp_task_wdt_reset();
     }
 
     if (contentLength <= 0) {
         LOG_INFO("OTA", "Bad content length: %d", contentLength);
         client.stop();
+        Update.abort();
         return false;
     }
 
-    if (!Update.begin(contentLength)) {
-        LOG_INFO("OTA", "Update.begin failed: %s", Update.errorString());
+    if (manifestSize > 0 && contentLength != manifestSize) {
+        LOG_INFO("OTA", "Size mismatch: manifest %ld, server %d", manifestSize, contentLength);
         client.stop();
+        Update.abort();
         return false;
     }
 
@@ -217,7 +270,8 @@ bool apply() {
     LOG_INFO("OTA", "Downloading %d bytes...", contentLength);
     size_t written = 0;
     uint8_t buf[1024];
-    while (written < (size_t)contentLength && client.connected()) {
+    unsigned long lastData = millis();
+    while (written < (size_t)contentLength) {
         size_t n = client.available();
         if (n > 0) {
             if (n > sizeof(buf)) n = sizeof(buf);
@@ -225,8 +279,13 @@ bool apply() {
             if (r <= 0) break;
             written += Update.write(buf, (size_t)r);
             if (hashing) mbedtls_md_update(&mdCtx, buf, (size_t)r);
+            lastData = millis();
         } else {
-            delay(20);
+            // Do not stop on client.connected(): the server may close right
+            // after sending the body while bytes are still buffered.
+            if (!client.connected()) break;
+            if (millis() - lastData > 20000) break;
+            delay(10);
         }
         esp_task_wdt_reset();
     }

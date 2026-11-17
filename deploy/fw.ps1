@@ -47,6 +47,7 @@ $manifest = [ordered]@{
     device_type  = $Environment
     build_date   = $buildDate
     sha256       = $sha256
+    size         = $bytes.Length
     file         = $binName
 }
 
