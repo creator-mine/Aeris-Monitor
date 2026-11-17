@@ -1255,10 +1255,10 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
     async function checkStatus() {
       try {
         const health = await (await fetch(API + '/health')).json();
-        const devices = await (await fetch(API + '/devices')).json();
         pill.classList.remove('offline');
         document.getElementById('serverStatus').textContent = t('statusOnline');
-        statDevices.textContent = Array.isArray(devices) ? devices.length : '—';
+        const online = health && health.devices ? Number(health.devices.online) : NaN;
+        statDevices.textContent = Number.isFinite(online) ? String(online) : '—';
         statUptime.textContent = health.uptime ? fmtUptime(health.uptime) : '—';
       } catch (e) {
         pill.classList.add('offline');
