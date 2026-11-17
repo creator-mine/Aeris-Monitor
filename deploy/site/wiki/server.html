@@ -94,7 +94,7 @@
 
       <h2 id="signalnyy" data-ru="Сигнальный сервер" data-en="Signaling server">Сигнальный сервер</h2>
 
-      <p data-ru="Задача сервера — дать приложению знать, какие устройства существуют и где они доступны. Данные датчиков через него не идут. По умолчанию процесс слушает только адрес локальной петли, и весь внешний трафик заходит через nginx с сертификатом." data-en="The server exists to tell the app which devices exist and where they can be reached. Sensor data never passes through it. By default the process binds to the loopback address only, and all external traffic enters through nginx over TLS.">Данные датчиков через сервер не идут.</p>
+      <p data-ru="Задача сервера — дать приложению знать, какие устройства существуют и где они доступны. По умолчанию значения датчиков идут мимо него: от контроллера в брокер и дальше в приложение. Если включён MQTT-мост, сервер дополнительно подписывается на топики, складывает метрики в JSONL и отдаёт их по SSE и REST. Процесс слушает только адрес локальной петли, и весь внешний трафик заходит через nginx с сертификатом." data-en="The server exists to tell the app which devices exist and where they can be reached. By default sensor values bypass it: from the controller to the broker and on to the app. With the MQTT bridge enabled the server also subscribes to the topics, stores metrics as JSONL and serves them over SSE and REST. The process binds to the loopback address only, and all external traffic enters through nginx over TLS.">Сервер ведёт реестр; телеметрия идёт через брокер.</p>
 
       <div class="table-wrap">
         <table>
@@ -139,7 +139,7 @@
 
       <p data-ru="Реестр устройств, аварии и правила лежат в JSON-файлах рядом с кодом и переживают перезапуск сервера. Запись атомарная: файл переписывается целиком, поэтому оборванное сохранение не портит данные." data-en="The device registry, alerts and rules live in JSON files next to the code and survive a server restart. Writes are atomic: the file is rewritten whole, so an interrupted save cannot corrupt the data.">Данные лежат в JSON и переживают перезапуск.</p>
 
-      <p data-ru-html="Доступ к API — по тем же логинам, что и у MQTT: устройства входят как <code>device</code>, приложение — как <code>app</code>. Заголовок <code>Authorization: Basic &lt;base64(логин:пароль)&gt;</code>; отдельного API-токена нет." data-en-html="API access uses the same logins as MQTT: devices as <code>device</code>, the app as <code>app</code>. The header is <code>Authorization: Basic &lt;base64(user:password)&gt;</code>; there is no separate API token.">Логины те же, что у MQTT.</p>
+      <p data-ru-html="Доступ к API — по тем же логинам, что и у MQTT: устройства входят под логином <code>MQTT_DEVICE_USER</code>, приложение — под <code>MQTT_USER</code> (в примерах ниже <code>device</code> и <code>app</code>). Заголовок <code>Authorization: Basic &lt;base64(логин:пароль)&gt;</code>; отдельного API-токена нет." data-en-html="API access uses the same logins as MQTT: devices as <code>MQTT_DEVICE_USER</code>, the app as <code>MQTT_USER</code> (<code>device</code> and <code>app</code> in the examples below). The header is <code>Authorization: Basic &lt;base64(user:password)&gt;</code>; there is no separate API token.">Логины те же, что у MQTT.</p>
 
       <div class="callout warn">
         <div class="co-ic">⏱️</div>
@@ -281,13 +281,13 @@ curl -s -o /dev/null -w '%{http_code}
           <tbody>
             <tr>
               <td class="mono">PORT</td>
-              <td class="mono">3100</td>
+              <td class="mono">3000 · 3100 в Docker</td>
               <td data-ru="Порт HTTP-сервера внутри контейнера" data-en="HTTP server port inside the container">Порт HTTP-сервера</td>
             </tr>
             <tr>
               <td class="mono">HOST</td>
-              <td class="mono">0.0.0.0</td>
-              <td data-ru="Адрес внутри контейнера; наружу порт не публикуется" data-en="Bind address inside the container; the port is not published">Адрес внутри контейнера</td>
+              <td class="mono">127.0.0.1 · 0.0.0.0 в Docker</td>
+              <td data-ru="Адрес привязки; наружу порт не публикуется" data-en="Bind address; the port is not published outside">Адрес привязки</td>
             </tr>
             <tr>
               <td class="mono">API_PREFIX</td>
@@ -297,7 +297,27 @@ curl -s -o /dev/null -w '%{http_code}
             <tr>
               <td class="mono">MQTT_USER / MQTT_DEVICE_USER</td>
               <td class="mono">app / device</td>
-              <td data-ru="Логины приложения и устройств; пароли задаются в .env и защищают также HTTP API (Basic)" data-en="App and device logins; their passwords live in .env and also protect the HTTP API (Basic)">Логины приложения и устройств</td>
+              <td data-ru="Логины приложения и устройств; пароли MQTT_PASSWORD и MQTT_DEVICE_PASSWORD задаются в .env и защищают также HTTP API (Basic)" data-en="App and device logins; the MQTT_PASSWORD and MQTT_DEVICE_PASSWORD values live in .env and also protect the HTTP API (Basic)">Логины приложения и устройств</td>
+            </tr>
+            <tr>
+              <td class="mono">PANEL_PASSWORD</td>
+              <td data-ru="пусто" data-en="empty">пусто</td>
+              <td data-ru="Пароль веб-панели; пустое значение отключает панель (503)" data-en="Web panel password; empty disables the panel (503)">Пароль панели</td>
+            </tr>
+            <tr>
+              <td class="mono">PANEL_SESSION_TTL_MS</td>
+              <td class="mono">86400000</td>
+              <td data-ru="Время жизни сессии панели — сутки" data-en="Panel session lifetime — one day">Срок сессии панели</td>
+            </tr>
+            <tr>
+              <td class="mono">MQTT_ENABLED</td>
+              <td class="mono">0 · 1 в Docker</td>
+              <td data-ru="Включает MQTT-мост и запись метрик в JSONL; в docker-compose включён" data-en="Enables the MQTT bridge and JSONL metric storage; switched on in docker-compose">MQTT-мост и хранилище</td>
+            </tr>
+            <tr>
+              <td class="mono">INGEST_DIR</td>
+              <td class="mono">data/ingest</td>
+              <td data-ru="Каталог raw/rollup/latest для метрик" data-en="Directory for raw/rollup/latest metric files">Каталог метрик</td>
             </tr>
             <tr>
               <td class="mono">STALE_MS</td>
@@ -349,6 +369,11 @@ curl -s -o /dev/null -w '%{http_code}
               <td class="mono">data/rules.json</td>
               <td data-ru="Файл правил" data-en="Rules file">Файл правил</td>
             </tr>
+            <tr>
+              <td class="mono">METRICS_FILE / STABILITY_FILE / SETTINGS_FILE</td>
+              <td class="mono">data/*.json</td>
+              <td data-ru="История метрик сервера, журнал статусов и рантайм-настройки панели" data-en="Server metrics history, status journal and panel runtime settings">Служебные файлы</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -356,7 +381,7 @@ curl -s -o /dev/null -w '%{http_code}
       <div class="callout info">
         <div class="co-ic">🧪</div>
         <div class="co-body">
-          <p data-ru="Проверка серверной части: 155 автотестов покрывают реестр, лимиты, аварии, правила, MQTT-клиент, хранилище метрик, SSE и HTTP-обработчики. Запуск — в каталоге сервера командой npm test." data-en="Server verification: 155 automated tests cover the registry, limits, alerts, rules, the MQTT client, metric storage, SSE and the HTTP handlers. Run them with npm test in the server directory.">155 автотестов серверной части.</p>
+          <p data-ru="Проверка серверной части: 158 автотестов покрывают реестр, лимиты, аварии, правила, MQTT-клиент, хранилище метрик, SSE и HTTP-обработчики. Запуск — в каталоге сервера командой npm test." data-en="Server verification: 158 automated tests cover the registry, limits, alerts, rules, the MQTT client, metric storage, SSE and the HTTP handlers. Run them with npm test in the server directory.">158 автотестов серверной части.</p>
         </div>
       </div>
 
@@ -380,11 +405,11 @@ sudo /opt/iot/deploy/docker/backup.sh
 
       <ul>
         <li data-ru="Все учётные данные хранятся в файле окружения с правами на чтение только владельцем, а не внутри репозитория." data-en="All credentials live in an environment file readable only by its owner, never inside the repository.">Учётные данные — в файле окружения, не в репозитории.</li>
-        <li data-ru="Токен сервера обязателен на публичном развёртывании: без него любой может регистрировать и удалять устройства." data-en="The server token is mandatory on a public deployment: without it anyone can register and delete devices.">Токен обязателен на публичном развёртывании.</li>
-        <li data-ru="Для показания датчиков на сайте заведена отдельная учётная запись только на чтение, без права подписки на команды." data-en="Readings on the site use a separate read-only account with no permission to subscribe to commands.">Для сайта — отдельная учётная запись только на чтение.</li>
+        <li data-ru="Пароли MQTT_USER и MQTT_DEVICE_USER обязательны на публичном развёртывании: те же логины защищают HTTP API, а пустой пароль оставляет API открытым для локальной разработки." data-en="The MQTT_USER and MQTT_DEVICE_USER passwords are mandatory on a public deployment: the same logins protect the HTTP API, and an empty password leaves the API open for local development.">Пароли MQTT и API обязательны.</li>
+        <li data-ru="Для показаний датчиков на сайте заведена отдельная учётная запись только на чтение, без права подписки на команды. Сам SSE-поток сервера закрыт логином приложения или сессией панели." data-en="Readings on the site use a separate read-only broker account with no permission to subscribe to commands. The server's own SSE stream is protected by the app login or a panel session.">Для сайта — отдельная учётная запись только на чтение.</li>
         <li data-ru="Сертификат Let's Encrypt продлевается автоматически; после продления нужно перезагрузить nginx." data-en="The Let's Encrypt certificate renews automatically; reload nginx after a renewal.">Сертификат продлевается автоматически.</li>
-        <li data-ru="Панель закрыта паролем на уровне nginx, а не средствами приложения: пароль проверяется до того, как запрос дойдёт до бэкенда." data-en="The panel is closed with a password at the nginx level rather than in the application: the password is checked before the request reaches the backend.">Панель закрыта паролем на уровне nginx.</li>
-        <li data-ru="Пароль MQTT и токен сервера не зашиты в мобильное приложение: они вводятся пользователем и хранятся локально." data-en="The MQTT password and the server token are not baked into the mobile app: the user enters them and they are stored locally.">Пароли не зашиты в приложение.</li>
+        <li data-ru-html="Панель закрыта паролем в самом приложении: вход по <code>PANEL_PASSWORD</code> выдаёт HMAC-cookie <code>iot_panel</code> (HttpOnly, SameSite=Lax, Secure при HTTPS), и без живой сессии панель отвечает 401/503." data-en-html="The panel is protected by the application itself: logging in with <code>PANEL_PASSWORD</code> issues the HMAC cookie <code>iot_panel</code> (HttpOnly, SameSite=Lax, Secure over HTTPS), and without a live session the panel answers 401/503.">Панель закрыта паролем приложения.</li>
+        <li data-ru="Логин и пароль MQTT не зашиты в мобильное приложение: они вводятся пользователем и хранятся локально. Отдельного токена сервера нет." data-en="The MQTT login and password are not baked into the mobile app: the user enters them and they are stored locally. There is no separate server token.">Пароли не зашиты в приложение.</li>
       </ul>
 
       <div class="callout danger">

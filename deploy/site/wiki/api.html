@@ -169,7 +169,7 @@
   "time_synced": true,
   "rssi": -58,
   "chip_temp": 42.3,
-  "firmware": "1.2.2"
+  "firmware": "1.3.2"
 }</code></pre>
 
       <h3 data-ru="Всё сразу" data-en="Everything at once">Всё сразу</h3>
@@ -180,7 +180,7 @@
 
       <pre><code>{
   "ok": true,
-  "status": { "device_id": "esp32c6_001", "firmware": "1.3.0", "ip": "192.168.1.50" },
+  "status": { "device_id": "esp32c6_001", "firmware": "1.3.2", "ip": "192.168.1.50" },
   "sensors": { "timestamp": 128374, "modules": { "BME680_0x76": { "temperature": 21.4 } } },
   "modules": [ { "id": "BME680_0x76", "driver": "BME680" } ]
 }</code></pre>
@@ -191,7 +191,7 @@
 
       <pre><code>$ echo -n AERIS_DISCOVER_V1 | nc -u -b 192.168.1.255 8266
 {"id":"esp32c6_001","name":"Main Controller C6","type":"esp32c6",
- "fw":"1.3.0","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
+ "fw":"1.3.2","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
 
       <p data-ru="Приложение 1.2.3 и новее делает это автоматически: при недоступном облачном реестре находит устройство по broadcast и подключается прямо к http://<ip>/api/v1." data-en="App 1.2.3 and newer does this automatically: when the cloud registry is unreachable it finds the device by broadcast and connects straight to http://&lt;ip&gt;/api/v1.">Приложение находит устройство само.</p>
 
@@ -237,7 +237,7 @@
 
       <h2 id="komandy" data-ru="Команды устройству" data-en="Device commands">Команды устройству</h2>
 
-      <p data-ru-html="Команда отправляется методом <code>POST</code> на <code>/api/v1/command</code> с JSON-телом, в котором обязательно поле <code>command</code>. Через WebSocket формат другой: <code>{"type":"command","command":"..."}</code>." data-en-html="A command is sent with <code>POST</code> to <code>/api/v1/command</code> and a JSON body that must contain <code>command</code>. Over WebSocket the shape differs: <code>{"type":"command","command":"..."}</code>.">Команда отправляется методом POST.</p>
+      <p data-ru-html="Команду можно отправить тремя путями: методом <code>POST</code> на <code>/api/v1/command</code> с JSON-телом, где обязательно поле <code>command</code>; через WebSocket в форме <code>{"type":"command","command":"..."}</code>; по MQTT в топик <code>iot/&lt;id&gt;/commands</code>; либо по USB строкой <code>CMD:команда</code>. Не все команды доступны везде — колонка «Транспорт» показывает, где именно." data-en-html="A command can be sent three ways: with <code>POST</code> to <code>/api/v1/command</code> and a JSON body that must contain <code>command</code>; over WebSocket as <code>{"type":"command","command":"..."}</code>; over MQTT to <code>iot/&lt;id&gt;/commands</code>; or over USB as <code>CMD:command</code>. Not every command is available everywhere — the “Transport” column shows where.">Команда отправляется по HTTP, MQTT или USB.</p>
 
       <div class="table-wrap">
         <table>
@@ -246,6 +246,7 @@
               <th data-ru="Команда" data-en="Command">Команда</th>
               <th data-ru="Поля" data-en="Fields">Поля</th>
               <th data-ru="Действие" data-en="Effect">Действие</th>
+              <th data-ru="Транспорт" data-en="Transport">Транспорт</th>
             </tr>
           </thead>
           <tbody>
@@ -253,36 +254,61 @@
               <td class="mono">restart</td>
               <td>—</td>
               <td data-ru="Перезагрузка. Журнал сохраняется на карту перед рестартом" data-en="Reboot. The log is flushed to the card first">Перезагрузка</td>
+              <td class="mono">HTTP · MQTT · USB</td>
             </tr>
             <tr>
               <td class="mono">read_sensor</td>
               <td>—</td>
               <td data-ru="Немедленное чтение всех датчиков вне очереди по времени" data-en="Read every sensor right away, out of the timed cycle">Форс-чтение</td>
+              <td class="mono">HTTP · MQTT</td>
             </tr>
             <tr>
               <td class="mono">rescan</td>
               <td>—</td>
               <td data-ru="Повторное сканирование шины I2C с учётом мультиплексоров" data-en="Rescan the I2C bus, multiplexers included">Пересканировать шину</td>
+              <td class="mono">HTTP · MQTT</td>
             </tr>
             <tr>
               <td class="mono">mqtt_enable<br>mqtt_disable</td>
               <td>—</td>
               <td data-ru="Включение и выключение публикации; выбор сохраняется" data-en="Turn publishing on or off; the choice is persisted">Включить или выключить MQTT</td>
+              <td class="mono">HTTP · MQTT · USB</td>
             </tr>
             <tr>
               <td class="mono">ota</td>
               <td class="mono">force</td>
               <td data-ru="Обновление по воздуху. Без force — только если опубликованная версия новее" data-en="Over-the-air update. Without force — only when the published version is newer">Обновление по воздуху</td>
+              <td class="mono">HTTP · MQTT · USB</td>
             </tr>
             <tr>
               <td class="mono">ota_rollback</td>
               <td>—</td>
-              <td data-ru="Возврат на предыдущий раздел прошивки" data-en="Roll back to the previous firmware slot">Откат прошивки</td>
+              <td data-ru="Проверить предыдущий OTA-слот и перезагрузиться на образ из него" data-en="Validate the other OTA slot and boot the image from it">Откат прошивки</td>
+              <td class="mono">HTTP · MQTT · USB</td>
+            </tr>
+            <tr>
+              <td class="mono">relay<br>relay:on|off|toggle</td>
+              <td class="mono">state</td>
+              <td data-ru="Включить, выключить или переключить реле; состояние возвращается в ответе" data-en="Turn the relay on, off or toggle it; the state comes back in the response">Управление реле</td>
+              <td class="mono">HTTP · MQTT</td>
             </tr>
             <tr>
               <td class="mono">wifi_set</td>
               <td class="mono">ssid<br>password</td>
               <td data-ru="Записать имя сети и пароль в энергонезависимую память и перезагрузиться" data-en="Write the network name and password to non-volatile memory and reboot">Сменить сеть</td>
+              <td class="mono">HTTP · MQTT · USB</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_clear</td>
+              <td>—</td>
+              <td data-ru="Стереть сохранённые Wi-Fi-креды и поднять точку доступа Aeris-Setup-XXXX" data-en="Erase the stored Wi-Fi credentials and raise the Aeris-Setup-XXXX access point">Сбросить сеть</td>
+              <td class="mono">USB</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_reconfigure</td>
+              <td>—</td>
+              <td data-ru="Очистить сеть и войти в режим настройки, не теряя MQTT-доступ к команде" data-en="Clear the network and enter setup mode without losing MQTT access to the command">Перенастроить сеть</td>
+              <td class="mono">MQTT</td>
             </tr>
           </tbody>
         </table>
@@ -292,7 +318,7 @@
      -H 'Content-Type: application/json' \
      -d '{"command":"ota","force":true}'</code></pre>
 
-      <p data-ru="Ошибки команды возвращаются кодом 409 и полем error: например, ota_busy, если обновление уже идёт, rollback_failed, если нет предыдущего раздела, missing_ssid, если не передан ssid, и unknown_command, если команды нет." data-en="Command failures come back with status 409 and an error field: for example ota_busy when an update is already running, rollback_failed when there is no previous slot, missing_ssid when ssid is absent, and unknown_command when the command does not exist.">Ошибки команды возвращаются кодом 409.</p>
+      <p data-ru-html="Ошибки команд: <code>400 unknown_command</code> для неизвестной команды, <code>400 bad_relay_state</code> при неверном состоянии реле, <code>400 missing_ssid</code> без поля ssid, <code>409 ota_busy</code> если обновление уже идёт и <code>500 rollback_failed</code> если предыдущего слота с образом нет." data-en-html="Command errors: <code>400 unknown_command</code> for an unknown command, <code>400 bad_relay_state</code> for an invalid relay state, <code>400 missing_ssid</code> without the ssid field, <code>409 ota_busy</code> when an update is already running and <code>500 rollback_failed</code> when there is no previous slot with an image.">Ошибки команд возвращаются с машинным кодом.</p>
 
       <h2 id="websocket" data-ru="WebSocket устройства" data-en="Device WebSocket">WebSocket устройства</h2>
 
@@ -361,91 +387,111 @@
 
       <h2 id="server-api" data-ru="API сигнального сервера" data-en="Signaling server API">API сигнального сервера</h2>
 
-      <p data-ru-html="Префикс тот же, но адрес другой: на живом развёртывании это <code>https://spe4naz.online/api/v1</code>. Методам нужен заголовок <code>Authorization: Basic &lt;base64(логин:пароль)&gt;</code> с логином MQTT: <code>device</code> для устройств, <code>app</code> для приложения." data-en-html="The prefix is the same but the address is different: on the live deployment that is <code>https://spe4naz.online/api/v1</code>. Methods need the <code>Authorization: Basic &lt;base64(user:password)&gt;</code> header with an MQTT login: <code>device</code> for devices, <code>app</code> for the app.">Тот же префикс, другой адрес.</p>
+      <p data-ru-html="Префикс тот же, но адрес другой: на живом развёртывании это <code>https://spe4naz.online/api/v1</code>. Методам нужен заголовок <code>Authorization: Basic &lt;base64(логин:пароль)&gt;</code> с логином MQTT: <code>MQTT_DEVICE_USER</code> для устройств, <code>MQTT_USER</code> для приложения (в примерах ниже <code>device</code> и <code>app</code>)." data-en-html="The prefix is the same but the address is different: on the live deployment that is <code>https://spe4naz.online/api/v1</code>. Methods need the <code>Authorization: Basic &lt;base64(user:password)&gt;</code> header with an MQTT login: <code>MQTT_DEVICE_USER</code> for devices, <code>MQTT_USER</code> for the app (<code>device</code> and <code>app</code> in the examples below).">Тот же префикс, другой адрес.</p>
 
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
               <th data-ru="Метод и путь" data-en="Method &amp; path">Метод и путь</th>
-              <th data-ru="Токен" data-en="Token">Токен</th>
+              <th data-ru="Доступ" data-en="Access">Доступ</th>
               <th data-ru="Назначение" data-en="Purpose">Назначение</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td class="mono">GET /health</td>
-              <td>—</td>
+              <td data-ru="публично" data-en="public">публично</td>
               <td data-ru="Версия, аптайм, счётчики устройств, аварий и правил" data-en="Version, uptime, device, alert and rule counters">Состояние сервера</td>
             </tr>
             <tr>
               <td class="mono">GET /meta</td>
-              <td>—</td>
-              <td data-ru="Версия, таймаут офлайна, лимиты, включена ли авторизация" data-en="Version, offline timeout, limits, whether auth is on">Параметры сервера</td>
+              <td data-ru="публично" data-en="public">публично</td>
+              <td data-ru="Версия, таймаут офлайна, лимиты, режим авторизации" data-en="Version, offline timeout, limits, auth mode">Параметры сервера</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /stream</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
+              <td data-ru="Живой поток SSE: метрики, статусы, правила и команды" data-en="Live SSE stream: metrics, statuses, rules and commands">Живой поток</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /sensors/latest</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
+              <td data-ru="Кэш последних значений всех устройств" data-en="Latest-value cache for all devices">Последние значения</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /sensors/:device/:sensor/history</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
+              <td data-ru="История метрики за интервал с понижением частоты" data-en="Metric history for a range, downsampled">История метрики</td>
             </tr>
             <tr>
               <td class="mono">POST /devices/register</td>
-              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="device" data-en="device">device</td>
               <td data-ru="Регистрация или обновление устройства" data-en="Register or update a device">Регистрация устройства</td>
             </tr>
             <tr>
               <td class="mono">POST /devices/heartbeat</td>
-              <td>—</td>
+              <td data-ru="device" data-en="device">device</td>
               <td data-ru="Подтверждение присутствия; возвращает устройство в онлайн" data-en="Presence ping; brings the device back online">Подтверждение присутствия</td>
             </tr>
             <tr>
               <td class="mono">GET /devices</td>
-              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru-html="Список устройств, фильтр <code>?online=true|false</code>" data-en-html="Device list, filter <code>?online=true|false</code>">Список устройств</td>
             </tr>
             <tr>
               <td class="mono">GET /devices/:id</td>
-              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru="Одно устройство по идентификатору" data-en="A single device by ID">Карточка устройства</td>
             </tr>
             <tr>
               <td class="mono">DELETE /devices/:id</td>
-              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru="Удаление устройства вместе с его авариями и правилами" data-en="Delete a device along with its alerts and rules">Удаление устройства</td>
             </tr>
             <tr>
+              <td class="mono">POST /devices/:id/command</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
+              <td data-ru-html="Отправить команду устройству через MQTT-топик <code>iot/&lt;id&gt;/commands</code>" data-en-html="Send a command to the device over the <code>iot/&lt;id&gt;/commands</code> MQTT topic">Команда устройству</td>
+            </tr>
+            <tr>
               <td class="mono">GET /alerts</td>
-              <td>—</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru-html="Список аварий, фильтр <code>?device_id=…</code>" data-en-html="Alert list, filter <code>?device_id=…</code>">Список аварий</td>
             </tr>
             <tr>
               <td class="mono">POST /alerts</td>
-              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru="Создать аварию" data-en="Create an alert">Создание аварии</td>
             </tr>
             <tr>
               <td class="mono">PUT /alerts/:id</td>
-              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru="Изменить аварию, в том числе отметить срабатывание" data-en="Update an alert, including marking a trigger">Изменение аварии</td>
             </tr>
             <tr>
               <td class="mono">DELETE /alerts/:id</td>
-              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru="Удалить аварию" data-en="Delete an alert">Удаление аварии</td>
             </tr>
             <tr>
               <td class="mono">GET /rules</td>
-              <td>—</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru-html="Список правил, фильтр <code>?device_id=…</code>" data-en-html="Rule list, filter <code>?device_id=…</code>">Список правил</td>
             </tr>
             <tr>
               <td class="mono">POST /rules</td>
-              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru="Создать правило" data-en="Create a rule">Создание правила</td>
             </tr>
             <tr>
               <td class="mono">PUT /rules/:id</td>
-              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru="Изменить правило" data-en="Update a rule">Изменение правила</td>
             </tr>
             <tr>
               <td class="mono">DELETE /rules/:id</td>
-              <td data-ru="да" data-en="yes">да</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru="Удалить правило" data-en="Delete a rule">Удаление правила</td>
             </tr>
           </tbody>
@@ -455,7 +501,7 @@
       <h3 data-ru="Тело запроса регистрации" data-en="Registration body">Тело запроса регистрации</h3>
 
       <pre><code>POST /api/v1/devices/register
-Authorization: Basic base64(device:&lt;пароль&gt;)
+Authorization: Basic base64(MQTT_DEVICE_USER:&lt;пароль&gt;)
 Content-Type: application/json
 
 {
@@ -492,6 +538,59 @@ Content-Type: application/json
   "cooldown_seconds": 300
 }</code></pre>
 
+      <h3 data-ru="Веб-панель" data-en="Web panel">Веб-панель</h3>
+
+      <p data-ru-html="Панель живёт по адресу <code>/panel/</code> и включается, только если задан <code>PANEL_PASSWORD</code>. После входа по паролю сервер выдаёт HttpOnly-cookie <code>iot_panel</code>; те же методы принимают логин приложения по HTTP Basic. Без сессии панель отвечает 401, без пароля в конфигурации — 503." data-en-html="The panel lives at <code>/panel/</code> and is enabled only when <code>PANEL_PASSWORD</code> is set. After a password login the server issues the HttpOnly <code>iot_panel</code> cookie; the same methods accept the app login over HTTP Basic. Without a session the panel answers 401, without a configured password it answers 503.">Панель включается паролем.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Метод и путь" data-en="Method &amp; path">Метод и путь</th>
+              <th data-ru="Назначение" data-en="Purpose">Назначение</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">POST /panel/api/auth/login</td>
+              <td data-ru="Вход по паролю, выдаёт cookie сессии" data-en="Password login, issues the session cookie">Вход в панель</td>
+            </tr>
+            <tr>
+              <td class="mono">POST /panel/api/auth/logout</td>
+              <td data-ru="Выход и удаление cookie" data-en="Log out and clear the cookie">Выход</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /panel/api/session</td>
+              <td data-ru="Статус сессии, версия и путь панели" data-en="Session status, version and panel path">Статус сессии</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /panel/api/system</td>
+              <td data-ru="Сводка: устройства, аварии, правила, CPU, память, аптайм" data-en="Summary: devices, alerts, rules, CPU, memory, uptime">Сводка сервера</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /panel/api/system/history</td>
+              <td data-ru="Ряды метрик сервера для графиков" data-en="Server metric series for the charts">Графики сервера</td>
+            </tr>
+            <tr>
+              <td class="mono">GET/POST /panel/api/devices</td>
+              <td data-ru="Список и создание устройств" data-en="List and create devices">Устройства</td>
+            </tr>
+            <tr>
+              <td class="mono">GET/PUT/DELETE /panel/api/devices/:id</td>
+              <td data-ru="Карточка, изменение и удаление устройства" data-en="Device card, update and delete">Операции с устройством</td>
+            </tr>
+            <tr>
+              <td class="mono">GET/PUT /panel/api/settings</td>
+              <td data-ru="Настройки рантайма: таймаут, лимиты, срок сессии, пароль панели" data-en="Runtime settings: timeout, limits, session TTL, panel password">Настройки</td>
+            </tr>
+            <tr>
+              <td class="mono">POST /panel/api/restart</td>
+              <td data-ru="Сбросить состояние на диск и перезапустить процесс сервера" data-en="Flush state to disk and restart the server process">Перезапуск сервера</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <h2 id="kod" data-ru="Коды ответа и ошибки" data-en="Status codes and errors">Коды ответа и ошибки</h2>
 
       <div class="table-wrap">
@@ -506,7 +605,7 @@ Content-Type: application/json
           <tbody>
             <tr>
               <td class="mono">401</td>
-              <td data-ru="Токен не задан или неверный" data-en="Token missing or wrong">Требуется токен</td>
+              <td data-ru="Логин или пароль Basic не указан либо неверен" data-en="Basic login missing or wrong">Требуется авторизация</td>
               <td class="mono">unauthorized</td>
             </tr>
             <tr>
@@ -533,7 +632,7 @@ Content-Type: application/json
         </table>
       </div>
 
-      <p data-ru-html="Устройство дополнительно отвечает 409 на занятую команду, 405 на неверный метод и 404 на неизвестный путь — последнее всегда с телом <code>{"error":"not_found"}</code>." data-en-html="The device also answers 409 for a busy command, 405 for a wrong method and 404 for an unknown path — the last one always with the body <code>{"error":"not_found"}</code>.">Устройство отвечает и кодами 409 и 405.</p>
+      <p data-ru-html="Устройство дополнительно отвечает 400 на неизвестную команду или неверное состояние реле, 409 на занятую команду, 500 на неудачный откат, 405 на неверный метод и 404 на неизвестный путь — последнее всегда с телом <code>{"error":"not_found"}</code>. Сервер отвечает 503 <code>mqtt_off</code>, если команда отправлена, а MQTT-мост выключен." data-en-html="The device also answers 400 for an unknown command or a bad relay state, 409 for a busy command, 500 for a failed rollback, 405 for a wrong method and 404 for an unknown path — the last one always with the body <code>{"error":"not_found"}</code>. The server answers 503 <code>mqtt_off</code> when a command is sent while the MQTT bridge is off.">Устройство отвечает и кодами 400, 409 и 500.</p>
 
       <div class="callout info">
         <div class="co-ic">🛡️</div>
@@ -565,6 +664,11 @@ Content-Type: application/json
               <td class="mono">iot/&lt;id&gt;/status</td>
               <td data-ru="устройство → подписчик" data-en="device → subscriber">устройство → подписчик</td>
               <td data-ru="Состояние: аптайм, память, RSSI, список модулей" data-en="Status: uptime, heap, RSSI, module list">Состояние</td>
+            </tr>
+            <tr>
+              <td class="mono">iot/&lt;id&gt;/relay</td>
+              <td data-ru="устройство → подписчик" data-en="device → subscriber">устройство → подписчик</td>
+              <td data-ru="Состояние реле после команды: enabled и state" data-en="Relay state after a command: enabled and state">Состояние реле</td>
             </tr>
             <tr>
               <td class="mono">iot/&lt;id&gt;/commands</td>
@@ -616,14 +720,18 @@ Content-Type: application/json
 
       <p data-ru-html="Обновление приходит по HTTPS. Устройство сначала спрашивает манифест и сравнивает версии: если опубликованная новее — качает образ и сверяет контрольную сумму." data-en-html="The update comes over HTTPS. The device first asks for the manifest and compares versions: if the published one is newer it downloads the image and verifies the checksum.">Обновление приходит по HTTPS.</p>
 
-      <pre><code>GET /fw/version.json
+      <pre><code>GET /fw/version-esp32-c6.json
 
 {
-  "version": "1.2.3",
-  "sha256": "9f2c…"
+  "version": "1.3.2",
+  "device_type": "esp32-c6",
+  "build_date": "2026-11-17T18:54:12Z",
+  "sha256": "457d937a…b8845b",
+  "size": 1534400,
+  "file": "main_esp32-c6.bin"
 }</code></pre>
 
-      <p data-ru="Без манифеста устройство просто скачает образ по стандартному пути. Контрольная сумма обязательна при нормальном обновлении: при несовпадении прошивка не применяется и устройство продолжает работать на прежней версии." data-en="With no manifest the device simply downloads the image from the default path. The checksum matters on a normal update: on a mismatch the firmware is not applied and the device keeps running the previous version.">Контрольная сумма обязательна при нормальном обновлении.</p>
+      <p data-ru="Поле size обязательно для надёжной загрузки: по нему устройство заранее освобождает OTA-слот и может проверить, что скачало ровно столько байт. sha256 сверяется после загрузки; при несовпадении образ не применяется и устройство продолжает работать на прежней версии." data-en="The size field is required for a reliable download: it lets the device free the OTA slot up front and verify that exactly that many bytes arrived. sha256 is checked after the download; on a mismatch the image is not applied and the device keeps running the previous version.">Поле size нужно для надёжной загрузки.</p>
 
       <h2 id="primer" data-ru="Готовые примеры" data-en="Worked examples">Готовые примеры</h2>
 

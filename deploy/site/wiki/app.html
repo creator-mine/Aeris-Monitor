@@ -86,7 +86,7 @@
         <div class="card">
           <span class="c-ic">⚡</span>
           <h3 data-ru="Управление" data-en="Control">Управление</h3>
-          <p data-ru="Перезагрузка, повторное сканирование датчиков, чтение по запросу, включение и выключение MQTT." data-en="Reboot, rescan sensors, on-demand read, MQTT on and off.">Команды устройству.</p>
+          <p data-ru="Перезагрузка, повторное сканирование датчиков, чтение по запросу, реле, включение и выключение MQTT, OTA и смена Wi-Fi." data-en="Reboot, rescan sensors, on-demand read, relay, MQTT on and off, OTA and Wi-Fi changes.">Команды устройству.</p>
         </div>
         <div class="card">
           <span class="c-ic">🔌</span>
@@ -135,10 +135,12 @@
 
       <p data-ru="Активный канал виден в интерфейсе постоянно: приложение показывает, по какому соединению сейчас идут данные, и переключается на другой автоматически, если текущий отвалился." data-en="The active channel is always visible: the app shows which link is carrying the data and switches to another automatically if the current one drops.">Приложение показывает активный канал и переключается само.</p>
 
+      <p data-ru="В прямом режиме адрес устройства искать вручную не нужно: приложение рассылает UDP-запрос AERIS_DISCOVER_V1 на порт 8266 и получает от платы её идентификатор, тип, версию прошивки, IP и порт. Резервный способ — mDNS-имя вида aeris-esp32c6-001.local. Найденное устройство сразу подставляется в список." data-en="In direct mode there is no need to type the device address: the app broadcasts AERIS_DISCOVER_V1 to UDP port 8266 and receives the board's id, type, firmware, IP and port. The fallback is an mDNS name such as aeris-esp32c6-001.local. The discovered device is added to the list automatically.">Приложение само находит устройство в локальной сети.</p>
+
       <div class="callout info">
         <div class="co-ic">🔐</div>
         <div class="co-body">
-          <p data-ru="Пароль от MQTT-брокера и токен сигнального сервера в приложение не вшиты: пользователь вводит их один раз в настройках, и они хранятся в локальном хранилище устройства. В бандле их нет." data-en="The MQTT broker password and the signaling server token are not baked into the app: the user enters them once in settings and they stay in the device's local storage. They are absent from the bundle.">Пароли не вшиты в приложение.</p>
+          <p data-ru="Пароль от MQTT-брокера в приложение не вшит: пользователь вводит логин и пароль один раз в настройках, и они хранятся в локальном хранилище устройства. Тот же логин и пароль защищают HTTP API — отдельного токена сервера нет." data-en="The MQTT broker password is not baked into the app: the user enters the login and password once in settings and they stay in the device's local storage. The same login and password protect the HTTP API — there is no separate server token.">Пароли не вшиты в приложение.</p>
         </div>
       </div>
 
@@ -327,7 +329,7 @@
           <tbody>
             <tr>
               <td data-ru="Версия приложения" data-en="App version">Версия приложения</td>
-              <td class="mono">1.2.0</td>
+              <td class="mono">1.2.3</td>
               <td data-ru="Показывается в настройках" data-en="Shown in settings">Показывается в настройках</td>
             </tr>
             <tr>
@@ -348,12 +350,17 @@
             <tr>
               <td data-ru="Учётная запись MQTT" data-en="MQTT username">Учётная запись MQTT</td>
               <td class="mono">app</td>
-              <td data-ru="Пароль вводится пользователем" data-en="The password is entered by the user">Пароль вводится пользователем</td>
+              <td data-ru="Пароль вводится пользователем и используется также для HTTP API" data-en="The password is entered by the user and is also used for the HTTP API">Пароль вводится пользователем</td>
             </tr>
             <tr>
-              <td data-ru="Токен сервера" data-en="Server token">Токен сервера</td>
-              <td data-ru="вводится пользователем" data-en="entered by the user">вводится пользователем</td>
-              <td data-ru="Нужен для регистрации и чтения устройств" data-en="Required for registration and device reads">Нужен для регистрации</td>
+              <td data-ru="Авторизация HTTP API" data-en="HTTP API auth">Авторизация HTTP API</td>
+              <td data-ru="тот же логин и пароль" data-en="the same login and password">тот же логин и пароль</td>
+              <td data-ru="HTTP Basic; отдельного API-токена нет" data-en="HTTP Basic; there is no separate API token">HTTP Basic, без токена</td>
+            </tr>
+            <tr>
+              <td data-ru="Поиск устройств в LAN" data-en="LAN device discovery">Поиск устройств в LAN</td>
+              <td class="mono">UDP 8266</td>
+              <td data-ru="Broadcast AERIS_DISCOVER_V1, резерв — mDNS aeris-&lt;id&gt;.local" data-en="AERIS_DISCOVER_V1 broadcast, mDNS aeris-&lt;id&gt;.local as fallback">Broadcast и mDNS</td>
             </tr>
             <tr>
               <td data-ru="Порты устройства" data-en="Device ports">Порты устройства</td>

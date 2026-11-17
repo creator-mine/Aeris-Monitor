@@ -60,7 +60,7 @@
     <div class="page-head">
       <div class="eyebrow"><span>🔌</span> <span data-ru="Раздел 3" data-en="Section 3">Раздел 3</span></div>
       <h1 data-ru="Железо и схемы" data-en="Hardware &amp; schematics">Железо и схемы</h1>
-      <p class="lede" data-ru="Распиновка обеих плат, требования к питанию, схемы связи и шины, список покупок и ошибки, которые встречаются чаще всего." data-en="Pinouts of both boards, power requirements, link and bus schematics, the shopping list and the mistakes that happen most often.">Распиновка обеих плат и схемы.</p>
+      <p class="lede" data-ru="Распиновка плат контроллера и сенсорного модуля, требования к питанию, схемы связи и шины, список покупок и ошибки, которые встречаются чаще всего." data-en="Pinouts of the controller boards and the sensor module, power requirements, link and bus schematics, the shopping list and the mistakes that happen most often.">Распиновка плат и схемы.</p>
     </div>
 
     <div class="prose">
@@ -73,12 +73,12 @@
         <div class="card">
           <span class="c-ic">🧠</span>
           <h3 data-ru="Главный контроллер" data-en="Main controller">Главный контроллер</h3>
-          <p data-ru-html="ESP32-C3 на плате LOLIN C3 mini либо ESP32-S3 N16R8 (16 МБ флеша, 8 МБ PSRAM). Весь вариант S3 собирается той же прошивкой: отличаются только флаги сборки." data-en-html="An ESP32-C3 on a LOLIN C3 mini board, or an ESP32-S3 N16R8 (16 MB flash, 8 MB PSRAM). Both S3 variants build from the same firmware — only the build flags differ.">ESP32-C3 (LOLIN C3 mini) или ESP32-S3 N16R8.</p>
+          <p data-ru-html="ESP32-C3 на плате LOLIN C3 mini, ESP32-C6 DevKitC-1 (16 МБ) или ESP32-S3 N16R8 (16 МБ флеша, 8 МБ PSRAM). Все три варианта собираются из одного кода контроллера: отличаются только флаги сборки." data-en-html="An ESP32-C3 on a LOLIN C3 mini board, an ESP32-C6 DevKitC-1 (16 MB) or an ESP32-S3 N16R8 (16 MB flash, 8 MB PSRAM). All three build from the same controller code — only the build flags differ.">ESP32-C3, ESP32-C6 или ESP32-S3 N16R8.</p>
         </div>
         <div class="card">
           <span class="c-ic">🌡️</span>
           <h3 data-ru="Сенсорный модуль" data-en="Sensor module">Сенсорный модуль</h3>
-          <p data-ru-html="ESP32-C6 DevKitC-1. Wi-Fi не используется: модуль только читает датчики и отдаёт кадры по UART." data-en-html="An ESP32-C6 DevKitC-1. No Wi-Fi is used: the module only reads sensors and sends frames over UART.">ESP32-C6 DevKitC-1.</p>
+          <p data-ru-html="ESP32-C6 DevKitC-1. В режиме модуля Wi-Fi не используется: плата только читает датчики и отдаёт кадры по UART. Та же плата прошивкой <code>esp32-c6</code> превращается в полноценный контроллер с Wi-Fi, MQTT, API и OTA." data-en-html="An ESP32-C6 DevKitC-1. In module mode Wi-Fi is unused: the board only reads sensors and sends frames over UART. The same board flashed with the <code>esp32-c6</code> environment becomes a full controller with Wi-Fi, MQTT, API and OTA.">ESP32-C6 DevKitC-1: модуль или контроллер.</p>
         </div>
       </div>
 
@@ -98,7 +98,7 @@
               <th data-ru="Назначение" data-en="Purpose">Назначение</th>
               <th data-ru="ESP32-C3 (контроллер)" data-en="ESP32-C3 (controller)">ESP32-C3 (контроллер)</th>
               <th data-ru="ESP32-S3 (контроллер)" data-en="ESP32-S3 (controller)">ESP32-S3 (контроллер)</th>
-              <th data-ru="ESP32-C6 (модуль)" data-en="ESP32-C6 (module)">ESP32-C6 (модуль)</th>
+              <th data-ru="ESP32-C6 (модуль / контроллер)" data-en="ESP32-C6 (module / controller)">ESP32-C6 (модуль / контроллер)</th>
             </tr>
           </thead>
           <tbody>
@@ -130,7 +130,13 @@
               <td data-ru="SD card CS" data-en="SD card CS">SD card CS</td>
               <td class="mono">GPIO10</td>
               <td class="mono">GPIO10</td>
+              <td class="mono">GPIO10 (контроллер)</td>
+            </tr>
+            <tr>
+              <td data-ru="Реле (активный уровень HIGH)" data-en="Relay (active HIGH)">Реле (активный HIGH)</td>
+              <td class="mono">GPIO3</td>
               <td data-ru="не используется" data-en="not used">не используется</td>
+              <td class="mono">GPIO3 (контроллер)</td>
             </tr>
             <tr>
               <td data-ru="Светодиод активности" data-en="Activity LED">Светодиод активности</td>

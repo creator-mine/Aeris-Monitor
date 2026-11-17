@@ -40,9 +40,9 @@
     {
       file: 'architecture.html', ic: '🏗',
       ru: 'Архитектура системы', en: 'System architecture',
-      ruDesc: 'Компоненты, потоки данных, реестр модулей, отказоустойчивость и масштабирование.',
-      enDesc: 'Components, data flows, module registry, fault tolerance and scaling.',
-      kw: 'архитектура компоненты поток данных диаграмма реестр registry масштаб architecture components dataflow diagram scaling',
+      ruDesc: 'Компоненты, потоки данных, локальный API и поиск в сети, реестр модулей, отказоустойчивость и масштабирование.',
+      enDesc: 'Components, data flows, the local API and discovery, module registry, fault tolerance and scaling.',
+      kw: 'архитектура компоненты поток данных диаграмма реестр registry масштаб architecture components dataflow diagram scaling lan локальный discovery',
       sec: [
         ['obzor', "Обзор системы", "System overview"],
         ['potoki', "Потоки данных", "Data flows"],
@@ -105,14 +105,15 @@
     {
       file: 'firmware.html', ic: '⚙',
       ru: 'Прошивка и протокол', en: 'Firmware & protocol',
-      ruDesc: 'Сборка PlatformIO, OTA, структура кода и бинарный UART-протокол с CRC-16.',
-      enDesc: 'PlatformIO build, OTA, code layout and the binary UART protocol with CRC-16.',
-      kw: 'прошивка сборка platformio pio прошить flash ota обновление uart протокол crc кадр frame firmware build flash',
+      ruDesc: 'Сборка PlatformIO, OTA с откатом, поиск в локальной сети, структура кода и бинарный UART-протокол с CRC-16.',
+      enDesc: 'PlatformIO build, OTA with rollback, LAN discovery, code layout and the binary UART protocol with CRC-16.',
+      kw: 'прошивка сборка platformio pio прошить flash ota обновление uart протокол crc кадр frame firmware build flash lan udp discovery 8266 поиск сети',
       sec: [
         ['sostav', "Состав репозитория", "Repository layout"],
         ['sborka', "Сборка прошивок", "Building the firmware"],
         ['pervyy-zapusk', "Первичная прошивка и настройка", "Initial flash & setup"],
         ['ota', "Обновление по воздуху", "Over-the-air updates"],
+        ['lan', "Поиск в локальной сети", "LAN discovery"],
         ['struktura', "Структура кода контроллера", "Controller code layout"],
         ['protocol', "UART-протокол", "UART protocol"],
         ['crc', "CRC-16 и целостность кадра", "CRC-16 & frame integrity"],
@@ -122,9 +123,9 @@
     {
       file: 'app.html', ic: '📱',
       ru: 'Мобильное приложение', en: 'Mobile application',
-      ruDesc: 'Flutter-приложение: режимы подключения, экраны, графики, аварии, smart rules и сборка прошивок.',
-      enDesc: 'Flutter app: connection modes, screens, charts, alerts, smart rules and firmware builds.',
-      kw: 'приложение flutter android ios экраны графики аварии правила smart rules прошивки otа приложение app mobile dashboard',
+      ruDesc: 'Flutter-приложение: режимы подключения, автопоиск устройств в LAN, экраны, графики, аварии, smart rules и сборка прошивок.',
+      enDesc: 'Flutter app: connection modes, automatic LAN discovery, screens, charts, alerts, smart rules and firmware builds.',
+      kw: 'приложение flutter android ios экраны графики аварии правила smart rules прошивки otа приложение app mobile dashboard lan udp discovery автопоиск',
       sec: [
         ['vozmozhnosti', "Возможности", "Features"],
         ['rezhimy', "Режимы подключения", "Connection modes"],
@@ -139,9 +140,9 @@
     {
       file: 'server.html', ic: '🖥',
       ru: 'Сервер и развёртывание', en: 'Server & deployment',
-      ruDesc: 'Сигнальный сервер, Mosquitto, nginx, TLS, systemd, переменные окружения и бэкапы.',
-      enDesc: 'Signaling server, Mosquitto, nginx, TLS, systemd, environment variables and backups.',
-      kw: 'сервер развёртывание deployment nginx mosquitto mqtt tls сертификат systemd бэкап backup переменные окружения vps docker',
+      ruDesc: 'Сигнальный сервер, Mosquitto, nginx, TLS, веб-панель, переменные окружения и бэкапы.',
+      enDesc: 'Signaling server, Mosquitto, nginx, TLS, web panel, environment variables and backups.',
+      kw: 'сервер развёртывание deployment nginx mosquitto mqtt tls сертификат systemd бэкап backup переменные окружения vps docker panel панель',
       sec: [
         ['sostav', "Что стоит на сервере", "What runs on the server"],
         ['signalnyy', "Сигнальный сервер", "Signaling server"],
@@ -156,9 +157,9 @@
     {
       file: 'api.html', ic: '📡',
       ru: 'Справочник API', en: 'API reference',
-      ruDesc: 'REST и WebSocket контроллера, MQTT-топики, CSV на SD, справочник ошибок.',
-      enDesc: 'Controller REST and WebSocket, MQTT topics, SD CSV format, error reference.',
-      kw: 'api rest websocket mqtt топики topics csv json ошибки error коды http endpoint документация reference',
+      ruDesc: 'REST и WebSocket контроллера, поиск в локальной сети, MQTT-топики, CSV на SD, справочник ошибок.',
+      enDesc: 'Controller REST and WebSocket, LAN discovery, MQTT topics, SD CSV format, error reference.',
+      kw: 'api rest websocket mqtt топики topics csv json ошибки error коды http endpoint документация reference lan udp discovery 8266',
       sec: [
         ['obzor', "Два разных интерфейса", "Two different interfaces"],
         ['ustroystvo', "API устройства", "Device API"],
@@ -212,10 +213,10 @@
   };
 
   var META = {
-    fw: '1.2.2',
-    app: '1.1.0',
+    fw: '1.3.2',
+    app: '1.2.3',
     server: '0.4.0',
-    updated: '2026-10-03'
+    updated: '2026-11-18'
   };
 
   var LANGS = ['ru', 'en'];

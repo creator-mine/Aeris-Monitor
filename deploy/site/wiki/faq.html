@@ -131,15 +131,15 @@
       <details class="faq">
         <summary data-ru="Приложение не видит устройство" data-en="The app does not see the device">Приложение не видит устройство</summary>
         <div class="faq-body">
-          <p data-ru="Проверьте режим подключения. При прямом подключении телефон и устройство должны быть в одной сети; если это не так, переключитесь на MQTT. Отдельно стоит проверить, опубликовано ли устройство в реестре сервера." data-en="Check the connection mode. In direct mode the phone and the device must share a network; if not, switch to MQTT. Also check whether the device has been published to the server registry.">Проверьте режим и сеть.</p>
+          <p data-ru="Проверьте режим подключения. В прямом режиме приложение само ищет плату UDP-запросом на порт 8266 (AERIS_DISCOVER_V1) и дублирует поиск по mDNS-имени aeris-&lt;id&gt;.local. Телефон и устройство должны быть в одной сети; если это не так, переключитесь на MQTT. Отдельно стоит проверить, опубликовано ли устройство в реестре сервера." data-en="Check the connection mode. In direct mode the app finds the board by itself with a UDP request to port 8266 (AERIS_DISCOVER_V1), with mDNS aeris-&lt;id&gt;.local as a fallback. The phone and the device must share a network; if not, switch to MQTT. Also check whether the device has been published to the server registry.">Проверьте режим и сеть.</p>
           <p data-ru="Если устройство только что зарегистрировано, подождите до минуты: сервер считает молчащим то, что не подтверждало присутствие три минуты." data-en="If the device has just registered, give it up to a minute: the server treats as stale whatever has not checked in for three minutes.">Подождите до минуты после регистрации.</p>
         </div>
       </details>
 
       <details class="faq">
-        <summary data-ru="Куда вводить пароль от MQTT и токен сервера" data-en="Where do the MQTT password and the server token go">Куда вводить пароль и токен</summary>
+        <summary data-ru="Куда вводить пароль от MQTT и API" data-en="Where do the MQTT and API passwords go">Куда вводить пароль</summary>
         <div class="faq-body">
-          <p data-ru="В настройки приложения. В бандле их нет намеренно: одна и та же сборка работает у всех, а учётные данные вводятся пользователем и хранятся локально на устройстве." data-en="Into the app settings. They are deliberately absent from the bundle: one and the same build works for everyone, and the credentials are entered by the user and stored locally on the device.">Только в настройках приложения.</p>
+          <p data-ru="В настройки приложения. В бандле учётных данных нет намеренно: одна и та же сборка работает у всех, а логин и пароль вводятся пользователем и хранятся локально на устройстве. Отдельного токена сервера больше нет — HTTP API использует тот же логин и пароль, что и MQTT." data-en="Into the app settings. Credentials are deliberately absent from the bundle: one and the same build works for everyone, and the login and password are entered by the user and stored locally on the device. There is no separate server token any more — the HTTP API uses the same login and password as MQTT.">Только в настройках приложения.</p>
         </div>
       </details>
 
@@ -148,7 +148,7 @@
       <details class="faq">
         <summary data-ru="Где хранятся показания?" data-en="Where are the readings stored?">Где хранятся показания</summary>
         <div class="faq-body">
-          <p data-ru="На трёх уровнях, и это стоит понимать: брокер держит только последнее значение по каждому топику, карта в устройстве хранит историю в CSV, а сервер — вообще ничего из измерений. Сервер знает только то, какие устройства есть и какие у них аварии и правила." data-en="At three levels, and it helps to understand them: the broker keeps only the latest value per topic, the card in the device holds history as CSV, and the server stores nothing from the measurements at all. The server only knows which devices exist and what alerts and rules they have.">Брокер, карта и сервер.</p>
+          <p data-ru="На трёх уровнях, и это стоит понимать: брокер держит только последнее значение по каждому топику, карта в устройстве хранит историю в CSV, а сервер по умолчанию знает только то, какие устройства есть и какие у них аварии и правила. Если включён MQTT-мост (MQTT_ENABLED=1), сервер дополнительно пишет поток метрик в JSONL-файлы." data-en="At three levels, and it helps to understand them: the broker keeps only the latest value per topic, the card in the device holds history as CSV, and by default the server only knows which devices exist and what alerts and rules they have. With the MQTT bridge enabled (MQTT_ENABLED=1), the server additionally stores the metric stream in JSONL files.">Брокер, карта и сервер.</p>
           <p data-ru="Практический вывод: если сервер потерян, история никуда не денется, а вот список устройств и правила придётся восстанавливать из резервной копии." data-en="The practical consequence: if the server is lost, no history is lost, but the device list and rules have to be restored from backup.">История не зависит от сервера.</p>
         </div>
       </details>
@@ -190,7 +190,7 @@
       <details class="faq">
         <summary data-ru="Обновление сорвалось, устройство не стартует" data-en="An update failed and the device will not boot">Обновление сорвалось</summary>
         <div class="faq-body">
-          <p data-ru-html="Прошивка пишется во второй раздел, поэтому текущая остаётся нетронутой до самого конца. Если что-то пошло не так, отправьте команду <code>ota_rollback</code> — устройство перезагрузится на предыдущую рабочую версию." data-en-html="The new firmware is written to the second slot, so the running one stays untouched until the very end. If something went wrong, send the <code>ota_rollback</code> command and the device will reboot into the previous working version.">Откат командой ota_rollback.</p>
+          <p data-ru-html="Прошивка пишется во второй раздел, поэтому текущая остаётся нетронутой до самого конца. Если что-то пошло не так, отправьте команду <code>ota_rollback</code> — устройство проверит предыдущий OTA-слот и перезагрузится на образ из него." data-en-html="The new firmware is written to the second slot, so the running one stays untouched until the very end. If something went wrong, send the <code>ota_rollback</code> command — the device validates the other OTA slot and reboots into that image.">Откат командой ota_rollback.</p>
           <p data-ru="Если и откат недоступен, устройство придётся прошить по USB." data-en="If rollback is unavailable too, the device has to be reflashed over USB.">Крайний случай — прошивка по USB.</p>
         </div>
       </details>
@@ -207,7 +207,7 @@
       <details class="faq">
         <summary data-ru="Что проверяется автоматически?" data-en="What is verified automatically?">Что проверяется автоматически</summary>
         <div class="faq-body">
-          <p data-ru="У сервера есть 36 автотестов: реестр, лимиты, аварии, правила и обработчики HTTP. У приложения 77 тестов. Прошивка проверяется сборкой под все три платы и поведением на реальном железе — автотестов у неё нет." data-en="The server has 36 automated tests: registry, limits, alerts, rules and the HTTP handlers. The app has 77 tests. Firmware is verified by building for all three boards and by behaviour on real hardware — it has no automated tests.">Тесты есть у сервера и приложения.</p>
+          <p data-ru="У сервера 158 автотестов: реестр, лимиты, аварии, правила, MQTT-клиент, хранилище метрик, SSE и обработчики HTTP. У приложения 94 теста. Прошивка проверяется сборкой под все три платы и поведением на реальном железе — автотестов у неё нет." data-en="The server has 158 automated tests: registry, limits, alerts, rules, the MQTT client, metric storage, SSE and the HTTP handlers. The app has 94 tests. Firmware is verified by building for all three boards and by behaviour on real hardware — it has no automated tests.">Тесты есть у сервера и приложения.</p>
         </div>
       </details>
 

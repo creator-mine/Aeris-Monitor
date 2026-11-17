@@ -94,7 +94,7 @@
             <span class="fi">🧠</span>
             <div>
               <b data-ru="Главный контроллер" data-en="Main controller">Главный контроллер</b>
-              <div class="fm"><span class="mono">ESP32-C3</span> / <span class="mono">ESP32-S3</span></div>
+              <div class="fm"><span class="mono">ESP32-C3</span> / <span class="mono">ESP32-C6</span> / <span class="mono">ESP32-S3</span></div>
               <div class="tagline" data-ru="приём кадров · карта метрик · MQTT · веб-API · SD" data-en="frame intake · metric map · MQTT · web API · SD">приём кадров · карта метрик · MQTT · веб-API · SD</div>
             </div>
           </div>
@@ -135,7 +135,7 @@
         </div>
       </div>
 
-      <p data-ru="Между контроллером и внешним контуром работает два независимых канала: MQTT через брокер и HTTPS к сигнальному серверу. MQTT несёт значения метрик, сигнальный сервер — только сведения об устройстве: адрес, имя, версию прошивки и список типов датчиков. Сами показания через сервер не ходят, поэтому его остановка не обрывает поток данных." data-en="Two independent channels run between the controller and the outside: MQTT through the broker, and HTTPS to the signaling server. MQTT carries the metric values; the signaling server only keeps device metadata — address, name, firmware version and the list of sensor types. Readings never pass through it, so stopping the server does not interrupt the data flow.">MQTT несёт значения, сигнальный сервер — только сведения об устройстве.</p>
+      <p data-ru="У контроллера три независимых пути наружу. MQTT через брокер несёт значения метрик; HTTPS к сигнальному серверу — только сведения об устройстве: адрес, имя, версию прошивки и список типов датчиков. Третий путь — прямой локальный API по HTTP и WebSocket: приложение находит плату UDP-запросом на порт 8266 (AERIS_DISCOVER_V1) и работает с ней без интернета. Остановка сервера не обрывает ни MQTT, ни локальный доступ; если включён MQTT-мост, сервер дополнительно сохраняет поток метрик в JSONL." data-en="The controller has three independent outbound paths. MQTT through the broker carries metric values; HTTPS to the signaling server carries only device metadata — address, name, firmware version and the list of sensor types. The third path is the direct local API over HTTP and WebSocket: the app finds the board with a UDP request to port 8266 (AERIS_DISCOVER_V1) and works with it without the internet. Stopping the server breaks neither MQTT nor local access; with the MQTT bridge enabled the server additionally stores the metric stream as JSONL.">MQTT, сигнальный сервер и прямой локальный API.</p>
 
       <h2 id="potoki" data-ru="Потоки данных" data-en="Data flows">Потоки данных</h2>
 

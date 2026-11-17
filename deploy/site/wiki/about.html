@@ -84,7 +84,7 @@
         <div class="card">
           <span class="c-ic">🧠</span>
           <h3 data-ru="Главный контроллер" data-en="Main controller">Главный контроллер</h3>
-          <p data-ru="ESP32-C3 или ESP32-S3: принимает кадры по UART, собирает карту метрик, публикует всё в MQTT, отдаёт REST и WebSocket, пишет историю в CSV на SD-карту и служит точкой входа в локальную сеть." data-en="An ESP32-C3 or ESP32-S3: receives UART frames, assembles the metric map, publishes everything to MQTT, serves REST and WebSocket, writes CSV history to an SD card and is the entry point into the local network.">Принимает кадры, публикует в MQTT, отдаёт API и пишет историю на SD.</p>
+          <p data-ru="ESP32-C3, ESP32-C6 или ESP32-S3: принимает кадры по UART, собирает карту метрик, публикует всё в MQTT, отдаёт REST и WebSocket, пишет историю в CSV на SD-карту, отвечает на UDP-поиск в локальной сети и служит точкой входа для приложения." data-en="An ESP32-C3, ESP32-C6 or ESP32-S3: receives UART frames, assembles the metric map, publishes everything to MQTT, serves REST and WebSocket, writes CSV history to an SD card, answers UDP discovery on the local network and is the app's entry point.">Принимает кадры, публикует в MQTT, отдаёт API и пишет историю на SD.</p>
         </div>
       </div>
 
@@ -167,7 +167,7 @@
         <li data-ru="Питание датчиков по USB или общему блоку 5 В: автономного питания от батареи и работы без провода нет." data-en="Sensors are powered from USB or a shared 5 V rail: there is no battery operation and no wireless link.">Автономного питания и беспроводной связи нет.</li>
         <li data-ru="Встроенного графика температуры самого ESP32 нет: плата греется, и её собственный датчик показывает тепло, а не воздух. Мерить нужно вынесенным датчиком." data-en="There is no on-chip temperature graph: the board heats up and reports its own heat, not the air. Use a sensor placed away from the board.">Встроенный датчик ESP32 показывает тепло самой платы.</li>
         <li data-ru="SD-карта — расходник. Система удаляет старые файлы, но ресурс карты всё равно расходуется." data-en="The SD card is a consumable. The system deletes old files, but the card still wears out eventually.">SD-карта — расходник.</li>
-        <li data-ru="Флеш-память ESP32-C3 заполнена примерно на 88 %. Новые крупные зависимости потребуют либо перехода на ESP32-S3, либо уменьшения размера приложения." data-en="The ESP32-C3 flash is roughly 88 % full. New large dependencies mean either moving to ESP32-S3 or trimming the app.">Флеш ESP32-C3 заполнен примерно на 88 %.</li>
+        <li data-ru="Флеш-память ESP32-C3 заполнена примерно на 77 %. Новые крупные зависимости потребуют либо перехода на ESP32-S3, либо уменьшения размера приложения." data-en="The ESP32-C3 flash is roughly 77 % full. New large dependencies mean either moving to ESP32-S3 or trimming the app.">Флеш ESP32-C3 заполнен примерно на 77 %.</li>
       </ul>
 
       <h2 id="status" data-ru="Статус проекта" data-en="Project status">Статус проекта</h2>
@@ -177,7 +177,7 @@
       <div class="stats">
         <div class="stat"><div class="num">3</div><div class="lab" data-ru="цели сборки прошивки" data-en="firmware build targets">цели сборки прошивки</div></div>
         <div class="stat"><div class="num">5</div><div class="lab" data-ru="драйверов датчиков в реестре" data-en="sensor drivers in the registry">драйверов датчиков</div></div>
-        <div class="stat"><div class="num">1.2.2</div><div class="lab" data-ru="версия прошивки" data-en="firmware version">версия прошивки</div></div>
+        <div class="stat"><div class="num">1.3.2</div><div class="lab" data-ru="версия прошивки" data-en="firmware version">версия прошивки</div></div>
         <div class="stat"><div class="num">0.4.0</div><div class="lab" data-ru="версия сервера" data-en="server version">версия сервера</div></div>
       </div>
 
@@ -193,18 +193,18 @@
           <tbody>
             <tr>
               <td data-ru="Прошивка контроллера и модуля" data-en="Controller and module firmware">Прошивка контроллера и модуля</td>
-              <td class="mono">1.2.2</td>
+              <td class="mono">1.3.2</td>
               <td data-ru="Сборки под ESP32-C3, ESP32-C6 и ESP32-S3, проверка на железе" data-en="Builds for ESP32-C3, ESP32-C6 and ESP32-S3 plus on-device checks">Сборки под три платы + проверка на железе</td>
             </tr>
             <tr>
               <td data-ru="Сигнальный сервер" data-en="Signaling server">Сигнальный сервер</td>
               <td class="mono">0.4.0</td>
-              <td data-ru="36 автотестов реестра, лимитов, аварий, правил и HTTP-обработчиков" data-en="36 automated tests over the registry, limits, alerts, rules and HTTP handlers">36 автотестов</td>
+              <td data-ru="158 автотестов реестра, лимитов, аварий, правил, MQTT, хранилища метрик и HTTP-обработчиков" data-en="158 automated tests over the registry, limits, alerts, rules, MQTT, metric storage and HTTP handlers">158 автотестов</td>
             </tr>
             <tr>
               <td data-ru="Мобильное приложение" data-en="Mobile application">Мобильное приложение</td>
-              <td class="mono">1.2.0</td>
-              <td data-ru="77 автотестов моделей, парсеров и логики" data-en="77 automated tests over models, parsers and logic">77 автотестов</td>
+              <td class="mono">1.2.3</td>
+              <td data-ru="94 автотеста моделей, парсеров и логики" data-en="94 automated tests over models, parsers and logic">94 автотеста</td>
             </tr>
           </tbody>
         </table>
