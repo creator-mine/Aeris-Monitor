@@ -72,12 +72,14 @@ void main() {
         'build_date': '2026-09-11T08:15:00.000Z',
         'sha256': 'a' * 64,
         'file': 'main.bin',
+        'size': 1534400,
       });
       expect(manifest.version, '1.2.2');
       expect(manifest.deviceType, 'esp32-c3');
       expect(manifest.buildDate, DateTime.parse('2026-09-11T08:15:00.000Z'));
       expect(manifest.sha256, 'a' * 64);
       expect(manifest.file, 'main.bin');
+      expect(manifest.sizeBytes, 1534400);
     });
 
     test('tolerates missing optional fields', () {

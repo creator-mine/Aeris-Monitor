@@ -1,26 +1,32 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:dio/dio.dart' show CancelToken;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/firmware_version.dart';
 import '../../../models/firmware_manifest.dart';
+import '../../../models/staged_firmware.dart';
+import '../../../core/api/firmware_fetcher.dart';
 import '../../../core/api/firmware_service.dart';
 import '../../../core/api/ota_api.dart';
 import '../../../core/storage/firmware_storage.dart';
+import '../../../core/utils/firmware_file.dart';
 import '../../../core/utils/version.dart';
 import '../../../core/config/app_config.dart';
 import '../../../shared/helpers/chip_helper.dart';
 
 class FirmwareProvider extends ChangeNotifier {
   final FirmwareService _service;
+  final FirmwareFetcher _fetcher;
   final FirmwareStorage _storage = FirmwareStorage();
   String? _otaBaseUrl;
   static const _uuid = Uuid();
 
-  FirmwareProvider({String? otaBaseUrl})
+  FirmwareProvider({String? otaBaseUrl, FirmwareFetcher? fetcher})
       : _otaBaseUrl = otaBaseUrl,
+        _fetcher = fetcher ?? FirmwareFetcher(),
         _service = FirmwareService();
 
   /// OTA host used for manifest checks. Updatable at runtime so the user can
@@ -57,6 +63,12 @@ class FirmwareProvider extends ChangeNotifier {
   String? _detectChipError;
   StreamSubscription<String>? _buildSubscription;
 
+  StagedFirmware? _stagedFirmware;
+  bool _isStaging = false;
+  double? _downloadProgress;
+  String? _stageError;
+  CancelToken? _downloadCancel;
+
   FirmwareManifest? _serverManifest;
   bool _isCheckingServer = false;
   bool _manifestCheckQueued = false;
@@ -70,6 +82,12 @@ class FirmwareProvider extends ChangeNotifier {
   bool get isBuilding => _isBuilding;
   bool get isUploading => _isUploading;
   bool get isInstallingPlatformio => _isInstallingPlatformio;
+  StagedFirmware? get stagedFirmware => _stagedFirmware;
+  bool get isStaging => _isStaging;
+  double? get downloadProgress => _downloadProgress;
+  String? get stageError => _stageError;
+  bool get canStagePublished =>
+      _serverManifest != null && !_isStaging && !_isUploading;
   List<String> get buildLogs => _buildLogs;
   bool get platformioAvailable => _platformioAvailable;
   List<String> get availablePorts => _availablePorts;
@@ -81,6 +99,7 @@ class FirmwareProvider extends ChangeNotifier {
     }
     return null;
   }
+
   String? get currentHash => _currentHash;
   bool get hasUpdates => _hasUpdates;
   String? get updateCheckError => _updateCheckError;
@@ -122,10 +141,8 @@ class FirmwareProvider extends ChangeNotifier {
 
   /// Extracts the semver (e.g. "1.2.2") from an external .bin file name like
   /// "aeris-esp32c3-v1.2.2.bin". Returns null when absent.
-  static String? versionFromFilename(String name) {
-    final match = RegExp(r'(\d+\.\d+\.\d+)').firstMatch(name);
-    return match?.group(1);
-  }
+  static String? versionFromFilename(String name) =>
+      firmwareVersionFromName(name);
 
   /// Sets a manual version for the next build. Empty/invalid input clears it.
   /// Returns whether the provided value was accepted.
@@ -146,6 +163,7 @@ class FirmwareProvider extends ChangeNotifier {
     _pendingVersion = null;
     notifyListeners();
   }
+
   FirmwareVersion? previousVersionOf(FirmwareVersion version) {
     final versions = versionsForDevice;
     final index = versions.indexWhere((v) => v.id == version.id);
@@ -174,8 +192,20 @@ class FirmwareProvider extends ChangeNotifier {
     return changes;
   }
 
-  bool get canBuild => _sourcePath != null && _platformioAvailable;
-  bool get canUpload => canBuild && _selectedPort != null && !_isBuilding && !_isUploading;
+  bool get canBuild =>
+      _sourcePath != null && _platformioAvailable && !_isStaging;
+  bool get canUpload =>
+      canBuild &&
+      _selectedPort != null &&
+      !_isBuilding &&
+      !_isUploading &&
+      !_isStaging;
+  bool get canFlashStaged =>
+      _stagedFirmware != null &&
+      _selectedPort != null &&
+      !_isBuilding &&
+      !_isUploading &&
+      !_isStaging;
 
   List<FirmwareVersion> get versionsForDevice =>
       _versions.where((v) => v.deviceType == _selectedDeviceType).toList()
@@ -284,13 +314,15 @@ class FirmwareProvider extends ChangeNotifier {
     }
 
     try {
-      _projectInfo = await _service.getProjectInfo(_sourcePath!, _selectedDeviceType);
+      _projectInfo =
+          await _service.getProjectInfo(_sourcePath!, _selectedDeviceType);
     } catch (_) {
       _projectInfo = <String, dynamic>{};
     }
 
     try {
-      _firmwareBinInfo = await _service.getFirmwareBinInfo(_sourcePath!, _selectedDeviceType);
+      _firmwareBinInfo =
+          await _service.getFirmwareBinInfo(_sourcePath!, _selectedDeviceType);
     } catch (_) {
       _firmwareBinInfo = <String, dynamic>{};
     }
@@ -354,7 +386,8 @@ class FirmwareProvider extends ChangeNotifier {
     _updateCheckError = null;
     try {
       _currentHash = await _service.calculateSourceHash(_sourcePath!);
-      _currentFileHashes = await _service.calculateSourceFileHashes(_sourcePath!);
+      _currentFileHashes =
+          await _service.calculateSourceFileHashes(_sourcePath!);
       final latest = _storage.getLatestByDevice(_selectedDeviceType);
 
       if (latest != null && latest.buildHash != null) {
@@ -387,7 +420,9 @@ class FirmwareProvider extends ChangeNotifier {
   }
 
   Future<void> build() async {
-    if (!canBuild || _sourcePath == null || _isInstallingPlatformio || kIsWeb) return;
+    if (!canBuild || _sourcePath == null || _isInstallingPlatformio || kIsWeb) {
+      return;
+    }
 
     // Capture everything the build is based on: the user can switch device
     // type or folder while it runs, and the saved record must still describe
@@ -433,7 +468,8 @@ class FirmwareProvider extends ChangeNotifier {
             snapshot = await _service.captureConfigSnapshot(sourcePath);
           } catch (_) {}
           try {
-            fileHashesMap = await _service.calculateSourceFileHashes(sourcePath);
+            fileHashesMap =
+                await _service.calculateSourceFileHashes(sourcePath);
           } catch (_) {}
 
           final version = FirmwareVersion(
@@ -462,7 +498,13 @@ class FirmwareProvider extends ChangeNotifier {
   }
 
   Future<void> upload() async {
-    if (!canUpload || _sourcePath == null || _selectedPort == null || _isInstallingPlatformio || kIsWeb) return;
+    if (!canUpload ||
+        _sourcePath == null ||
+        _selectedPort == null ||
+        _isInstallingPlatformio ||
+        kIsWeb) {
+      return;
+    }
 
     final deviceType = _selectedDeviceType;
     final sourcePath = _sourcePath!;
@@ -546,39 +588,189 @@ class FirmwareProvider extends ChangeNotifier {
     );
   }
 
-  /// Registers an external .bin as a version of the selected device type so it
-  /// appears in history and can be flashed directly via esptool. Version is
-  /// derived from the file name (falling back to the next auto version).
-  Future<FirmwareVersion?> importFirmware(String binPath) async {
-    if (kIsWeb) return null;
-    final file = File(binPath);
-    if (!await file.exists() || await file.length() == 0) return null;
-
-    var version = versionFromFilename(p.basename(binPath));
-    if (version == null || !_versionPattern.hasMatch(version)) {
-      version = _storage.getNextVersion(_selectedDeviceType);
-    }
-
-    String? sha;
-    try {
-      sha = await _service.sha256OfFile(binPath);
-    } catch (_) {}
-
-    final record = FirmwareVersion(
-      id: _uuid.v4(),
-      version: version,
-      deviceType: _selectedDeviceType,
-      sourcePath: p.dirname(binPath),
-      buildDate: DateTime.now(),
-      buildHash: sha,
-      isBuilt: false,
-      firmwarePath: binPath,
-    );
-
-    await _storage.save(record);
-    _versions = _storage.getAll();
+  /// Copies a picked `.bin` into app storage and prepares it for flashing.
+  Future<void> stageLocalFirmware(String sourcePath) async {
+    if (kIsWeb || _isStaging) return;
+    _isStaging = true;
+    _downloadProgress = null;
+    _stageError = null;
+    _buildLogs = ['Подготовка файла прошивки...', ''];
     notifyListeners();
-    return record;
+
+    try {
+      final staged = await _fetcher.stageLocalFile(
+        sourcePath,
+        preferredDeviceType: _selectedDeviceType,
+      );
+      await _commitStaged(staged);
+      _buildLogs.add(
+        '[OK] ${staged.fileName} · ${staged.sizeLabel} · SHA-256 ${staged.shortHash}',
+      );
+    } on FirmwareFetchException catch (e) {
+      _stageError = e.message;
+      _buildLogs.add('[ERROR] ${e.message}');
+    } catch (e) {
+      _stageError = 'Не удалось подготовить прошивку: $e';
+      _buildLogs.add('[ERROR] $_stageError');
+    } finally {
+      _isStaging = false;
+      notifyListeners();
+    }
+  }
+
+  /// Downloads a `.bin` from a GitHub link (file, raw, release) or any HTTPS
+  /// URL and stages it for flashing.
+  Future<void> stageFromUrl(
+    String url, {
+    String? expectedSha256,
+    int? expectedBytes,
+  }) async {
+    if (kIsWeb || _isStaging) return;
+    _isStaging = true;
+    _downloadProgress = 0;
+    _stageError = null;
+    _buildLogs = ['Скачивание прошивки...', url, ''];
+    notifyListeners();
+
+    final cancel = CancelToken();
+    _downloadCancel = cancel;
+    var lastProgressNotify = 0;
+
+    try {
+      final staged = await _fetcher.downloadFromUrl(
+        url,
+        preferredDeviceType: _selectedDeviceType,
+        expectedSha256: expectedSha256,
+        expectedBytes: expectedBytes,
+        cancelToken: cancel,
+        onProgress: (received, total) {
+          _downloadProgress = total > 0 ? received / total : null;
+          final now = DateTime.now().millisecondsSinceEpoch;
+          if (now - lastProgressNotify > 100) {
+            lastProgressNotify = now;
+            notifyListeners();
+          }
+        },
+      );
+      await _commitStaged(staged);
+      _buildLogs.add(
+        '[OK] ${staged.fileName} · ${staged.sizeLabel} · SHA-256 ${staged.shortHash}',
+      );
+    } on FirmwareFetchException catch (e) {
+      _stageError = e.message;
+      _buildLogs.add('[ERROR] ${e.message}');
+    } catch (e) {
+      _stageError = 'Не удалось скачать прошивку: $e';
+      _buildLogs.add('[ERROR] $_stageError');
+    } finally {
+      _downloadCancel = null;
+      _isStaging = false;
+      _downloadProgress = null;
+      notifyListeners();
+    }
+  }
+
+  /// Downloads the firmware currently published in the OTA manifest and
+  /// verifies its size and SHA-256 before staging.
+  Future<void> stagePublishedFirmware() async {
+    final manifest = _serverManifest;
+    if (manifest == null) {
+      _stageError = 'Опубликованная версия ещё не получена';
+      notifyListeners();
+      return;
+    }
+    final base = (_otaBaseUrl ?? AppConfig.apiBaseUrl)
+        .trim()
+        .replaceAll(RegExp(r'/+$'), '');
+    final file = manifest.file.isNotEmpty
+        ? manifest.file
+        : OtaApi.binaryPathFor(_selectedDeviceType);
+    await stageFromUrl(
+      '$base/fw/$file',
+      expectedSha256: manifest.sha256,
+      expectedBytes: manifest.sizeBytes,
+    );
+  }
+
+  void cancelStaging() {
+    _downloadCancel?.cancel('Отменено пользователем');
+  }
+
+  /// Clears the pending image and removes its private copy.
+  Future<void> clearStagedFirmware() async {
+    await _replaceStaged(null);
+    _stageError = null;
+    notifyListeners();
+  }
+
+  Future<void> _commitStaged(StagedFirmware staged) async {
+    final old = _stagedFirmware;
+    _stagedFirmware = staged;
+    if (old != null && old.path != staged.path) {
+      await old.deleteFile();
+    }
+  }
+
+  Future<void> _replaceStaged(StagedFirmware? next) async {
+    final old = _stagedFirmware;
+    _stagedFirmware = next;
+    if (old != null && old.path != next?.path) {
+      await old.deleteFile();
+    }
+  }
+
+  /// Flashes the staged image with esptool. No project folder or PlatformIO
+  /// build is needed — only esptool itself (installed with PlatformIO).
+  Future<void> flashStaged() async {
+    final staged = _stagedFirmware;
+    final port = _selectedPort;
+    if (staged == null || port == null || !canFlashStaged) return;
+
+    _isUploading = true;
+    _stageError = null;
+    _buildLogs = [
+      'Загрузка ${staged.fileName} на $port...',
+      '',
+    ];
+    notifyListeners();
+
+    _buildSubscription?.cancel();
+    final stream = _service.flashBinary(staged.path, port);
+    _buildSubscription = stream.listen(
+      (line) {
+        _buildLogs.add(line);
+        notifyListeners();
+      },
+      onDone: () async {
+        _isUploading = false;
+
+        if (_buildLogs.any((l) => l.contains('[SUCCESS]'))) {
+          final record = FirmwareVersion(
+            id: _uuid.v4(),
+            version:
+                staged.version ?? _storage.getNextVersion(staged.deviceType),
+            deviceType: staged.deviceType,
+            sourcePath: staged.sourceUrl ?? p.dirname(staged.path),
+            buildDate: DateTime.now(),
+            buildHash: staged.sha256,
+            isBuilt: false,
+            firmwarePath: staged.path,
+            lastUploadPort: port,
+            lastUploadDate: DateTime.now(),
+          );
+          await _storage.save(record);
+          _versions = _storage.getAll();
+          _stagedFirmware = null;
+        } else {
+          final errors = _buildLogs.where((l) => l.contains('[ERROR]'));
+          if (errors.isNotEmpty) {
+            _stageError = errors.last.replaceFirst('[ERROR]', '').trim();
+          }
+        }
+
+        notifyListeners();
+      },
+    );
   }
 
   Future<void> deleteVersion(String id) async {
@@ -601,7 +793,9 @@ class FirmwareProvider extends ChangeNotifier {
   /// Installs PlatformIO Core via pip and, on success, refreshes the
   /// availability flag and serial ports so building becomes possible.
   Future<void> installPlatformIO() async {
-    if (_isInstallingPlatformio || _isBuilding || _isUploading || kIsWeb) return;
+    if (_isInstallingPlatformio || _isBuilding || _isUploading || kIsWeb) {
+      return;
+    }
 
     _isInstallingPlatformio = true;
     _buildLogs = [
@@ -665,29 +859,37 @@ class FirmwareProvider extends ChangeNotifier {
     ));
 
     if (iniOk && _sourcePath != null) {
-      final pkgs = await _service.platformioPkgList(_sourcePath!, _selectedDeviceType);
+      final pkgs =
+          await _service.platformioPkgList(_sourcePath!, _selectedDeviceType);
       final platformSpec = _projectInfo['platform']?.toString() ?? '';
       final baseName = platformSpec.split('@').first.trim();
 
       final platformPkgs = pkgs.where((p) => p['type'] == 'platform').toList();
-      final frameworkPkgs = pkgs.where((p) => p['type'] == 'framework').toList();
+      final frameworkPkgs =
+          pkgs.where((p) => p['type'] == 'framework').toList();
 
       final platformMatch = baseName.isEmpty
           ? platformPkgs.isNotEmpty
-          : platformPkgs.any((p) => p['name']?.toString().contains(baseName) == true || baseName.isEmpty);
+          : platformPkgs.any((p) =>
+              p['name']?.toString().contains(baseName) == true ||
+              baseName.isEmpty);
       items.add(PreflightItem(
         'Платформа',
         ok: platformPkgs.isNotEmpty && (baseName.isEmpty || platformMatch),
         detail: platformPkgs.isNotEmpty
             ? platformPkgs.map((p) => '${p['name']}@${p['version']}').join(', ')
-            : baseName.isEmpty ? 'не установлена' : '$baseName не установлена',
+            : baseName.isEmpty
+                ? 'не установлена'
+                : '$baseName не установлена',
       ));
 
       items.add(PreflightItem(
         'Фреймворк',
         ok: frameworkPkgs.isNotEmpty,
         detail: frameworkPkgs.isNotEmpty
-            ? frameworkPkgs.map((p) => '${p['name']}@${p['version']}').join(', ')
+            ? frameworkPkgs
+                .map((p) => '${p['name']}@${p['version']}')
+                .join(', ')
             : 'не установлен',
       ));
     }
@@ -713,6 +915,7 @@ class FirmwareProvider extends ChangeNotifier {
   @override
   void dispose() {
     _buildSubscription?.cancel();
+    _downloadCancel?.cancel('Provider disposed');
     _service.cancelActiveProcess();
     super.dispose();
   }

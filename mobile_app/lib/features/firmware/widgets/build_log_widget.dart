@@ -42,6 +42,7 @@ class _BuildLogWidgetState extends State<BuildLogWidget> {
     final provider = context.watch<FirmwareProvider>();
     final isActive = provider.isBuilding ||
         provider.isUploading ||
+        provider.isStaging ||
         provider.isInstallingPlatformio;
 
     if (isActive && _timer == null) {
@@ -132,18 +133,19 @@ class _BuildLogWidgetState extends State<BuildLogWidget> {
                 if (isActive)
                   TextButton(
                     onPressed: provider.cancelBuild,
-                    child: const Text('Отмена', style: TextStyle(color: Colors.red)),
+                    child: const Text('Отмена',
+                        style: TextStyle(color: Colors.red)),
                   ),
               ],
             ),
           ),
-          if (isActive)
-            const LinearProgressIndicator(minHeight: 2),
+          if (isActive) const LinearProgressIndicator(minHeight: 2),
           const Divider(height: 1),
           if (aptCommand != null)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.only(left: 12, right: 4, top: 4, bottom: 4),
+              padding:
+                  const EdgeInsets.only(left: 12, right: 4, top: 4, bottom: 4),
               color: Colors.orange.shade50,
               child: Row(
                 children: [

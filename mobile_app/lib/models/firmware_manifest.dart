@@ -5,6 +5,7 @@ class FirmwareManifest {
   final String deviceType;
   final DateTime? buildDate;
   final String? sha256;
+  final int? sizeBytes;
   final String file;
 
   const FirmwareManifest({
@@ -12,6 +13,7 @@ class FirmwareManifest {
     required this.deviceType,
     this.buildDate,
     this.sha256,
+    this.sizeBytes,
     this.file = 'main.bin',
   });
 
@@ -22,6 +24,9 @@ class FirmwareManifest {
       deviceType: (json['device_type'] as String?)?.trim() ?? 'esp32-c3',
       buildDate: rawDate is String ? DateTime.tryParse(rawDate) : null,
       sha256: (json['sha256'] as String?)?.trim(),
+      sizeBytes: json['size'] is num
+          ? (json['size'] as num).toInt()
+          : int.tryParse(json['size']?.toString() ?? ''),
       file: (json['file'] as String?)?.trim() ?? 'main.bin',
     );
   }
