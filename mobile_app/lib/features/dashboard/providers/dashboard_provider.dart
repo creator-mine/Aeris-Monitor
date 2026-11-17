@@ -4,6 +4,8 @@ import '../../../core/api/signaling_api.dart';
 import '../../../core/api/direct_device_client.dart';
 import '../../../core/api/device_ws_client.dart';
 import '../../../core/api/mqtt_client.dart';
+import '../../../core/api/lan_discovery.dart';
+import '../../../core/api/lan_devices.dart';
 import '../../../core/config/connection_mode.dart';
 import '../../../models/device.dart';
 import '../../../models/sensor_data.dart';
@@ -89,7 +91,10 @@ class DashboardProvider extends ChangeNotifier {
     _safeNotify();
 
     try {
-      _devices = await _signalingApi.getDevices();
+      final registry = await _signalingApi.getDevices();
+      final lan = await discoverLanDevices();
+      _devices = mergeLanDevices(registry, lan);
+      if (_devices.isNotEmpty) _error = null;
       if (_disposed) return;
       final previousId = _selectedDevice?.id;
       if (previousId != null) {
@@ -106,7 +111,10 @@ class DashboardProvider extends ChangeNotifier {
         await selectDevice(_devices.first);
       }
     } catch (e) {
-      _error = e.toString();
+      // Cloud registry is optional: discover the device on the local network.
+      final lan = await discoverLanDevices();
+      _devices = mergeLanDevices(const [], lan);
+      _error = _devices.isEmpty ? e.toString() : null;
     } finally {
       if (!_disposed) {
         _isLoading = false;
@@ -149,10 +157,30 @@ class DashboardProvider extends ChangeNotifier {
 
     final wantsDirect = _mode != ConnectionMode.mqtt;
     if (wantsDirect) {
-      final baseUrl = device.httpBaseUrl;
+      var target = device;
+      if (target.httpBaseUrl == null) {
+        // No IP from the registry (or the registry is down): look for the
+        // device on the local network before giving up on the direct channel.
+        final lan = await discoverLanDevices(
+          timeout: const Duration(milliseconds: 1200),
+        );
+        if (seq != _connectionSeq || _disposed) return;
+        for (final candidate in lan) {
+          if (candidate.id == device.id) {
+            target = applyLanDiscovery(device, candidate);
+            break;
+          }
+        }
+        if (!identical(target, device)) {
+          _selectedDevice = target;
+          final index = _devices.indexWhere((d) => d.id == target.id);
+          if (index >= 0) _devices[index] = target;
+        }
+      }
+      final baseUrl = target.httpBaseUrl;
       if (baseUrl != null) {
         _deviceClient = DirectDeviceClient(baseUrl: baseUrl);
-        await _wsClient.connect(device);
+        await _wsClient.connect(target);
         if (seq != _connectionSeq || _disposed) return;
       }
     }

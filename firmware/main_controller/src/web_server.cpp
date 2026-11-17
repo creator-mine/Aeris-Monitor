@@ -48,6 +48,7 @@ void WebServer::setupRoutes() {
 
     _http->on(API_PREFIX "/sensors", HTTP_GET, handleSensors);
     _http->on(API_PREFIX "/status", HTTP_GET, handleStatus);
+    _http->on(API_PREFIX "/data", HTTP_GET, handleData);
     _http->on(API_PREFIX "/modules", HTTP_GET, handleModules);
     _http->on(API_PREFIX "/sd/info", HTTP_GET, handleSdInfo);
     _http->on(API_PREFIX "/sensors/history", HTTP_GET, handleHistory);
@@ -215,6 +216,13 @@ void WebServer::handleSensors(AsyncWebServerRequest* request) {
 
 void WebServer::handleStatus(AsyncWebServerRequest* request) {
     request->send(200, "application/json", buildStatusJson());
+}
+
+void WebServer::handleData(AsyncWebServerRequest* request) {
+    String json = "{\"ok\":true,\"status\":" + buildStatusJson() +
+                  ",\"sensors\":" + buildSensorsJsonValue() +
+                  ",\"modules\":" + SensorRegistry::instance().modulesToJson() + "}";
+    request->send(200, "application/json", json);
 }
 
 void WebServer::handleModules(AsyncWebServerRequest* request) {

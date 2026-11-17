@@ -32,6 +32,7 @@ private:
 
     static void handleSensors(AsyncWebServerRequest* request);
     static void handleStatus(AsyncWebServerRequest* request);
+    static void handleData(AsyncWebServerRequest* request);
     static void handleModules(AsyncWebServerRequest* request);
     static void handleSdInfo(AsyncWebServerRequest* request);
     static void handleHistory(AsyncWebServerRequest* request);

@@ -9,6 +9,7 @@
 #include "config.h"
 #include "time_util.h"
 #include "web_server.h"
+#include "lan_discovery.h"
 #include "signaling_client.h"
 #include "wifi_config.h"
 #include "provisioning.h"
@@ -845,6 +846,7 @@ void setup() {
 
     if (WiFi.status() == WL_CONNECTED) {  // AsyncTCP/lwIP needs a live network link
         WebServer::instance().begin(HTTP_PORT, WEBSOCKET_PORT);
+        LanDiscovery::begin();
     } else {
         Serial.println("[HTTP] Skipped (no Wi-Fi)");
     }
@@ -872,6 +874,7 @@ void loop() {
     }
 
     wifiUpdate();
+    LanDiscovery::update();
     mqttUpdate();
     uartUpdate();
     ntpEnsureSynced();

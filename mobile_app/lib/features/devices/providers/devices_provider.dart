@@ -3,6 +3,8 @@ import '../../../core/api/signaling_api.dart';
 import '../../../core/api/ota_api.dart';
 import '../../../core/api/mqtt_client.dart';
 import '../../../core/api/direct_device_client.dart';
+import '../../../core/api/lan_discovery.dart';
+import '../../../core/api/lan_devices.dart';
 import '../../../core/utils/version.dart';
 import '../../../models/device.dart';
 import '../../../models/firmware_manifest.dart';
@@ -78,9 +80,15 @@ class DevicesProvider extends ChangeNotifier {
     _safeNotify();
 
     try {
-      _devices = await _signalingApi.getDevices();
+      final registry = await _signalingApi.getDevices();
+      final lan = await discoverLanDevices();
+      _devices = mergeLanDevices(registry, lan);
     } catch (e) {
-      _error = e.toString();
+      // The cloud registry may be unreachable while the device is still on
+      // the same Wi-Fi: fall back to local discovery.
+      final lan = await discoverLanDevices();
+      _devices = mergeLanDevices(const [], lan);
+      if (_devices.isEmpty) _error = e.toString();
     } finally {
       if (!_disposed) {
         _isLoading = false;
