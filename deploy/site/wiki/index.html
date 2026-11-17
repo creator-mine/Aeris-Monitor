@@ -65,7 +65,7 @@
 
       <h2 id="kak-chitat" data-ru="Как читать вики" data-en="How to read this wiki">Как читать вики</h2>
 
-      <p data-ru="Вики разделена на десять самостоятельных разделов. Каждый открывается из бокового меню слева, на узких экранах — по кнопке ☰. Справа на странице находится оглавление текущего раздела: оно подсвечивает активный заголовок при прокрутке." data-en="The wiki is split into ten independent sections. Each one is reachable from the sidebar on the left — on narrow screens use the ☰ button. The right-hand column holds the table of contents of the current section and highlights the heading you are reading.">Вики разделена на десять самостоятельных разделов.</p>
+      <p data-ru="Вики разделена на одиннадцать самостоятельных разделов. Каждый открывается из бокового меню слева, на узких экранах — по кнопке ☰. Справа на странице находится оглавление текущего раздела: оно подсвечивает активный заголовок при прокрутке." data-en="The wiki is split into eleven independent sections. Each one is reachable from the sidebar on the left — on narrow screens use the ☰ button. The right-hand column holds the table of contents of the current section and highlights the heading you are reading.">Вики разделена на одиннадцать самостоятельных разделов.</p>
 
       <p data-ru-html="Поиск работает по всем страницам и заголовкам: нажмите на поле в шапке или клавишу <code>/</code> в любом месте страницы. Тема оформления и язык сохраняются в браузере и общие с главной страницей сайта — переключили на главной, переключили и здесь." data-en-html="Search covers every page and heading: click the field in the header or press <code>/</code> anywhere on the page. The colour theme and the language are stored in the browser and shared with the site home page — switch them once and they apply everywhere.">Поиск работает по всем страницам и заголовкам.</p>
 
@@ -98,6 +98,11 @@
           <span class="c-ic">🔌</span>
           <h3 data-ru="Железо и схемы" data-en="Hardware &amp; schematics">Железо и схемы</h3>
           <p data-ru="Пины контроллеров C3/C6/S3 и сенсорного модуля, питание, схемы UART и I²C, расширение шины через TCA9548A, BOM." data-en="Pins of the C3/C6/S3 controllers and the sensor module, power, UART and I²C schematics, bus expansion with TCA9548A, BOM.">Пины плат и схемы.</p>
+        </a>
+        <a class="card" href="wiring.html">
+          <span class="c-ic">🧩</span>
+          <h3 data-ru="Подключение датчиков" data-en="Sensor wiring">Подключение датчиков</h3>
+          <p data-ru="Куда какой вывод: BME680, BMP280, BH1750, SCD30 и INA219, выбор адреса I²C, свободные GPIO плат C3/C6/S3 и сенсорного модуля." data-en="Which pin goes where: BME680, BMP280, BH1750, SCD30 and INA219, I²C address selection, free GPIOs on C3/C6/S3 and the sensor module.">Распиновка каждого датчика и свободные пины.</p>
         </a>
         <a class="card" href="sensors.html">
           <span class="c-ic">🌡️</span>
@@ -140,7 +145,7 @@
         </div>
         <div class="step">
           <h3 data-ru="Хочу собрать систему с нуля" data-en="I want to build it from scratch">Хочу собрать систему с нуля</h3>
-          <p data-ru="Порядок такой: «Железо и схемы» (распиновка и питание) → «Прошивка и протокол» (сборка и прошивка) → «Датчики и драйверы» (что подключать). Если что-то не заводится — сразу в «FAQ и траблешут»." data-en="The order is: “Hardware &amp; schematics” (pinout and power) → “Firmware &amp; protocol” (build and flash) → “Sensors &amp; drivers” (what to attach). If something misbehaves, jump straight to “FAQ &amp; troubleshooting”.">Порядок такой: «Железо и схемы» → «Прошивка и протокол» → «Датчики и драйверы».</p>
+          <p data-ru="Порядок такой: «Железо и схемы» (распиновка и питание) → «Подключение датчиков» (какой вывод куда) → «Прошивка и протокол» (сборка и прошивка) → «Датчики и драйверы» (что подключать по адресам). Если что-то не заводится — сразу в «FAQ и траблешут»." data-en="The order is: “Hardware &amp; schematics” (pinout and power) → “Sensor wiring” (which pin goes where) → “Firmware &amp; protocol” (build and flash) → “Sensors &amp; drivers” (what to attach by address). If something misbehaves, jump straight to “FAQ &amp; troubleshooting”.">Порядок такой: «Железо и схемы» → «Подключение датчиков» → «Прошивка и протокол» → «Датчики и драйверы».</p>
         </div>
         <div class="step">
           <h3 data-ru="Хочу добавить свой датчик" data-en="I want to add my own sensor">Хочу добавить свой датчик</h3>

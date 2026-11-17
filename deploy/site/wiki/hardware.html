@@ -128,7 +128,7 @@
             </tr>
             <tr>
               <td data-ru="SD card CS" data-en="SD card CS">SD card CS</td>
-              <td class="mono">GPIO10</td>
+              <td class="mono" data-ru="GPIO10 (SPI конфликтует с реле/UART)" data-en="GPIO10 (SPI clashes with relay/UART)">GPIO10</td>
               <td class="mono">GPIO10</td>
               <td class="mono">GPIO10 (контроллер)</td>
             </tr>
@@ -139,10 +139,10 @@
               <td class="mono">GPIO3 (контроллер)</td>
             </tr>
             <tr>
-              <td data-ru="Светодиод активности" data-en="Activity LED">Светодиод активности</td>
-              <td data-ru="встроенный" data-en="onboard">встроенный</td>
-              <td data-ru="встроенный" data-en="onboard">встроенный</td>
-              <td class="mono">GPIO8</td>
+              <td data-ru="Встроенный RGB-светодиод" data-en="Onboard RGB LED">Встроенный RGB-светодиод</td>
+              <td data-ru="GPIO7 (делит линию SCL)" data-en="GPIO7 (shares the SCL line)">GPIO7 (делит SCL)</td>
+              <td data-ru="GPIO48" data-en="GPIO48">GPIO48</td>
+              <td data-ru="GPIO8" data-en="GPIO8">GPIO8</td>
             </tr>
             <tr>
               <td data-ru="Частота шины I²C" data-en="I²C bus speed">Частота шины I²C</td>
@@ -158,6 +158,13 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">🧩</div>
+        <div class="co-body">
+          <p data-ru-html="Подробная распиновка каждого датчика — какой вывод модуля куда идёт, как выставить адрес I²C и какие GPIO остаются свободными — в разделе <a href=&quot;wiring.html&quot;>Подключение датчиков</a>." data-en-html="Pin-by-pin wiring for every sensor — which module pin goes where, how to set the I²C address and which GPIOs stay free — is in <a href=&quot;wiring.html&quot;>Sensor wiring</a>.">Подробная распиновка датчиков — в соседнем разделе.</p>
+        </div>
       </div>
 
       <div class="callout warn">
