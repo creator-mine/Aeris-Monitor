@@ -94,6 +94,7 @@ class FirmwareFetcher {
   Future<StagedFirmware> downloadFromUrl(
     String input, {
     required String preferredDeviceType,
+    String? version,
     String? expectedSha256,
     int? expectedBytes,
     void Function(int received, int total)? onProgress,
@@ -169,7 +170,7 @@ class FirmwareFetcher {
         fileName: fileName,
         sizeBytes: await finalFile.length(),
         sha256: sha,
-        version: target.version ?? firmwareVersionFromName(fileName),
+        version: version ?? target.version ?? firmwareVersionFromName(fileName),
         deviceType: firmwareDeviceTypeFromName(fileName) ?? preferredDeviceType,
         sourceUrl: target.url.toString(),
         downloaded: true,

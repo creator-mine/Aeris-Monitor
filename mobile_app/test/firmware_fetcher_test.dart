@@ -127,6 +127,29 @@ void main() {
     expect(await File(staged.path).readAsBytes(), bytes);
   });
 
+  test('prefers an explicit manifest version over the file name', () async {
+    final bytes = [0xE9, 0x11, 0x22, 0x33];
+    final dio = Dio()
+      ..httpClientAdapter = _FakeAdapter(
+        (options) async => ResponseBody.fromBytes(
+          bytes,
+          200,
+          headers: {
+            Headers.contentTypeHeader: ['application/octet-stream'],
+          },
+        ),
+      );
+    final fetcher = FirmwareFetcher(dio: dio, storageDir: temp);
+
+    final staged = await fetcher.downloadFromUrl(
+      'https://spe4naz.online/fw/main_esp32-c6.bin',
+      preferredDeviceType: 'esp32-c6',
+      version: '1.3.2',
+    );
+
+    expect(staged.version, '1.3.2');
+  });
+
   test('rejects an HTML response instead of saving it as firmware', () async {
     final dio = Dio()
       ..httpClientAdapter = _FakeAdapter(

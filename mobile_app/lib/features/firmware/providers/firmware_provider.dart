@@ -622,6 +622,7 @@ class FirmwareProvider extends ChangeNotifier {
   /// URL and stages it for flashing.
   Future<void> stageFromUrl(
     String url, {
+    String? version,
     String? expectedSha256,
     int? expectedBytes,
   }) async {
@@ -640,6 +641,7 @@ class FirmwareProvider extends ChangeNotifier {
       final staged = await _fetcher.downloadFromUrl(
         url,
         preferredDeviceType: _selectedDeviceType,
+        version: version,
         expectedSha256: expectedSha256,
         expectedBytes: expectedBytes,
         cancelToken: cancel,
@@ -687,6 +689,7 @@ class FirmwareProvider extends ChangeNotifier {
         : OtaApi.binaryPathFor(_selectedDeviceType);
     await stageFromUrl(
       '$base/fw/$file',
+      version: manifest.version,
       expectedSha256: manifest.sha256,
       expectedBytes: manifest.sizeBytes,
     );
