@@ -139,7 +139,7 @@
 
       <p data-ru="Реестр устройств, аварии и правила лежат в JSON-файлах рядом с кодом и переживают перезапуск сервера. Запись атомарная: файл переписывается целиком, поэтому оборванное сохранение не портит данные." data-en="The device registry, alerts and rules live in JSON files next to the code and survive a server restart. Writes are atomic: the file is rewritten whole, so an interrupted save cannot corrupt the data.">Данные лежат в JSON и переживают перезапуск.</p>
 
-      <p data-ru-html="Токен доступа задаётся переменной окружения <code>REGISTER_TOKEN</code>. Если он задан, то регистрация, удаление и чтение устройств требуют заголовок с токеном. Если не задан, проверка отключается — на публичном развёртывании так оставлять нельзя." data-en-html="The access token is set with the <code>REGISTER_TOKEN</code> environment variable. When set, registration, deletion and device reads require a token header. When unset the check is disabled — never leave it that way on a public deployment.">Токен задаётся переменной окружения.</p>
+      <p data-ru-html="Доступ к API — по тем же логинам, что и у MQTT: устройства входят как <code>device</code>, приложение — как <code>app</code>. Заголовок <code>Authorization: Basic &lt;base64(логин:пароль)&gt;</code>; отдельного API-токена нет." data-en-html="API access uses the same logins as MQTT: devices as <code>device</code>, the app as <code>app</code>. The header is <code>Authorization: Basic &lt;base64(user:password)&gt;</code>; there is no separate API token.">Логины те же, что у MQTT.</p>
 
       <div class="callout warn">
         <div class="co-ic">⏱️</div>
@@ -239,7 +239,7 @@ sudo systemctl enable --now docker nginx</code></pre>
           <h3 data-ru="Настройте окружение" data-en="Configure the environment">Настройте окружение</h3>
           <pre style="margin-top:4px"><code>cd /opt/iot/deploy/docker
 cp .env.example .env
-# заполнить NGINX_DOMAIN, REGISTER_TOKEN, PANEL_PASSWORD, MQTT_*
+# заполнить NGINX_DOMAIN, PANEL_PASSWORD, MQTT_*
 docker compose up -d --build</code></pre>
           <p data-ru="Статика сайта, вики, /fw и /app лежит в runtime/site и подключена в контейнер web." data-en="The site, wiki, /fw and /app live in runtime/site and are mounted into the web container.">Статика — в runtime/site.</p>
         </div>
@@ -295,9 +295,9 @@ curl -s -o /dev/null -w '%{http_code}
               <td data-ru="Префикс всех эндпоинтов" data-en="Prefix for every endpoint">Префикс эндпоинтов</td>
             </tr>
             <tr>
-              <td class="mono">REGISTER_TOKEN</td>
-              <td data-ru="пусто" data-en="empty">пусто</td>
-              <td data-ru="Токен для регистрации, удаления и чтения; пустое значение отключает проверку" data-en="Token for register, delete and reads; empty disables the check">Токен доступа</td>
+              <td class="mono">MQTT_USER / MQTT_DEVICE_USER</td>
+              <td class="mono">app / device</td>
+              <td data-ru="Логины приложения и устройств; пароли задаются в .env и защищают также HTTP API (Basic)" data-en="App and device logins; their passwords live in .env and also protect the HTTP API (Basic)">Логины приложения и устройств</td>
             </tr>
             <tr>
               <td class="mono">STALE_MS</td>

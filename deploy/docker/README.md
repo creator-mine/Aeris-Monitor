@@ -29,9 +29,8 @@ cd deploy/docker
 cp .env.example .env
 # отредактируйте:
 #   NGINX_DOMAIN        — домен (или localhost/LAN-имя для HTTP-режима)
-#   REGISTER_TOKEN      — токен записи API (защитит register/delete)
-#   MQTT_USER / MQTT_PASSWORD           — учётка приложения
-#   MQTT_DEVICE_USER / MQTT_DEVICE_PASSWORD — учётка устройств
+#   MQTT_USER / MQTT_PASSWORD           — учётка приложения (HTTP Basic + MQTT)
+#   MQTT_DEVICE_USER / MQTT_DEVICE_PASSWORD — учётка устройств (HTTP Basic + MQTT)
 ```
 
 ## Шаг 2. Запуск
@@ -68,8 +67,7 @@ curl -s http://127.0.0.1/api/v1/health
 | API URL | `https://<NGINX_DOMAIN>` (или `http://<ip>:80` в HTTP-режиме) |
 | MQTT Брокер | `<NGINX_DOMAIN>` (или IP) |
 | MQTT Порт | `9001` |
-| MQTT Логин / Пароль | `MQTT_USER` / `MQTT_PASSWORD` |
-| Токен записи (API) | `REGISTER_TOKEN` |
+| MQTT Логин / Пароль | `MQTT_USER` / `MQTT_PASSWORD` (они же для HTTP API) |
 | OTA URL (прошивки) | оставьте пустым — берётся API URL (или укажите отдельный хост) |
 
 Нажмите «Применить и переподключиться».
@@ -132,8 +130,10 @@ MQTT-порты (`1883/9001/9002`) при этом остаются опубли
 
 ## Замечания по безопасности
 
-- Обязательно меняйте `REGISTER_TOKEN` и пароли MQTT (по умолчанию `changeme`).
-- `api/v1/devices` (чтение реестра) без токена открыт — за NAT/брандмауэром нормально для LAN. Для публичного доступа задайте `REGISTER_TOKEN` и не открывайте лишние порты.
+- Обязательно меняйте пароли MQTT (по умолчанию `changeme`): они же защищают
+  HTTP API через Basic-авторизацию.
+- Если `MQTT_PASSWORD` или `MQTT_DEVICE_PASSWORD` пусты, соответствующая часть
+  API работает без пароля (только для локальной разработки).
 - Порт `3100` наружу не маппится (только внутри сети `iot` через nginx).
 - МQTT-WS на `9001` — plain (без TLS), как и на продовом инстансе. Для критичных сетей поднимайте VPN/TLS.
 - Let's Encrypt обновляется автоматически (продление каждые 12 ч, reload nginx раз в час). ВАЖНО: NGINX_TLS=1 требует, чтобы `NGINX_DOMAIN` резолвился снаружи на этот сервер (порт 80 доступен наружу).
@@ -167,24 +167,25 @@ deploy/docker/
 Публичный OTA-каталог `/fw` доступен без авторизации, поэтому **никогда не
 публикуйте прошивку с рабочими секретами**. После любой утечки ротируйте их.
 
-### Пароль MQTT устройства (пользователь `main`)
+### Пароль MQTT устройства (пользователь `device`)
 
 1. Обновить пароль в брокере:
    ```bash
    docker exec iot-selfhost-mqtt-1 \
-     mosquitto_passwd -b /mosquitto/secrets/passwd main '<новый-пароль>'
+     mosquitto_passwd -b /mosquitto/secrets/passwd device '<новый-пароль>'
    docker kill -s HUP iot-selfhost-mqtt-1
    ```
-2. Записать тот же пароль в `MQTT_DEVICE_PASSWORD` (`.env`) и в
-   `firmware/main_controller/include/secrets.h` (`MQTT_PASSWORD`).
+2. Записать тот же пароль в `MQTT_DEVICE_PASSWORD` (`.env`) — сервер проверяет
+   его для HTTP Basic в register/heartbeat.
 3. Пересобрать прошивку и прошить устройство (USB один раз, далее OTA).
 
-### `REGISTER_TOKEN` (API и signaling)
+### Пароль приложения (пользователь `app`)
 
-1. Заменить `REGISTER_TOKEN` в `.env`.
-2. `docker compose up -d server` (контейнер пересоздастся с новым env).
-3. Записать тот же токен в `SIGNALING_TOKEN` (`secrets.h`), пересобрать прошивку.
-4. В приложении: **Настройки → «Токен доступа (API)»** — вставить новый токен.
+1. Обновить пароль в брокере (`mosquitto_passwd` для `app`, затем `HUP`).
+2. Записать тот же пароль в `MQTT_PASSWORD` (`.env`): он нужен серверу и для
+   MQTT-моста, и для Basic-авторизации API.
+3. `docker compose up -d server` (контейнер пересоздастся с новым env).
+4. В приложении: **Настройки → «Пароль (MQTT и API)»** — ввести новый пароль.
 
 ### Пароль панели
 
@@ -192,7 +193,7 @@ deploy/docker/
 2. `docker compose up -d server`.
 
 Проверка после ротации: `mosquitto_pub` с новым паролем проходит, старый — нет;
-`GET /api/v1/sensors/latest` с новым Bearer — `200`, без токена — `401`.
+`GET /api/v1/sensors/latest` с новым Basic-логином — `200`, без него — `401`.
 
 
 ## MQTT TLS и хранение секретов
@@ -204,8 +205,8 @@ deploy/docker/
 - Сертификаты лежат в `runtime/mqtt/certs/` и обновляются из
   `/etc/letsencrypt/live/spe4naz.online/`; после замены — `docker compose restart mqtt`.
 
-Прошивка **не содержит рабочих секретов**: MQTT-пользователь/пароль и API-токен
-хранятся в NVS (`secrets`) и вводятся на странице `Aeris-Setup-XXXX`
+Прошивка **не содержит рабочих секретов**: MQTT-логин/пароль (он же доступ к
+API) хранится в NVS (`secrets`) и вводится на странице `Aeris-Setup-XXXX`
 (`http://192.168.4.1`). При первом старте compile-time значения из `secrets.h`
 мигрируют в NVS.
 

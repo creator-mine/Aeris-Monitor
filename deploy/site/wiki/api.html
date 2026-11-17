@@ -334,7 +334,7 @@
 
       <h2 id="server-api" data-ru="API сигнального сервера" data-en="Signaling server API">API сигнального сервера</h2>
 
-      <p data-ru-html="Префикс тот же, но адрес другой: на живом развёртывании это <code>https://spe4naz.online/api/v1</code>. Методы, которым нужен токен, требуют заголовок <code>Authorization: Bearer &lt;токен&gt;</code>." data-en-html="The prefix is the same but the address is different: on the live deployment that is <code>https://spe4naz.online/api/v1</code>. Methods that need a token require the <code>Authorization: Bearer &lt;token&gt;</code> header.">Тот же префикс, другой адрес.</p>
+      <p data-ru-html="Префикс тот же, но адрес другой: на живом развёртывании это <code>https://spe4naz.online/api/v1</code>. Методам нужен заголовок <code>Authorization: Basic &lt;base64(логин:пароль)&gt;</code> с логином MQTT: <code>device</code> для устройств, <code>app</code> для приложения." data-en-html="The prefix is the same but the address is different: on the live deployment that is <code>https://spe4naz.online/api/v1</code>. Methods need the <code>Authorization: Basic &lt;base64(user:password)&gt;</code> header with an MQTT login: <code>device</code> for devices, <code>app</code> for the app.">Тот же префикс, другой адрес.</p>
 
       <div class="table-wrap">
         <table>
@@ -428,7 +428,7 @@
       <h3 data-ru="Тело запроса регистрации" data-en="Registration body">Тело запроса регистрации</h3>
 
       <pre><code>POST /api/v1/devices/register
-Authorization: Bearer &lt;токен&gt;
+Authorization: Basic base64(device:&lt;пароль&gt;)
 Content-Type: application/json
 
 {

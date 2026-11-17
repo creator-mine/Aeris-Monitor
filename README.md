@@ -185,7 +185,7 @@ Mobile App (Flutter) ← MQTT + REST API
 
 ```bash
 cd deploy/docker
-cp .env.example .env   # заполнить NGINX_DOMAIN, REGISTER_TOKEN, PANEL_PASSWORD, MQTT_*
+cp .env.example .env   # заполнить NGINX_DOMAIN, PANEL_PASSWORD, MQTT_*
 docker compose up -d --build
 ```
 

@@ -307,7 +307,7 @@ event: cmd        data: {"deviceId":"esp32c3_001","command":"relay:on","ts":...}
       <div class="callout warn">
         <div class="co-ic">🔑</div>
         <div class="co-body">
-          <p data-ru="MQTT_PASSWORD — секрет. Его задают в файле окружения и никогда не держат в репозитории; тот же принцип действует для REGISTER_TOKEN, PANEL_PASSWORD и SIGNALING_TOKEN." data-en="MQTT_PASSWORD is a secret. Set it in the environment file and never keep it in the repository; the same applies to REGISTER_TOKEN, PANEL_PASSWORD and SIGNALING_TOKEN.">Пароль брокера — секрет.</p>
+          <p data-ru="Пароли MQTT (MQTT_PASSWORD и MQTT_DEVICE_PASSWORD) — секреты. Их задают в файле окружения и никогда не держат в репозитории; те же пароли защищают HTTP API, а PANEL_PASSWORD — вход в панель." data-en="MQTT passwords (MQTT_PASSWORD and MQTT_DEVICE_PASSWORD) are secrets. Set them in the environment file and never keep them in the repository; the same passwords protect the HTTP API, and PANEL_PASSWORD guards the panel.">Пароли брокера — секреты.</p>
         </div>
       </div>
 

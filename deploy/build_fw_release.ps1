@@ -45,7 +45,7 @@ $secPath = Join-Path $project "include\secrets.h"
 $values = @()
 if (Test-Path $secPath) {
     $sec = Get-Content $secPath -Raw
-    foreach ($key in @("MQTT_PASSWORD", "SIGNALING_TOKEN")) {
+    foreach ($key in @("MQTT_PASSWORD")) {
         $m = [regex]::Match($sec, "#define\s+$key\s+`"([^`"]*)`"")
         if ($m.Success -and $m.Groups[1].Value) { $values += $m.Groups[1].Value }
     }

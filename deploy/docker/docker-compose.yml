@@ -6,7 +6,7 @@
 # See MIGRATION.md.
 #
 # Quick start (HTTP-only for LAN):
-#   cp .env.example .env   # fill NGINX_DOMAIN, REGISTER_TOKEN, PANEL_PASSWORD, MQTT_*
+#   cp .env.example .env   # fill NGINX_DOMAIN, PANEL_PASSWORD, MQTT_*
 #   docker compose up -d --build
 #
 # Quick start (HTTPS with automatic Let's Encrypt):
@@ -37,7 +37,6 @@ services:
       PORT: "3100"
       HOST: "0.0.0.0"
       NODE_ENV: "production"
-      REGISTER_TOKEN: "${REGISTER_TOKEN:-}"
       PANEL_PASSWORD: "${PANEL_PASSWORD:-}"
       STALE_MS: "${STALE_MS:-180000}"
       MAX_DEVICES_PER_IP: "${MAX_DEVICES_PER_IP:-20}"
@@ -52,6 +51,9 @@ services:
       MQTT_PORT: "1883"
       MQTT_USER: "${MQTT_USER:-app}"
       MQTT_PASSWORD: "${MQTT_PASSWORD:-}"
+      # Device account: the HTTP registry takes the same login over Basic.
+      MQTT_DEVICE_USER: "${MQTT_DEVICE_USER:-device}"
+      MQTT_DEVICE_PASSWORD: "${MQTT_DEVICE_PASSWORD:-}"
       # Persistence (all under /app/data -> ./runtime/data).
       REGISTRY_FILE: /app/data/devices.json
       ALERTS_FILE: /app/data/alerts.json
