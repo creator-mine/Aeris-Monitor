@@ -21,6 +21,7 @@ mobile_app/android/build/
 
 # --- Node / server ---
 server/node_modules/
+server/web/node_modules/
 server/data/
 npm-debug.log*
 
