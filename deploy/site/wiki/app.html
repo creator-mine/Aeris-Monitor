@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Мобильное приложение · Aeris Monitor</title>
-<meta name="description" content="Flutter-приложение системы: режимы подключения, экраны дашборда и графиков, аварии, smart rules, сборка и прошивка устройств прямо с телефона.">
+<meta name="description" content="Flutter-приложение системы: режимы подключения, экраны дашборда и графиков, аварии, smart rules, прошивка устройств по USB с Windows.">
 <link rel="canonical" href="https://spe4naz.online/wiki/app.html">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Aeris Monitor">
 <meta property="og:locale" content="ru_RU">
 <meta property="og:url" content="https://spe4naz.online/wiki/app.html">
 <meta property="og:title" content="Мобильное приложение">
-<meta property="og:description" content="Flutter-приложение системы: режимы подключения, экраны дашборда и графиков, аварии, smart rules, сборка и прошивка устройств прямо с телефона.">
+<meta property="og:description" content="Flutter-приложение системы: режимы подключения, экраны дашборда и графиков, аварии, smart rules, прошивка устройств по USB с Windows.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -91,7 +91,7 @@
         <div class="card">
           <span class="c-ic">🔌</span>
           <h3 data-ru="Прошивки" data-en="Firmware">Прошивки</h3>
-          <p data-ru="Сборка и заливка прошивки прямо с телефона через USB: выбрал папку, устройство и порт — и готово." data-en="Build and flash firmware from the phone over USB: pick a folder, a board and a port, and you are done.">Сборка и прошивка по USB.</p>
+          <p data-ru="Сборка из исходников и заливка по USB с Windows: выбрал папку или готовый .bin — и загрузил." data-en="Building from source and USB flashing on Windows: pick a folder or a ready .bin and upload it.">Сборка и прошивка по USB.</p>
         </div>
         <div class="card">
           <span class="c-ic">🧠</span>
@@ -288,32 +288,30 @@
         </div>
       </div>
 
-      <h2 id="sborka-proshivok" data-ru="Сборка прошивок из приложения" data-en="Building firmware from the app">Сборка прошивок из приложения</h2>
+      <h2 id="sborka-proshivok" data-ru="Прошивка из файла или ссылки" data-en="Firmware from a file or link">Прошивка из файла или ссылки</h2>
 
-      <p data-ru="Отдельная особенность приложения: оно умеет собирать прошивку и заливать её по USB, без компьютера. Это снимает необходимость ставить PlatformIO тому, кто просто хочет прошить плату." data-en="A notable capability: the app builds firmware and flashes it over USB without a computer, so nobody has to install PlatformIO just to flash a board.">Сборка и прошивка без компьютера.</p>
+      <p data-ru="В Windows-приложении прошивка заливается по USB без папки проекта и без сборки. Достаточно выбрать готовый .bin или вставить ссылку — приложение скачает файл само." data-en="In the Windows app firmware is flashed over USB without a project folder or a build. Pick a ready .bin or paste a link — the app downloads the file itself.">Прошивка в один шаг.</p>
 
       <div class="steps">
         <div class="step">
-          <h3 data-ru="Укажите папку с проектом" data-en="Point at the project folder">Укажите папку с проектом</h3>
-          <p data-ru="Приложение открывает системный выбор файлов и запоминает путь к каталогу с прошивкой." data-en="The app opens the system file picker and remembers the path to the firmware folder.">Приложение открывает выбор файлов.</p>
+          <h3 data-ru="Выберите .bin или вставьте ссылку" data-en="Pick a .bin or paste a link</h3>
+          <p data-ru="Поддерживаются локальный файл, прямая HTTPS-ссылка, GitHub blob/raw, релиз, releases/latest и releases/latest/download. Ссылка скачивается автоматически после вставки." data-en="Local files, direct HTTPS links, GitHub blob/raw, releases, releases/latest and releases/latest/download are supported. A pasted link downloads automatically.">Файл или ссылка GitHub.</p>
         </div>
         <div class="step">
-          <h3 data-ru="Выберите устройство и порт" data-en="Pick the board and port">Выберите устройство и порт</h3>
-          <p data-ru="Кнопка определения чипа читает реальную модель платы, чтобы выбранная среда сборки совпала с железом." data-en="A chip-detection button reads the real board model so that the chosen build environment matches the hardware.">Кнопка определения чипа читает модель платы.</p>
+          <h3 data-ru="Проверьте плату, версию и SHA-256" data-en="Check the board, version and SHA-256</h3>
+          <p data-ru="Приложение показывает имя файла, плату, версию, размер и контрольную сумму. Если имя указывает на другую плату, появится предупреждение." data-en="The app shows the file name, board, version, size and checksum. If the name points at another board, a warning appears.">Проверка перед заливкой.</p>
         </div>
         <div class="step">
-          <h3 data-ru="Проверьте предварительные условия" data-en="Check the preflight">Проверьте предварительные условия</h3>
-          <p data-ru="Блок проверки заранее покажет, есть ли каталог проекта, выбран ли порт и доступны ли зависимости — до начала долгой сборки." data-en="A preflight card shows up front whether the project folder exists, whether a port is chosen and whether dependencies are available — before a long build starts.">Блок проверки покажет проблемы до начала сборки.</p>
+          <h3 data-ru="Нажмите «Загрузить»" data-en="Press “Upload”</h3>
+          <p data-ru="Образ пишется через esptool на выбранный COM-порт. После успеха прошивка появляется в истории и её можно залить снова." data-en="The image is written with esptool to the selected COM port. On success it appears in history and can be flashed again.">Одна кнопка — и готово.</p>
         </div>
         <div class="step">
-          <h3 data-ru="Соберите" data-en="Build">Соберите</h3>
-          <p data-ru="Журоль сборки выводится построчно в реальном времени, так что видно, на чём именно остановилось." data-en="The build log streams line by line in real time, so you can see exactly where it stopped.">Журоль сборки идёт в реальном времени.</p>
-        </div>
-        <div class="step">
-          <h3 data-ru="Залейте и опубликуйте" data-en="Flash and publish">Залейте и опубликуйте</h3>
-          <p data-ru="Готовый бинарник можно записать на плату или опубликовать на сервере, чтобы устройства обновились по воздуху. Обе операции сохраняются в истории версий." data-en="The finished binary can be written to the board or published to the server so that devices update over the air. Both actions are recorded in the version history.">Записать на плату или опубликовать для OTA.</p>
+          <h3 data-ru="Или соберите из исходников" data-en="Or build from source</h3>
+          <p data-ru="Сборка PlatformIO осталась в сворачиваемом блоке «Сборка из исходников»: папка проекта, проверка зависимостей, версия и журнал." data-en="The PlatformIO build remains in the collapsible “Build from source” block: project folder, dependency preflight, version and log.">Сборка из исходников — отдельно.</p>
         </div>
       </div>
+
+      <p data-ru="Кнопка «Опубликованная vX.Y.Z» скачивает текущую прошивку с OTA-сайта и сверяет её размер и SHA-256 с манифестом. Это самый короткий путь, если нужно просто обновить плату до опубликованной версии." data-en="The “Published vX.Y.Z” button downloads the current firmware from the OTA site and checks its size and SHA-256 against the manifest. That is the shortest path to bring a board up to the published version.">Опубликованная прошивка — в один клик.</p>
 
       <h2 id="nastroyki" data-ru="Настройки и учётные данные" data-en="Settings &amp; credentials">Настройки и учётные данные</h2>
 
@@ -329,7 +327,7 @@
           <tbody>
             <tr>
               <td data-ru="Версия приложения" data-en="App version">Версия приложения</td>
-              <td class="mono">1.2.3</td>
+              <td class="mono">1.2.4</td>
               <td data-ru="Показывается в настройках" data-en="Shown in settings">Показывается в настройках</td>
             </tr>
             <tr>

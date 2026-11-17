@@ -123,8 +123,8 @@
     {
       file: 'app.html', ic: '📱',
       ru: 'Мобильное приложение', en: 'Mobile application',
-      ruDesc: 'Flutter-приложение: режимы подключения, автопоиск устройств в LAN, экраны, графики, аварии, smart rules и сборка прошивок.',
-      enDesc: 'Flutter app: connection modes, automatic LAN discovery, screens, charts, alerts, smart rules and firmware builds.',
+      ruDesc: 'Flutter-приложение: режимы подключения, автопоиск устройств в LAN, экраны, графики, аварии, smart rules, прошивка из .bin или ссылки.',
+      enDesc: 'Flutter app: connection modes, automatic LAN discovery, screens, charts, alerts, smart rules, firmware from a .bin or link.',
       kw: 'приложение flutter android ios экраны графики аварии правила smart rules прошивки otа приложение app mobile dashboard lan udp discovery автопоиск',
       sec: [
         ['vozmozhnosti', "Возможности", "Features"],
@@ -214,7 +214,7 @@
 
   var META = {
     fw: '1.3.2',
-    app: '1.2.3',
+    app: '1.2.4',
     server: '0.4.0',
     updated: '2026-11-18'
   };
