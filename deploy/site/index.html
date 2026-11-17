@@ -1252,14 +1252,20 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
       return h + ' ч ' + m + ' м';
     }
 
+    let liveStarted = false;
+
     async function checkStatus() {
       try {
-        const health = await (await fetch(API + '/health')).json();
+        const health = await (await fetch(API + '/health', { cache: 'no-store' })).json();
         pill.classList.remove('offline');
         document.getElementById('serverStatus').textContent = t('statusOnline');
         const online = health && health.devices ? Number(health.devices.online) : NaN;
         statDevices.textContent = Number.isFinite(online) ? String(online) : '—';
         statUptime.textContent = health.uptime ? fmtUptime(health.uptime) : '—';
+        if (health.panel_session === true && !liveStarted) {
+          liveStarted = true;
+          initLive();
+        }
       } catch (e) {
         pill.classList.add('offline');
         document.getElementById('serverStatus').textContent = t('statusOffline');
@@ -1271,7 +1277,6 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
     setInterval(checkStatus, 30000);
 
     /* ---- Live sensor panel (SSE /api/v1/stream) ---- */
-    const LIVE_ENABLED = true;
     const LIVE_STREAM_URL = '/api/v1/stream';
     const METRIC_META = {
       temperature: { ic: '🌡️', ru: 'Температура', en: 'Temperature' },
@@ -1392,8 +1397,6 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
         }
       });
     }
-
-    if (LIVE_ENABLED) initLive();
   </script>
 </body>
 </html>
