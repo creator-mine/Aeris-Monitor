@@ -13,7 +13,7 @@ if (-not $SkipBuild) {
     $env:Path += ";C:\flutter\flutter\bin"
     Push-Location $app
     try {
-        & "C:\flutter\flutter\bin\flutter.bat" build web --release
+        & "C:\flutter\flutter\bin\flutter.bat" build web --release --base-href /app/
     } finally {
         Pop-Location
     }
