@@ -6,8 +6,8 @@
 // ============================================================
 // Optional build-time secret overrides.
 //
-// All defaults below are PLACEHOLDERS. Real credentials (MQTT broker,
-// signaling token, AP password) must live in `secrets.h`, a file that is
+// All defaults below are PLACEHOLDERS. Real credentials (MQTT broker login,
+// AP password) must live in `secrets.h`, a file that is
 // git-ignored and never reaches the repository. Create it by copying
 // `secrets.h.example`:
 //
@@ -97,7 +97,7 @@
 // Over-the-Air firmware updates (pulled over HTTPS from the public site).
 // Each board pulls its own binary + manifest (per-device_type files).
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "1.2.4"
+#define FIRMWARE_VERSION "1.2.5"
 #endif
 #ifndef OTA_FW_HOST
 #define OTA_FW_HOST "spe4naz.online"
@@ -133,14 +133,10 @@
 #endif
 
 // Signaling Server (device registry only — no sensor data)
-// Reached over HTTPS through the public site (nginx). Bind token for the API.
+// Reached over HTTPS through the public site (nginx). The registry uses the
+// MQTT device login over HTTP Basic, so there is no separate API token.
 #ifndef SIGNALING_URL
 #define SIGNALING_URL "https://spe4naz.online"
-#endif
-// Real token lives in the git-ignored secrets.h; must match REGISTER_TOKEN.
-// Empty default = registry calls are rejected (fails safe).
-#ifndef SIGNALING_TOKEN
-#define SIGNALING_TOKEN ""
 #endif
 #ifndef SIGNALING_HEARTBEAT_MS
 #define SIGNALING_HEARTBEAT_MS 30000

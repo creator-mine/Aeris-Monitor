@@ -104,8 +104,7 @@ static void cmdInfo() {
     json += "\"mqtt_enabled\":" + String(MqttConfig::enabled() ? "true" : "false") + ",";
     // Whether credentials are present in NVS (values themselves are never sent).
     json += "\"mqtt_user_set\":" + String(DeviceSecrets::mqttUser().isEmpty() ? "false" : "true") + ",";
-    json += "\"mqtt_pass_set\":" + String(DeviceSecrets::mqttPassword().isEmpty() ? "false" : "true") + ",";
-    json += "\"api_token_set\":" + String(DeviceSecrets::signalingToken().isEmpty() ? "false" : "true");
+    json += "\"mqtt_pass_set\":" + String(DeviceSecrets::mqttPassword().isEmpty() ? "false" : "true");
     json += "}";
     respond(json.c_str());
 }
@@ -153,10 +152,11 @@ static void cmdRestart() {
     ESP.restart();
 }
 
-// CMD:secrets_set:{"user":"...","password":"...","token":"..."}
+// CMD:secrets_set:{"user":"...","password":"..."}
 // Blank fields keep the value currently stored in NVS. Applies immediately:
 // DeviceSecrets::save() updates the RAM cache, so the next MQTT retry uses
-// the new credentials without a reboot.
+// the new credentials without a reboot. The MQTT login is also used for the
+// HTTP registry (Basic auth), so there is no separate token.
 static void cmdSecretsSet(const char* json) {
     JsonDocument doc;
     if (deserializeJson(doc, json)) {
@@ -165,17 +165,16 @@ static void cmdSecretsSet(const char* json) {
     }
     String user = doc["user"] | "";
     String pass = doc["password"] | "";
-    String token = doc["token"] | "";
     user.trim();
-    if (user.isEmpty() && pass.isEmpty() && token.isEmpty()) {
+    if (user.isEmpty() && pass.isEmpty()) {
         respond("{\"type\":\"error\",\"error\":\"empty_credentials\"}");
         return;
     }
-    if (!DeviceSecrets::save(user, pass, token)) {
+    if (!DeviceSecrets::save(user, pass)) {
         respond("{\"type\":\"error\",\"error\":\"nvs_write_failed\"}");
         return;
     }
-    LOG_INFO("Secrets", "MQTT/API credentials updated over USB");
+    LOG_INFO("Secrets", "MQTT credentials updated over USB");
     respond("{\"type\":\"ack\",\"command\":\"secrets_set\"}");
 }
 

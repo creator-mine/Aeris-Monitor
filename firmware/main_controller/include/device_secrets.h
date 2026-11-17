@@ -18,8 +18,7 @@ namespace DeviceSecrets {
     void init();
     String mqttUser();
     String mqttPassword();
-    String signalingToken();
-    bool save(const String& user, const String& password, const String& token);
+    bool save(const String& user, const String& password);
     bool clear();
     bool provisioned();
 }

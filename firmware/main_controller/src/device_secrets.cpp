@@ -10,7 +10,6 @@ constexpr const char* NS = "secrets";
 
 String g_user;
 String g_pass;
-String g_token;
 bool g_loaded = false;
 
 void loadFromNvs() {
@@ -18,16 +17,23 @@ void loadFromNvs() {
     if (!prefs.begin(NS, true)) return;
     g_user = prefs.getString("mqtt_user", "");
     g_pass = prefs.getString("mqtt_pass", "");
-    g_token = prefs.getString("sig_token", "");
     prefs.end();
 }
 
-void persist(const String& user, const String& pass, const String& token) {
+void persist(const String& user, const String& pass) {
     Preferences prefs;
     if (!prefs.begin(NS, false)) return;
     if (!user.isEmpty()) prefs.putString("mqtt_user", user);
     if (!pass.isEmpty()) prefs.putString("mqtt_pass", pass);
-    if (!token.isEmpty()) prefs.putString("sig_token", token);
+    prefs.end();
+}
+
+// Older firmware stored a separate signaling token. The API now uses the
+// MQTT login (HTTP Basic), so the leftover key is removed once.
+void dropLegacyToken() {
+    Preferences prefs;
+    if (!prefs.begin(NS, false)) return;
+    if (prefs.isKey("sig_token")) prefs.remove("sig_token");
     prefs.end();
 }
 
@@ -49,12 +55,9 @@ void init() {
         g_pass = MQTT_PASSWORD;
         migrated = true;
     }
-    if (g_token.isEmpty() && strlen(SIGNALING_TOKEN) > 0) {
-        g_token = SIGNALING_TOKEN;
-        migrated = true;
-    }
-    if (migrated) persist(g_user, g_pass, g_token);
+    if (migrated) persist(g_user, g_pass);
 
+    dropLegacyToken();
     g_loaded = true;
 }
 
@@ -68,13 +71,8 @@ String mqttPassword() {
     return g_pass;
 }
 
-String signalingToken() {
-    init();
-    return g_token;
-}
-
-bool save(const String& user, const String& password, const String& token) {
-    if (user.isEmpty() && password.isEmpty() && token.isEmpty()) return false;
+bool save(const String& user, const String& password) {
+    if (user.isEmpty() && password.isEmpty()) return false;
 
     Preferences prefs;
     if (!prefs.begin(NS, false)) return false;
@@ -82,14 +80,12 @@ bool save(const String& user, const String& password, const String& token) {
     bool ok = true;
     if (!user.isEmpty()) ok = prefs.putString("mqtt_user", user) > 0 && ok;
     if (!password.isEmpty()) ok = prefs.putString("mqtt_pass", password) > 0 && ok;
-    if (!token.isEmpty()) ok = prefs.putString("sig_token", token) > 0 && ok;
     prefs.end();
 
     if (!ok) return false;
 
     if (!user.isEmpty()) g_user = user;
     if (!password.isEmpty()) g_pass = password;
-    if (!token.isEmpty()) g_token = token;
     g_loaded = true;
     return true;
 }
@@ -101,14 +97,13 @@ bool clear() {
     prefs.end();
     g_user = "";
     g_pass = "";
-    g_token = "";
     g_loaded = true;
     return true;
 }
 
 bool provisioned() {
     init();
-    return !g_pass.isEmpty() || !g_token.isEmpty();
+    return !g_pass.isEmpty();
 }
 
 }  // namespace DeviceSecrets

@@ -72,20 +72,18 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       <button type="button" id="lang-en" onclick="applyLang('en')">EN</button>
     </div>
   </div>
-  <p data-en="Enter your router (2.4 GHz) credentials. Optionally set the MQTT and API credentials; they are stored on the device (NVS), not compiled into the firmware."
-     data-ru="Укажите данные вашей Wi-Fi сети (2,4 ГГц). При необходимости задайте логин и пароль MQTT, а также API-токен — они хранятся на устройстве (NVS), а не в прошивке.">Enter your router (2.4 GHz) credentials. Optionally set the MQTT and API
-     credentials; they are stored on the device (NVS), not compiled into the firmware.</p>
+  <p data-en="Enter your router (2.4 GHz) credentials. Optionally set the MQTT login and password; they are stored on the device (NVS), not compiled into the firmware."
+     data-ru="Укажите данные вашей Wi-Fi сети (2,4 ГГц). При необходимости задайте логин и пароль MQTT — они хранятся на устройстве (NVS), а не в прошивке.">Enter your router (2.4 GHz) credentials. Optionally set the MQTT login and
+     password; they are stored on the device (NVS), not compiled into the firmware.</p>
   <form id="f">
     <label for="ssid" data-en="Wi-Fi SSID" data-ru="Имя Wi-Fi сети (SSID)">Wi-Fi SSID</label>
     <input id="ssid" name="ssid" autocomplete="off" required>
     <label for="password" data-en="Password" data-ru="Пароль">Password</label>
     <input id="password" name="password" type="password" autocomplete="off">
     <label for="mqtt_user" data-en="MQTT user (optional)" data-ru="Пользователь MQTT (необязательно)">MQTT user (optional)</label>
-    <input id="mqtt_user" name="mqtt_user" autocomplete="off" placeholder="main">
+    <input id="mqtt_user" name="mqtt_user" autocomplete="off" placeholder="device">
     <label for="mqtt_password" data-en="MQTT password (blank = keep)" data-ru="Пароль MQTT (пусто — не менять)">MQTT password (blank = keep)</label>
     <input id="mqtt_password" name="mqtt_password" type="password" autocomplete="off">
-    <label for="signaling_token" data-en="API token (blank = keep)" data-ru="API-токен (пусто — не менять)">API token (blank = keep)</label>
-    <input id="signaling_token" name="signaling_token" type="password" autocomplete="off">
     <button type="submit" id="save" data-en="Save &amp; Reconnect" data-ru="Сохранить и подключиться">Save &amp; Reconnect</button>
   </form>
   <div id="status" class="status"></div>
@@ -141,8 +139,7 @@ document.getElementById('f').addEventListener('submit', async (e) => {
     ssid: e.target.ssid.value.trim(),
     password: e.target.password.value,
     mqtt_user: e.target.mqtt_user.value.trim(),
-    mqtt_password: e.target.mqtt_password.value,
-    signaling_token: e.target.signaling_token.value
+    mqtt_password: e.target.mqtt_password.value
   });
   try {
     const r = await fetch('/wifi/save', {
@@ -199,7 +196,6 @@ void handleSaveCollect(AsyncWebServerRequest* request, uint8_t* data, size_t len
     String password = doc["password"] | "";
     String mqttUser = doc["mqtt_user"] | "";
     String mqttPass = doc["mqtt_password"] | "";
-    String token = doc["signaling_token"] | "";
     ssid.trim();
     mqttUser.trim();
 
@@ -209,8 +205,8 @@ void handleSaveCollect(AsyncWebServerRequest* request, uint8_t* data, size_t len
     }
 
     // Optional credentials: blank fields keep the existing NVS values.
-    if (!mqttUser.isEmpty() || !mqttPass.isEmpty() || !token.isEmpty()) {
-        if (!DeviceSecrets::save(mqttUser, mqttPass, token)) {
+    if (!mqttUser.isEmpty() || !mqttPass.isEmpty()) {
+        if (!DeviceSecrets::save(mqttUser, mqttPass)) {
             request->send(500, "application/json", "{\"error\":\"secrets_write_failed\"}");
             return;
         }

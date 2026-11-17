@@ -20,7 +20,12 @@ static bool signalingPost(const char* path, const char* body) {
     http.begin(url, ROOT_CA_CERT);
     http.setTimeout(5000);  // bound blocking HTTPS calls (loop task / WDT)
     http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", String("Bearer ") + DeviceSecrets::signalingToken());
+    // The registry reuses the MQTT device login (HTTP Basic).
+    String user = DeviceSecrets::mqttUser();
+    String pass = DeviceSecrets::mqttPassword();
+    if (!pass.isEmpty()) {
+        http.setAuthorization(user.c_str(), pass.c_str());
+    }
     int code = http.POST(body);
     bool ok = (code >= 200 && code < 300);
     if (!ok) {
