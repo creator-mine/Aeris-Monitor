@@ -324,28 +324,40 @@ bool apply() {
 }
 
 bool rollback() {
-    // After Update.end() the boot partition points at the newly flashed
-    // slot; the *running* partition is the previous firmware. Mark it valid
-    // (so a future update with anti-rollback enabled won't bounce back) and
-    // switch boot to it.
     const esp_partition_t* running = esp_ota_get_running_partition();
     if (running == nullptr) {
         LOG_INFO("OTA", "Rollback: no running partition");
         return false;
     }
 
+    // Commit the running image if it is still pending verification, otherwise
+    // the bootloader may undo the switch on the next reset.
     esp_ota_img_states_t state;
     if (esp_ota_get_state_partition(running, &state) == ESP_OK &&
         state == ESP_OTA_IMG_PENDING_VERIFY) {
         esp_ota_mark_app_valid_cancel_rollback();
     }
 
-    if (esp_ota_set_boot_partition(running) != ESP_OK) {
+    // The "next update" partition is the other OTA slot — the firmware that
+    // was running before the last OTA update.
+    const esp_partition_t* previous = esp_ota_get_next_update_partition(nullptr);
+    if (previous == nullptr || previous->address == running->address) {
+        LOG_INFO("OTA", "Rollback: no other OTA slot");
+        return false;
+    }
+
+    uint8_t magic = 0;
+    if (esp_partition_read(previous, 0, &magic, 1) != ESP_OK || magic != 0xE9) {
+        LOG_INFO("OTA", "Rollback: previous slot has no image");
+        return false;
+    }
+
+    if (esp_ota_set_boot_partition(previous) != ESP_OK) {
         LOG_INFO("OTA", "Rollback: set_boot_partition failed");
         return false;
     }
 
-    LOG_INFO("OTA", "Rollback: booting %s", running->label);
+    LOG_INFO("OTA", "Rollback: booting %s", previous->label);
     RingLogger::save();
     delay(300);
     ESP.restart();

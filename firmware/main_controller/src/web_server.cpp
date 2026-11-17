@@ -234,12 +234,13 @@ void WebServer::handleSdInfo(AsyncWebServerRequest* request) {
 }
 
 String WebServer::buildSdInfoJson() {
+    bool mounted = SD.cardType() != CARD_NONE;
     String json = "{";
-    json += "\"mounted\":" + String(SD.cardType() != CARD_NONE ? "true" : "false") + ",";
-    if (SD.cardType() != CARD_NONE) {
-        json += "\"type\":\"" + String(SD.cardType() == CARD_SDHC ? "SDHC" : "SD") + "\",";
-        json += "\"total_bytes\":" + String(SD.totalBytes()) + ",";
-        json += "\"used_bytes\":" + String(SD.usedBytes());
+    json += "\"mounted\":" + String(mounted ? "true" : "false");
+    if (mounted) {
+        json += ",\"type\":\"" + String(SD.cardType() == CARD_SDHC ? "SDHC" : "SD") + "\"";
+        json += ",\"total_bytes\":" + String(SD.totalBytes());
+        json += ",\"used_bytes\":" + String(SD.usedBytes());
     }
     json += "}";
     return json;

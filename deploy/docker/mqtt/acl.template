@@ -5,10 +5,12 @@
 # Model matches the app and the firmware:
 #   app    (MQTT_USER)          reads `iot/+/sensors/#`, `iot/+/status`,
 #                               writes commands `iot/+/commands`
-#   device (MQTT_DEVICE_USER)   firmware logs all devices in with one shared
-#                               user ("main" in config.h); each publishes its
-#                               own `iot/<id>/sensors/#`, `iot/<id>/status`
+#   device (MQTT_DEVICE_USER)   all devices share one login (the MQTT device
+#                               user, e.g. "main"); each publishes its own
+#                               `iot/<id>/sensors/#`, `iot/<id>/status`
 #                               and subscribes `iot/<id>/commands/#`
+#   web                         read-only browser client (kept for the live
+#                               page/SSE deployments)
 # Anything without a matching rule is denied by default.
 
 user @@APP_USER@@
@@ -23,3 +25,6 @@ user @@DEVICE_USER@@
 topic write iot/+/sensors/#
 topic write iot/+/status
 topic read iot/+/commands/#
+
+user web
+topic read iot/#
