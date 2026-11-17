@@ -120,10 +120,11 @@ fi
 ENVF="$B/env/iot-server-env"
 val() { grep -oP "^$1=\K.*" "$ENVF" 2>/dev/null | head -1 || true; }
 
-REGISTER_TOKEN="$(cat "$B/env/register-token.txt" 2>/dev/null || true)"
 PANEL_PASSWORD="$(val PANEL_PASSWORD)"
 MQTT_PASSWORD="$(val MQTT_PASSWORD)"
 MQTT_USER="$(val MQTT_USER)"; MQTT_USER="${MQTT_USER:-app}"
+MQTT_DEVICE_USER="$(val MQTT_DEVICE_USER)"; MQTT_DEVICE_USER="${MQTT_DEVICE_USER:-device}"
+MQTT_DEVICE_PASSWORD="$(val MQTT_DEVICE_PASSWORD)"
 
 STALE_MS="$(val STALE_MS)";                       STALE_MS="${STALE_MS:-180000}"
 MAX_DEVICES_PER_IP="$(val MAX_DEVICES_PER_IP)";   MAX_DEVICES_PER_IP="${MAX_DEVICES_PER_IP:-20}"
@@ -143,12 +144,11 @@ cat > "$ENV_OUT" <<EOF
 NGINX_DOMAIN=$DOMAIN
 NGINX_TLS=1
 CERTBOT_EMAIL=
-REGISTER_TOKEN=$REGISTER_TOKEN
 PANEL_PASSWORD=$PANEL_PASSWORD
 MQTT_USER=$MQTT_USER
 MQTT_PASSWORD=$MQTT_PASSWORD
-MQTT_DEVICE_USER=main
-MQTT_DEVICE_PASSWORD=
+MQTT_DEVICE_USER=$MQTT_DEVICE_USER
+MQTT_DEVICE_PASSWORD=$MQTT_DEVICE_PASSWORD
 STALE_MS=$STALE_MS
 MAX_DEVICES_PER_IP=$MAX_DEVICES_PER_IP
 RATE_LIMIT_WINDOW_MS=60000
@@ -158,6 +158,9 @@ RATE_LIMIT_WRITE=$RATE_LIMIT_WRITE
 RATE_LIMIT_READ=$RATE_LIMIT_READ
 EOF
 log "wrote $ENV_OUT (domain=$DOMAIN)"
+if [ -z "$MQTT_DEVICE_PASSWORD" ]; then
+    log "WARNING: MQTT_DEVICE_PASSWORD is empty — device registration stays open until it is set in .env"
+fi
 
 # Certificates/key material should not be world-readable.
 chown -R root:root "$R/letsencrypt" "$R/mqtt/certs" "$R/mqtt/secrets" 2>/dev/null || true

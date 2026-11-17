@@ -43,14 +43,6 @@ fi
 if [ -f "$SRC_ENV" ]; then cp -a "$SRC_ENV" "$B/env/iot-server-env"; log "captured $SRC_ENV"; fi
 if [ -f "$SRC_UNIT" ]; then cp -a "$SRC_UNIT" "$B/reference/iot-server.service"; fi
 
-if [ -f "$SRC_UNIT" ]; then
-    token="$(grep -oP 'REGISTER_TOKEN=\K\S+' "$SRC_UNIT" | head -1 || true)"
-    if [ -n "$token" ]; then
-        printf '%s\n' "$token" > "$B/env/register-token.txt"
-        log "captured REGISTER_TOKEN"
-    fi
-fi
-
 if [ -f "$SRC_MOSQ/passwd" ]; then cp -a "$SRC_MOSQ/passwd" "$B/mqtt/secrets/passwd"; log "captured mosquitto passwd"; fi
 if [ -f "$SRC_MOSQ/acl" ]; then cp -a "$SRC_MOSQ/acl" "$B/mqtt/secrets/acl"; log "captured mosquitto acl"; fi
 for f in fullchain.pem privkey.pem; do
