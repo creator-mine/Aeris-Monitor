@@ -1,6 +1,7 @@
 'use strict';
 
-process.env.REGISTER_TOKEN = 'sse-test-token'; // enables the admin read requirement
+process.env.MQTT_USER = 'app';
+process.env.MQTT_PASSWORD = 'sse-app-pass';
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -59,7 +60,9 @@ function collect(url, headers = {}) {
   });
 }
 
-const TOKEN = { Authorization: 'Bearer sse-test-token' };
+const TOKEN = {
+  Authorization: 'Basic ' + Buffer.from('app:sse-app-pass').toString('base64'),
+};
 
 function teardownApp(app, telemetry) {
   telemetry.close();
@@ -70,7 +73,7 @@ function teardownApp(app, telemetry) {
 test('stream requires admin auth and broadcasts live metrics', async () => {
   const { app, telemetry, mqtt, base } = await startApp();
   try {
-    // Without a token the stream is rejected (REGISTER_TOKEN is set above).
+    // Without the app login the stream is rejected.
     assert.equal((await collect(base + '/api/v1/stream')).status, 401);
 
     const liveBuf = [];

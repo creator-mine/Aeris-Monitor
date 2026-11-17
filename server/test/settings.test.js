@@ -8,7 +8,6 @@ const fs = require('node:fs');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'iot-settings-'));
 
-process.env.REGISTER_TOKEN = 'env-register-token';
 process.env.SETTINGS_FILE = path.join(tmp, 'settings.json');
 
 const config = require('../src/config');
@@ -31,7 +30,6 @@ test('falls back to env-derived config when nothing is overridden', () => {
   assert.equal(s.rateLimit('write'), config.rateLimit.write);
   assert.equal(s.rateLimit('read'), config.rateLimit.read);
   assert.equal(s.rateLimit('unknown_limit'), undefined);
-  assert.equal(s.apiToken(), 'env-register-token');
   assert.equal(s.panelPassword(), '');
   assert.equal(s.panelEnabled(), false);
   assert.equal(s.get('no_such_key'), undefined);
@@ -111,16 +109,6 @@ test('max_devices_per_ip accepts zero', () => {
   assert.deepEqual(s.update({ max_devices_per_ip: 0 }), { ok: true, applied: ['max_devices_per_ip'] });
   assert.equal(s.maxDevicesPerIp(), 0);
   assert.equal(new SettingsStore().maxDevicesPerIp(), 0);
-});
-
-test('api_token override wins over the env token and may be cleared', () => {
-  const s = store('token.json');
-  assert.equal(s.apiToken(), 'env-register-token');
-  assert.deepEqual(s.update({ api_token: 'runtime-token' }), { ok: true, applied: ['api_token'] });
-  assert.equal(s.apiToken(), 'runtime-token');
-  assert.deepEqual(s.update({ api_token: '' }), { ok: true, applied: ['api_token'] });
-  assert.equal(s.apiToken(), '');
-  assert.deepEqual(s.update({ api_token: 'x'.repeat(257) }), { ok: false, error: 'invalid_api_token' });
 });
 
 test('panel_password is length-checked and enables the panel', () => {

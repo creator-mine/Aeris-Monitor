@@ -160,24 +160,73 @@ function createServer(options = {}) {
   const panelKey = () => settings.panelPassword();
   const panelRequest = (req) => session.sessionFromReq(req, panelKey()) > 0;
 
-  /** Devices-level auth: Bearer token, or open when no token is configured. */
-  function apiTokenOk(req) {
-    const token = settings.apiToken();
-    if (!token) return true; // legacy open mode
-    const header = req.headers['authorization'] || '';
-    return header === `Bearer ${token}`;
+  /**
+   * Parses `Authorization: Basic <base64(user:pass)>`.
+   * Returns null for any other scheme or malformed input.
+   */
+  function basicCredentials(req) {
+    const header = String(req.headers['authorization'] || '');
+    if (!/^basic\s+/i.test(header)) return null;
+    let decoded;
+    try {
+      decoded = Buffer.from(header.replace(/^basic\s+/i, '').trim(), 'base64').toString('utf8');
+    } catch {
+      return null;
+    }
+    const sep = decoded.indexOf(':');
+    if (sep < 0) return null;
+    return { user: decoded.slice(0, sep), pass: decoded.slice(sep + 1) };
   }
 
-  /** Panel/admin access: valid panel session or a valid API token. */
+  function credentialMatches(creds, user, pass) {
+    return (
+      session.timingSafeEqualStr(creds.user, user) &&
+      session.timingSafeEqualStr(creds.pass, pass)
+    );
+  }
+
+  /**
+   * Role of the caller: 'app' (MQTT_USER) or 'device' (MQTT_DEVICE_USER),
+   * or null. There are no API tokens any more — the HTTP API reuses the
+   * broker logins so a device/app only has one set of credentials.
+   */
+  function roleFor(req) {
+    const creds = basicCredentials(req);
+    if (!creds) return null;
+    if (config.auth.appPassword && credentialMatches(creds, config.auth.appUser, config.auth.appPassword)) {
+      return 'app';
+    }
+    if (
+      config.auth.devicePassword &&
+      credentialMatches(creds, config.auth.deviceUser, config.auth.devicePassword)
+    ) {
+      return 'device';
+    }
+    return null;
+  }
+
+  /** Devices-level auth: the device MQTT login (open when unset, legacy dev mode). */
+  function deviceOk(req) {
+    if (!config.auth.devicePassword) return true;
+    return roleFor(req) === 'device';
+  }
+
+  /** Application reads: the app MQTT login (open when unset, legacy dev mode). */
+  function appOk(req) {
+    if (!config.auth.appPassword) return true;
+    return roleFor(req) === 'app';
+  }
+
+  /** Panel/admin access: a valid panel session or the app login. */
   function adminOk(req) {
     if (panelRequest(req)) return true;
-    return apiTokenOk(req);
+    return appOk(req);
   }
 
   /* ---------- device handlers ---------- */
 
   async function handleRegister(req, res) {
-    if (!apiTokenOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
+    if (!deviceOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
     if (rateLimited(req, 'register:' + clientIp(req), 'register')) {
       return sendJson(res, 429, { error: 'rate_limited' });
     }
@@ -204,6 +253,7 @@ function createServer(options = {}) {
   }
 
   async function handleHeartbeat(req, res) {
+    if (!deviceOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
     if (rateLimited(req, 'heartbeat:' + clientIp(req), 'heartbeat')) {
       return sendJson(res, 429, { error: 'rate_limited' });
     }
@@ -276,6 +326,7 @@ function createServer(options = {}) {
   /* ---------- alerts handlers ---------- */
 
   async function handleAlertsList(req, res) {
+    if (!adminOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
     const { params } = parseUrl(req);
     sendJson(res, 200, alertStore.list({ deviceId: params.get('device_id') }));
   }
@@ -332,6 +383,7 @@ function createServer(options = {}) {
   /* ---------- smart-home rule handlers ---------- */
 
   async function handleRulesList(req, res) {
+    if (!adminOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
     const { params } = parseUrl(req);
     sendJson(res, 200, ruleStore.list({ deviceId: params.get('device_id') }));
   }
@@ -428,7 +480,6 @@ function createServer(options = {}) {
       ok: true,
       version: VERSION,
       path: PANEL_PATH,
-      api_token_set: Boolean(settings.apiToken()),
       panel_enabled: true,
     });
   }
@@ -595,7 +646,6 @@ function createServer(options = {}) {
       max_devices_per_ip: settings.maxDevicesPerIp(),
       session_ttl_ms: settings.sessionTtlMs(),
       rate_limits: limits,
-      api_token_set: Boolean(settings.apiToken()),
     });
   }
 
@@ -693,8 +743,7 @@ function createServer(options = {}) {
 
   function handleStream(req, res) {
     // The stream exposes live telemetry, device state and rule events, so it
-    // follows the same access rule as other reads: open only when no token is
-    // configured, otherwise require a Bearer token or a panel session.
+    // requires the panel session or the app login (HTTP Basic).
     if (!adminOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
     if (sseClients.size >= SSE_MAX_CLIENTS) {
       return sendJson(res, 503, { error: 'stream_busy' });
@@ -872,7 +921,8 @@ function createServer(options = {}) {
           write: settings.rateLimit('write'),
           read: settings.rateLimit('read'),
         },
-        auth_enabled: settings.apiToken().length > 0,
+        auth_enabled: config.auth.enabled,
+        auth_mode: 'basic',
         max_devices_per_ip: settings.maxDevicesPerIp(),
       });
     }

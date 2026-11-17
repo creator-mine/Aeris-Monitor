@@ -8,7 +8,10 @@ const fs = require('node:fs');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'iot-limits-'));
 
-process.env.REGISTER_TOKEN = 'limit-token';
+process.env.MQTT_USER = 'app';
+process.env.MQTT_PASSWORD = 'app-pass';
+process.env.MQTT_DEVICE_USER = 'device';
+process.env.MQTT_DEVICE_PASSWORD = 'device-pass';
 process.env.REGISTRY_FILE = path.join(tmp, 'devices.json');
 process.env.ALERTS_FILE = path.join(tmp, 'alerts.json');
 process.env.RATE_LIMIT_REGISTER = '3';
@@ -29,10 +32,13 @@ before(async () => {
 
 after(() => server.close());
 
+const DEVICE_AUTH =
+  'Basic ' + Buffer.from('device:device-pass').toString('base64');
+
 async function register(id, ip) {
   return fetch(base + '/api/v1/devices/register', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer limit-token' },
+    headers: { 'Content-Type': 'application/json', Authorization: DEVICE_AUTH },
     body: JSON.stringify({ id, ip }),
   });
 }
@@ -53,7 +59,7 @@ test('heartbeat rate limit trips after N allowed', async () => {
       (
         await fetch(base + '/api/v1/devices/heartbeat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: DEVICE_AUTH },
           body: JSON.stringify({ id: 'nope_heartbeat' }),
         })
       ).status,

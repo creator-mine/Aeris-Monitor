@@ -17,6 +17,13 @@ const API = '/api/v1';
 const HEARTBEAT_MS = 30_000;
 const PORT_HTTP = Number(process.env.MOCK_HTTP_PORT) || 8080;
 
+// The registry uses the MQTT device login over HTTP Basic.
+const DEVICE_USER = process.env.MQTT_DEVICE_USER || 'device';
+const DEVICE_PASSWORD = process.env.MQTT_DEVICE_PASSWORD || '';
+const AUTH = DEVICE_PASSWORD
+  ? 'Basic ' + Buffer.from(`${DEVICE_USER}:${DEVICE_PASSWORD}`).toString('base64')
+  : null;
+
 function post(path, body) {
   return new Promise((resolve, reject) => {
     const url = new URL(SERVER + path);
@@ -27,7 +34,11 @@ function post(path, body) {
         port: url.port,
         path: url.pathname,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(data),
+          ...(AUTH ? { Authorization: AUTH } : {}),
+        },
       },
       (res) => {
         let raw = '';

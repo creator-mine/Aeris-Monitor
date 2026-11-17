@@ -32,7 +32,7 @@ CRUD устройств/алертов/правил и настройки сер
 node src/index.js
 ```
 
-Здоровье: `GET /api/v1/health`. Тесты: `npm test` (= `node --test test/*.test.js`), 88 тестов.
+Здоровье: `GET /api/v1/health`. Тесты: `npm test` (= `node --test test/*.test.js`), 157 тестов.
 Сборка фронтенда: `npm --prefix web install && npm --prefix web run build` (dist уже в образ/репо).
 
 ## Конфигурация (env)
@@ -42,7 +42,8 @@ node src/index.js
 | `PORT` | `3000` | Порт HTTP |
 | `HOST` | `127.0.0.1` | Адрес (наружу — через прокси, `0.0.0.0` — публично) |
 | `API_PREFIX` | `/api/v1` | Префикс API |
-| `REGISTER_TOKEN` | (пусто) | Токен записи; при задании `register/delete/alerts` и `GET /devices` требуют `Authorization: Bearer <token>` |
+| `MQTT_USER` / `MQTT_PASSWORD` | `app` / (пусто) | Логин приложения: HTTP Basic в API и подключение к брокеру |
+| `MQTT_DEVICE_USER` / `MQTT_DEVICE_PASSWORD` | `device` / (пусто) | Логин устройств: HTTP Basic (register/heartbeat) и MQTT |
 | `REGISTRY_FILE` | `data/devices.json` | Файл реестра устройств |
 | `ALERTS_FILE` | `data/alerts.json` | Файл алертов |
 | `RULES_FILE` | `data/rules.json` | Файл правил |
@@ -73,18 +74,19 @@ HMAC-cookie `iot_panel` (HttpOnly, SameSite=Lax, Secure при HTTPS).
   stability + связанные алерты/правила)
 - `GET  /panel/api/settings`, `PUT /panel/api/settings` — настройки рантайма
   (`stale_ms`, `metrics_hours`, `max_devices_per_ip`, `session_ttl_ms`,
-  `rate_limits`, `api_token`, `panel_password`)
+  `rate_limits`, `panel_password`)
 - `POST /panel/api/restart` — flush и перезапуск процесса
 
-Все panel-эндпоинты требуют живую сессию (или Bearer-токен при его задании).
+Все panel-эндпоинты требуют живую сессию панели или логин приложения
+(HTTP Basic, пользователь `MQTT_USER`).
 API-контракт для приложения (`/api/v1/*`) не меняется.
 
 ## API
 
 - `GET  /api/v1/health`
 - `GET  /api/v1/devices` (+ фильтры `status`/`online`, поиск `q`)
-- `POST /api/v1/devices/register` — регистрация устройства (rate-limit)
-- `POST /api/v1/devices/heartbeat` — обновление статуса (rate-limit)
+- `POST /api/v1/devices/register` — регистрация устройства (Basic: `device`)
+- `POST /api/v1/devices/heartbeat` — обновление статуса (Basic: `device`)
 - `DELETE /api/v1/devices/:id`
 - `GET/POST /api/v1/alerts`, `PUT/DELETE /api/v1/alerts/:id`
 - `GET/POST /api/v1/rules`, `PUT/DELETE /api/v1/rules/:id`
@@ -97,11 +99,12 @@ device_command`.
 
 ```bash
 # конфигурация
-REGISTER_TOKEN=... docker compose up -d --build
+MQTT_PASSWORD=... MQTT_DEVICE_PASSWORD=... docker compose up -d --build
 # или напрямую
 docker build -t aeris-signaling-server .
 docker run -d -p 3100:3100 \
-  -e REGISTER_TOKEN=... -v "$PWD/data:/app/data" aeris-signaling-server
+  -e MQTT_PASSWORD=... -e MQTT_DEVICE_PASSWORD=... \
+  -v "$PWD/data:/app/data" aeris-signaling-server
 ```
 
 Полный self-hosted стек (node + mosquitto + nginx + certbot) описан в

@@ -43,7 +43,9 @@ server.listen(PORT, HOST, () => {
   console.log(`[signaling] v${config.version} http://${HOST}:${PORT}`);
   console.log(`[signaling] API: ${API}/devices, ${API}/devices/register, ${API}/devices/heartbeat`);
   console.log(`[signaling] Panel: ${PANEL} (${app.settings.panelEnabled() ? 'enabled' : 'disabled — set PANEL_PASSWORD'})`);
-  console.log(`[signaling] auth_enabled=${app.settings.apiToken().length > 0}`);
+  console.log(
+    `[signaling] auth=${config.auth.enabled ? 'basic (app, device)' : 'open — set MQTT_* passwords'}`,
+  );
   console.log(`[signaling] mqtt=${config.mqtt.enabled ? `on (${config.mqtt.user}@${config.mqtt.host}:${config.mqtt.port} -> '${config.mqtt.topic}')` : 'off'}`);
   console.log(`[signaling] ingest=${telemetry ? telemetry.dir : 'off'}`);
 });

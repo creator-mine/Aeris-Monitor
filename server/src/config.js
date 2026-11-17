@@ -37,11 +37,16 @@ const config = {
   },
 
   auth: {
-    // Optional write token — when set, register/delete/alerts writes and
-    // device reads require: Authorization: Bearer <token>
-    registerToken: envStr('REGISTER_TOKEN', ''),
+    // The HTTP API uses the same logins as the MQTT broker (HTTP Basic):
+    // devices authenticate as `device`, apps/panel tooling as `app`.
+    // Passwords come from the same .env values the broker consumes; an empty
+    // password keeps the legacy open mode for local development only.
+    appUser: envStr('MQTT_USER', 'app'),
+    appPassword: envStr('MQTT_PASSWORD', ''),
+    deviceUser: envStr('MQTT_DEVICE_USER', 'device'),
+    devicePassword: envStr('MQTT_DEVICE_PASSWORD', ''),
     get enabled() {
-      return this.registerToken.length > 0;
+      return this.appPassword.length > 0 || this.devicePassword.length > 0;
     },
   },
 

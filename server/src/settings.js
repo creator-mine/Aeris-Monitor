@@ -11,7 +11,7 @@ const config = require('./config');
  * from config (env with factory defaults).
  *
  * Persisted to data/settings.json. Never contains secrets for list views —
- * the panel must not echo api_token / panel_password back.
+ * the panel must not echo panel_password back.
  */
 
 const NUM_KEYS = {
@@ -27,7 +27,6 @@ const RATE_KEYS = {
   read: { min: 1, max: 100000 },
 };
 const STR_KEYS = {
-  api_token: { max: 256, allowEmpty: true },
   panel_password: { min: 8, max: 128 },
 };
 
@@ -101,12 +100,6 @@ class SettingsStore {
       if (clamped !== null) return clamped;
     }
     return config.rateLimit[FALLBACK_KEYS[name]];
-  }
-
-  apiToken() {
-    const v = this.get('api_token');
-    if (typeof v === 'string') return v;
-    return config.auth.registerToken;
   }
 
   panelPassword() {
@@ -186,13 +179,6 @@ class SettingsStore {
         limits[name] = clamped;
       }
       next.rate_limits = limits;
-      changed = true;
-    }
-
-    if (patch.api_token !== undefined) {
-      const v = String(patch.api_token);
-      if (v.length > STR_KEYS.api_token.max) return { ok: false, error: 'invalid_api_token' };
-      next.api_token = v;
       changed = true;
     }
 

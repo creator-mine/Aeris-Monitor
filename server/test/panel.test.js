@@ -9,10 +9,14 @@ const fs = require('node:fs');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'iot-panel-'));
 
 const PANEL_PASSWORD = 'panel-secret-123';
-const API_TOKEN = 'panel-api-token';
+const APP_AUTH =
+  'Basic ' + Buffer.from('app:panel-app-pass').toString('base64');
 
 process.env.PANEL_PASSWORD = PANEL_PASSWORD;
-process.env.REGISTER_TOKEN = API_TOKEN;
+process.env.MQTT_USER = 'app';
+process.env.MQTT_PASSWORD = 'panel-app-pass';
+process.env.MQTT_DEVICE_USER = 'device';
+process.env.MQTT_DEVICE_PASSWORD = 'panel-device-pass';
 process.env.SETTINGS_FILE = path.join(tmp, 'settings.json');
 process.env.REGISTRY_FILE = path.join(tmp, 'devices.json');
 process.env.ALERTS_FILE = path.join(tmp, 'alerts.json');
@@ -49,11 +53,11 @@ after(() => {
   server.server.close();
 });
 
-async function call(instance, method, p, { body, cookie, token, raw = false, redirect } = {}) {
+async function call(instance, method, p, { body, cookie, auth, raw = false, redirect } = {}) {
   const headers = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (cookie) headers.Cookie = cookie;
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (auth) headers.Authorization = auth;
   const res = await fetch(instance + p, {
     method,
     headers,
@@ -148,7 +152,6 @@ test('the session endpoint answers for a logged-in client', async () => {
   assert.equal(r.json.version, VERSION);
   assert.equal(r.json.path, '/panel');
   assert.equal(r.json.panel_enabled, true);
-  assert.equal(r.json.api_token_set, true);
 });
 
 test('the session alias /panel/api/session behaves the same', async () => {
@@ -194,24 +197,21 @@ test('settings never echo secrets', async () => {
   const r = await get('/panel/api/settings', { cookie });
   assert.equal(r.status, 200);
   assert.equal(r.json.panel.enabled, true);
-  assert.equal(r.json.api_token_set, true);
   assert.equal(r.json.panel.path, '/panel');
   assert.equal(r.json.api_prefix, '/api/v1');
 
   const raw = JSON.stringify(r.json);
   assert.ok(!raw.includes(PANEL_PASSWORD), 'panel password must not be echoed');
-  assert.ok(!raw.includes(API_TOKEN), 'api token must not be echoed');
-  assert.ok(!('api_token' in r.json));
   assert.ok(!('panel_password' in r.json));
 });
 
-test('api token grants admin access, but never a session', async () => {
-  const withToken = await get('/panel/api/system', { token: API_TOKEN });
-  assert.equal(withToken.status, 200);
-  assert.equal(withToken.json.ok, true);
+test('app login grants admin access, but never a session', async () => {
+  const withApp = await get('/panel/api/system', { auth: APP_AUTH });
+  assert.equal(withApp.status, 200);
+  assert.equal(withApp.json.ok, true);
 
-  const sessionViaToken = await get('/panel/api/auth/session', { token: API_TOKEN });
-  assert.equal(sessionViaToken.status, 401, 'session endpoint demands a real cookie');
+  const sessionViaApp = await get('/panel/api/auth/session', { auth: APP_AUTH });
+  assert.equal(sessionViaApp.status, 401, 'session endpoint demands a real cookie');
 });
 
 test('devices can be edited through the panel api', async () => {

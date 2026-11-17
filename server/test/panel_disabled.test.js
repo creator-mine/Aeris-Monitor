@@ -10,7 +10,8 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'iot-panel-disabled-'));
 
 // No PANEL_PASSWORD on purpose: the panel must refuse to authenticate.
 process.env.PANEL_PASSWORD = '';
-process.env.REGISTER_TOKEN = 'panel-api-token';
+process.env.MQTT_USER = 'app';
+process.env.MQTT_PASSWORD = 'disabled-app-pass';
 process.env.SETTINGS_FILE = path.join(tmp, 'settings.json');
 process.env.REGISTRY_FILE = path.join(tmp, 'devices.json');
 process.env.ALERTS_FILE = path.join(tmp, 'alerts.json');
@@ -34,10 +35,10 @@ after(() => {
   server.server.close();
 });
 
-async function call(method, p, { body, token } = {}) {
+async function call(method, p, { body, auth } = {}) {
   const headers = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (auth) headers.Authorization = auth;
   const res = await fetch(base + p, {
     method,
     headers,
@@ -75,19 +76,20 @@ test('a stray cookie does not unlock the panel api', async () => {
   assert.equal((await res.json()).error, 'unauthorized');
 });
 
-test('admin api still works for the api token holder', async () => {
+test('admin api still works for the app login', async () => {
+  const appAuth = 'Basic ' + Buffer.from('app:disabled-app-pass').toString('base64');
   const anon = await call('GET', '/panel/api/system');
   assert.equal(anon.status, 401);
 
-  const token = await call('GET', '/panel/api/system', { token: 'panel-api-token' });
-  assert.equal(token.status, 200);
-  assert.equal(token.json.ok, true);
+  const withApp = await call('GET', '/panel/api/system', { auth: appAuth });
+  assert.equal(withApp.status, 200);
+  assert.equal(withApp.json.ok, true);
 
-  const devices = await call('GET', '/panel/api/devices', { token: 'panel-api-token' });
+  const devices = await call('GET', '/panel/api/devices', { auth: appAuth });
   assert.equal(devices.status, 200);
   assert.ok(Array.isArray(devices.json));
 
-  const wrong = await call('GET', '/panel/api/system', { token: 'wrong-token' });
+  const wrong = await call('GET', '/panel/api/system', { auth: 'Basic ' + Buffer.from('app:nope').toString('base64') });
   assert.equal(wrong.status, 401);
 });
 
@@ -117,5 +119,6 @@ test('health and meta stay public', async () => {
 
   const meta = await call('GET', '/api/v1/meta');
   assert.equal(meta.status, 200);
-  assert.equal(meta.json.auth_enabled, true, 'api token is configured');
+  assert.equal(meta.json.auth_enabled, true, 'basic auth is configured');
+  assert.equal(meta.json.auth_mode, 'basic');
 });
