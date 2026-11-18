@@ -208,7 +208,8 @@ String WebServer::buildStatusJson() {
         json += "\"chip_temp\":" + String(chipTemp, 1) + ",";
     }
     json += "\"firmware\":\"" + String(FIRMWARE_VERSION) + "\",";
-    json += "\"led\":\"" + String(StatusLed::stateName()) + "\"";
+    json += "\"led\":\"" + String(StatusLed::stateName()) + "\",";
+    json += "\"sd\":" + buildSdInfoJson();
     json += "}";
     return json;
 }
@@ -242,21 +243,39 @@ void WebServer::handleSdInfo(AsyncWebServerRequest* request) {
 
 String WebServer::buildSdInfoJson() {
     const bool cardDetected = SD.cardType() != CARD_NONE;
-    String json = "{\"mounted\":";
+    const char* cardType = (SD.cardType() == CARD_SDHC) ? "SDHC" : "SD";
+
+    // One field carries the overall state so clients do not have to guess:
+    //   ok           - card is present and the filesystem is mounted
+    //   mount_failed - card answers, but SD.begin() failed (exFAT/damaged)
+    //   no_card      - no card detected at all
+    String json = "{\"status\":\"";
+    json += sdMounted ? "ok" : (cardDetected ? "mount_failed" : "no_card");
+    json += "\",\"mounted\":";
     json += sdMounted ? "true" : "false";
+    json += ",\"card_detected\":";
+    json += cardDetected ? "true" : "false";
+
     // While a card is present but the filesystem is unsupported (exFAT) or
     // damaged, SD.begin() fails yet cardType()/totalBytes() still answer.
     // Report that separately so "mounted" no longer looks healthy.
     if (cardDetected) {
         json += ",\"card_type\":\"";
-        json += (SD.cardType() == CARD_SDHC) ? "SDHC" : "SD";
+        json += cardType;
         json += "\",\"card_bytes\":" + String(SD.totalBytes());
     }
     if (sdMounted) {
+        const uint64_t total = SD.totalBytes();
+        const uint64_t used = SD.usedBytes();
+        const uint64_t freeBytes = used < total ? total - used : 0;
+        const uint32_t usedPct =
+            total > 0 ? (uint32_t)((used * 100ULL) / total) : 0;
         json += ",\"type\":\"";
-        json += (SD.cardType() == CARD_SDHC) ? "SDHC" : "SD";
-        json += "\",\"total_bytes\":" + String(SD.totalBytes());
-        json += ",\"used_bytes\":" + String(SD.usedBytes());
+        json += cardType;
+        json += "\",\"total_bytes\":" + String(total);
+        json += ",\"used_bytes\":" + String(used);
+        json += ",\"free_bytes\":" + String(freeBytes);
+        json += ",\"used_pct\":" + String(usedPct);
     }
     json += "}";
     return json;
