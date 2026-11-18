@@ -8,6 +8,7 @@
 #include "sensor_registry.h"
 #include "time_util.h"
 #include "sys_info.h"
+#include "status_led.h"
 #include <WiFi.h>
 #include <ArduinoJson.h>
 #include <esp_system.h>
@@ -58,7 +59,8 @@ static void cmdStatus() {
         json += "\"chip_temp\":" + String(chipTemp, 1) + ",";
     }
     json += "\"firmware\":\"" + String(FIRMWARE_VERSION) + "\",";
-    json += "\"mqtt_enabled\":" + String(MqttConfig::enabled() ? "true" : "false");
+    json += "\"mqtt_enabled\":" + String(MqttConfig::enabled() ? "true" : "false") + ",";
+    json += "\"led\":\"" + String(StatusLed::stateName()) + "\"";
     json += "}";
     respond(json.c_str());
 }
@@ -104,7 +106,8 @@ static void cmdInfo() {
     json += "\"mqtt_enabled\":" + String(MqttConfig::enabled() ? "true" : "false") + ",";
     // Whether credentials are present in NVS (values themselves are never sent).
     json += "\"mqtt_user_set\":" + String(DeviceSecrets::mqttUser().isEmpty() ? "false" : "true") + ",";
-    json += "\"mqtt_pass_set\":" + String(DeviceSecrets::mqttPassword().isEmpty() ? "false" : "true");
+    json += "\"mqtt_pass_set\":" + String(DeviceSecrets::mqttPassword().isEmpty() ? "false" : "true") + ",";
+    json += "\"led\":\"" + String(StatusLed::stateName()) + "\"";
     json += "}";
     respond(json.c_str());
 }
@@ -195,6 +198,15 @@ static void cmdOtaRollback() {
     }
 }
 
+// CMD:led — cycle white/red/green/blue/magenta/amber for 6 s so the wiring
+// and colour order can be checked without changing the network state.
+static void cmdLed() {
+    StatusLed::testPattern();
+    String json = "{\"type\":\"ack\",\"command\":\"led\",\"duration_ms\":6000,";
+    json += "\"led\":\"" + String(StatusLed::stateName()) + "\"}";
+    respond(json.c_str());
+}
+
 // --- parser ---
 
 static void processCmd(const char* line) {
@@ -207,6 +219,7 @@ static void processCmd(const char* line) {
     else if (strncmp(p, "sensors", 7) == 0) { cmdSensors(); }
     else if (strncmp(p, "modules", 7) == 0) { cmdModules(); }
     else if (strncmp(p, "info", 4) == 0) { cmdInfo(); }
+    else if (strncmp(p, "led", 3) == 0) { cmdLed(); }
     else if (strncmp(p, "wifi_set:", 9) == 0) {
         // CMD:wifi_set:ssid:password
         const char* ssid = p + 9;

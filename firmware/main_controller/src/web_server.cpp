@@ -8,6 +8,7 @@
 #include "sensor_registry.h"
 #include "time_util.h"
 #include "sys_info.h"
+#include "status_led.h"
 #include <WiFi.h>
 #include <SD.h>
 #include <ArduinoJson.h>
@@ -206,7 +207,8 @@ String WebServer::buildStatusJson() {
     if (!std::isnan(chipTemp)) {
         json += "\"chip_temp\":" + String(chipTemp, 1) + ",";
     }
-    json += "\"firmware\":\"" + String(FIRMWARE_VERSION) + "\"";
+    json += "\"firmware\":\"" + String(FIRMWARE_VERSION) + "\",";
+    json += "\"led\":\"" + String(StatusLed::stateName()) + "\"";
     json += "}";
     return json;
 }

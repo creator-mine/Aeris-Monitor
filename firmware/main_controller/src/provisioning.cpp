@@ -4,6 +4,7 @@
 #include "wifi_config.h"
 #include "ring_logger.h"
 #include "serial_cmd.h"
+#include "status_led.h"
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
@@ -232,6 +233,9 @@ bool startAndWait() {
     g_keepLoop = true;
     g_savedSsid = "";
 
+    StatusLed::setState(StatusLedState::Provisioning);
+    StatusLed::update();
+
     WiFi.mode(WIFI_AP_STA);  // allow STA coexisting with AP
 
     WiFi.softAP(apName().c_str(),
@@ -271,6 +275,7 @@ bool startAndWait() {
         // whole provisioning window and a blank device cannot be configured
         // from the desktop app.
         serialCmdUpdate();
+        StatusLed::update();
         delay(20);
     }
 

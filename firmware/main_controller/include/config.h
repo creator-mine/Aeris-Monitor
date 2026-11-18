@@ -97,7 +97,7 @@
 // Over-the-Air firmware updates (pulled over HTTPS from the public site).
 // Each board pulls its own binary + manifest (per-device_type files).
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "1.3.4"
+#define FIRMWARE_VERSION "1.3.5"
 #endif
 #ifndef OTA_FW_HOST
 #define OTA_FW_HOST "spe4naz.online"
@@ -200,6 +200,21 @@
 #endif
 #ifndef RELAY_ACTIVE_HIGH
 #define RELAY_ACTIVE_HIGH 1
+#endif
+
+// Onboard status LED. The S3 N16R8 has a WS2812 RGB LED on GPIO48; the
+// controller now drives it to show boot / Wi-Fi / MQTT / OTA state.
+// -1 disables the indicator (C3 and C6 keep it unused for now).
+#ifndef STATUS_LED_PIN
+#define STATUS_LED_PIN -1
+#endif
+#ifndef STATUS_LED_ENABLED
+#define STATUS_LED_ENABLED 1
+#endif
+// 0..255 cap applied to every channel; 40 keeps the LED readable but not
+// blinding at night.
+#ifndef STATUS_LED_BRIGHTNESS
+#define STATUS_LED_BRIGHTNESS 40
 #endif
 
 // Sensor Configuration

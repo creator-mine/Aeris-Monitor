@@ -21,6 +21,7 @@
 #include "ring_logger.h"
 #include "serial_cmd.h"
 #include "sys_info.h"
+#include "status_led.h"
 #include "esp_task_wdt.h"
 #include <time.h>
 #include <cmath>
@@ -42,6 +43,39 @@ bool mqttReady() {
     return MqttConfig::enabled() && mqtt.connected();
 }
 
+// ===================== STATUS LED =====================
+
+static unsigned long wifiDownSince = 0;
+
+// Derive the LED state from the live network/MQTT state on every loop pass.
+// Explicit states set during setup (boot, provisioning, OTA) stay until this
+// takes over.
+void statusLedSync() {
+    if (OtaUpdater::pending()) {
+        StatusLed::setState(StatusLedState::Ota);
+        return;
+    }
+
+    if (WiFi.status() != WL_CONNECTED) {
+        if (wifiDownSince == 0) wifiDownSince = millis();
+        // Blue while the first attempt is still inside its timeout, red once
+        // the link has been down long enough to be a real failure.
+        if (millis() - wifiDownSince > WIFI_TIMEOUT_MS) {
+            StatusLed::setState(StatusLedState::Error);
+        } else {
+            StatusLed::setState(StatusLedState::WifiConnecting);
+        }
+        return;
+    }
+
+    wifiDownSince = 0;
+    if (MqttConfig::enabled() && !mqtt.connected()) {
+        StatusLed::setState(StatusLedState::MqttConnecting);
+    } else {
+        StatusLed::setState(StatusLedState::Online);
+    }
+}
+
 // ===================== WIFI =====================
 
 bool wifiConnectSta(const char* ssid, const char* password) {
@@ -59,6 +93,8 @@ bool wifiConnectSta(const char* ssid, const char* password) {
         }
         delay(500);
         Serial.print(".");
+        // Keep the status LED blinking while this blocking connect runs.
+        StatusLed::update();
         esp_task_wdt_reset(); // keep feeding even during long reconnect waits
     }
     Serial.println();
@@ -810,7 +846,9 @@ void setup() {
     // Do not stall the firmware when no USB host is attached.
     Serial.setTxTimeoutMs(50);
 #endif
+    StatusLed::begin();
     delay(1000);
+    StatusLed::update();  // finish the boot flash
 
     RingLogger::init();   // restore persisted logs (survive reboot history)
 
@@ -828,10 +866,12 @@ void setup() {
     LOG_INFO("Boot", "Firmware %s starting (chip %d MHz, %d MB flash)",
              FIRMWARE_VERSION, ESP.getCpuFreqMHz(), ESP.getFlashChipSize() / (1024 * 1024));
 
+    StatusLed::setState(StatusLedState::WifiConnecting);
     wifiConnect();
     ntpInit();
 
     if (MqttConfig::enabled()) {
+        StatusLed::setState(StatusLedState::MqttConnecting);
         mqtt.setServer(MQTT_BROKER, MQTT_PORT);
         mqtt.setBufferSize(MQTT_BUFFER_SIZE);
         wifiClient.setCACert(ROOT_CA_CERT);  // ISRG Root X1 (Let's Encrypt)
@@ -839,6 +879,7 @@ void setup() {
         mqttConnect();
     } else {
         Serial.println("[MQTT] Skipping MQTT setup (disabled)");
+        StatusLed::setState(StatusLedState::Online);
     }
 
     sdInit();
@@ -865,6 +906,8 @@ void loop() {
     esp_task_wdt_reset(); // feed watchdog each iteration
 
     if (OtaUpdater::pending()) {
+        StatusLed::setState(StatusLedState::Ota);
+        StatusLed::update();
         OtaUpdater::apply();
     }
 
@@ -873,6 +916,7 @@ void loop() {
         sdRotateCleanup();
     }
 
+    statusLedSync();
     wifiUpdate();
     LanDiscovery::update();
     mqttUpdate();
@@ -899,5 +943,6 @@ void loop() {
         WebServer::instance().broadcastStatus();
     }
 
+    StatusLed::update();
     delay(10);
 }

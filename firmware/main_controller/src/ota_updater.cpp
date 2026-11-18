@@ -6,6 +6,7 @@
 #include "config.h"
 #include "root_ca.h"
 #include "ring_logger.h"
+#include "status_led.h"
 #include "esp_task_wdt.h"
 #include "esp_idf_version.h"
 #include "mbedtls/md.h"
@@ -61,6 +62,7 @@ bool httpsGet(const char* path, String& out, size_t maxBytes) {
     unsigned long waitUntil = millis() + 15000;
     while (client.available() == 0 && millis() < waitUntil) {
         esp_task_wdt_reset();
+        StatusLed::update();
         delay(50);
     }
     if (client.available() == 0) {
@@ -143,6 +145,8 @@ bool pending() {
 
 bool apply() {
     OtaWdtGuard wdtGuard;
+    StatusLed::setState(StatusLedState::Ota);
+    StatusLed::update();
     portENTER_CRITICAL(&otaMux);
     bool force = forceRequest;
     pendingRequest = false;
@@ -208,6 +212,7 @@ bool apply() {
     unsigned long waitUntil = millis() + 15000;
     while (client.available() == 0 && millis() < waitUntil) {
         esp_task_wdt_reset();
+        StatusLed::update();
         delay(50);
     }
     if (client.available() == 0) {
@@ -285,6 +290,7 @@ bool apply() {
             // after sending the body while bytes are still buffered.
             if (!client.connected()) break;
             if (millis() - lastData > 20000) break;
+            StatusLed::update();
             delay(10);
         }
         esp_task_wdt_reset();
