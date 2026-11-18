@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/firmware_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
 
 class FirmwareInfoCard extends StatelessWidget {
   const FirmwareInfoCard({super.key});
@@ -21,11 +22,19 @@ class FirmwareInfoCard extends StatelessWidget {
 
         final items = <(IconData, String, String)>[
           (Icons.memory, 'Плата', _string(info['board'], '—')),
-          (Icons.settings_input_component, 'Платформа', _string(info['platform'], '—')),
+          (
+            Icons.settings_input_component,
+            'Платформа',
+            _string(info['platform'], '—')
+          ),
           (Icons.extension, 'Фреймворк', _string(info['framework'], '—')),
           (Icons.speed, 'CPU Freq', _string(info['board_build.f_cpu'], '—')),
           (Icons.flag, 'Flash', _string(info['board_upload.flash_size'], '—')),
-          (Icons.build_circle, 'Уровень оптимизации', _string(info['build_flags'], '—')),
+          (
+            Icons.build_circle,
+            'Уровень оптимизации',
+            _string(info['build_flags'], '—')
+          ),
         ];
 
         return Card(
@@ -39,7 +48,7 @@ class FirmwareInfoCard extends StatelessWidget {
                   children: [
                     const Icon(Icons.info_outline, size: 20),
                     const SizedBox(width: 8),
-                    const Text(
+                    const TrText(
                       'Информация о прошивке',
                       style: TextStyle(
                         fontSize: 16,
@@ -47,7 +56,7 @@ class FirmwareInfoCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    Text(
+                    TrText(
                       _string(info['envName'], ''),
                       style: TextStyle(
                         fontSize: 12,
@@ -59,30 +68,30 @@ class FirmwareInfoCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 ...items.where((e) => e.$3 != '—').map(
-                  (e) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(e.$1, size: 16, color: Colors.grey[600]),
-                        const SizedBox(width: 8),
-                        Text(e.$2, style: const TextStyle(fontSize: 13)),
-                        const Spacer(),
-                        Flexible(
-                          child: Text(
-                            e.$3,
-                            textAlign: TextAlign.right,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[700],
-                              fontFamily: 'monospace',
+                      (e) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(e.$1, size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 8),
+                            TrText(e.$2, style: const TextStyle(fontSize: 13)),
+                            const Spacer(),
+                            Flexible(
+                              child: TrText(
+                                e.$3,
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[700],
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
                 if (provider.gitInfo['isRepo'] == true) ...[
                   const Divider(height: 20),
                   _StatusRow(
@@ -108,9 +117,7 @@ class FirmwareInfoCard extends StatelessWidget {
                   value: bin['exists'] == true
                       ? _formatSize(bin['sizeBytes'])
                       : 'не собран',
-                  status: bin['exists'] == true
-                      ? _Status.ok
-                      : _Status.error,
+                  status: bin['exists'] == true ? _Status.ok : _Status.error,
                 ),
                 _StatusRow(
                   icon: Icons.schedule,
@@ -129,7 +136,7 @@ class FirmwareInfoCard extends StatelessWidget {
                 ),
                 if (provider.hasUpdates && provider.fileChanges.isNotEmpty) ...[
                   const Divider(height: 20),
-                  Text(
+                  TrText(
                     'Изменённые файлы (${provider.fileChanges.length})',
                     style: const TextStyle(
                       fontSize: 13,
@@ -143,16 +150,18 @@ class FirmwareInfoCard extends StatelessWidget {
                           children: [
                             Icon(
                               switch (change.kind) {
-                                FileChangeKind.added => Icons.add_circle_outline,
+                                FileChangeKind.added =>
+                                  Icons.add_circle_outline,
                                 FileChangeKind.modified => Icons.edit,
-                                FileChangeKind.removed => Icons.remove_circle_outline,
+                                FileChangeKind.removed =>
+                                  Icons.remove_circle_outline,
                               },
                               size: 15,
                               color: _fileChangeColor(change.kind),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
+                              child: TrText(
                                 change.path,
                                 style: const TextStyle(
                                   fontSize: 12,
@@ -160,7 +169,7 @@ class FirmwareInfoCard extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            Text(
+                            TrText(
                               change.label,
                               style: TextStyle(
                                 fontSize: 11,
@@ -191,7 +200,7 @@ class FirmwareInfoCard extends StatelessWidget {
                     info.containsKey('error'))
                   const Padding(
                     padding: EdgeInsets.only(top: 8),
-                    child: Text(
+                    child: TrText(
                       'platformio.ini не найден в выбранной папке',
                       style: TextStyle(fontSize: 12, color: Colors.red),
                     ),
@@ -252,19 +261,22 @@ class _StatusRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: status == null ? Colors.grey[600] : iconColor),
+          Icon(icon,
+              size: 16, color: status == null ? Colors.grey[600] : iconColor),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 13)),
+          TrText(label, style: const TextStyle(fontSize: 13)),
           const Spacer(),
           Flexible(
-            child: Text(
+            child: TrText(
               value,
               textAlign: TextAlign.right,
               style: TextStyle(
                 fontSize: 13,
                 color: status == null
                     ? Colors.grey[700]
-                    : (status == _Status.ok ? Colors.green.shade700 : iconColor),
+                    : (status == _Status.ok
+                        ? Colors.green.shade700
+                        : iconColor),
                 fontFamily: 'monospace',
               ),
             ),
@@ -292,7 +304,8 @@ String _formatDate(dynamic value) {
     return DateFormat('dd.MM.yyyy HH:mm').format(value);
   }
   if (value is int) {
-    return DateFormat('dd.MM.yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(value));
+    return DateFormat('dd.MM.yyyy HH:mm')
+        .format(DateTime.fromMillisecondsSinceEpoch(value));
   }
   return value.toString();
 }
@@ -318,7 +331,8 @@ class _JsonPreview extends StatelessWidget {
 
     final envSection = Map<String, dynamic>.of(
       info.map((key, value) => MapEntry(key, value)),
-    )..remove('path')
+    )
+      ..remove('path')
       ..remove('envName')
       ..remove('environments')
       ..remove('error');
@@ -334,7 +348,7 @@ class _JsonPreview extends StatelessWidget {
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(bottom: 8),
         leading: const Icon(Icons.code, size: 18),
-        title: const Text(
+        title: const TrText(
           'Параметры среды (platformio.ini)',
           style: TextStyle(fontSize: 13),
         ),

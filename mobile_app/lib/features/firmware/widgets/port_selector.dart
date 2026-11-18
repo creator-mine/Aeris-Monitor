@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/firmware_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 class PortSelector extends StatelessWidget {
   const PortSelector({super.key});
@@ -10,12 +12,15 @@ class PortSelector extends StatelessWidget {
     return Consumer<FirmwareProvider>(
       builder: (context, provider, child) {
         final hasPorts = provider.availablePorts.isNotEmpty;
-        final selectedIsValid = hasPorts &&
-            provider.availablePorts.contains(provider.selectedPort);
-        final effectivePort =
-            selectedIsValid ? provider.selectedPort : (hasPorts ? provider.availablePorts.first : null);
+        final selectedIsValid =
+            hasPorts && provider.availablePorts.contains(provider.selectedPort);
+        final effectivePort = selectedIsValid
+            ? provider.selectedPort
+            : (hasPorts ? provider.availablePorts.first : null);
 
-        if (hasPorts && !selectedIsValid && provider.selectedPort != effectivePort) {
+        if (hasPorts &&
+            !selectedIsValid &&
+            provider.selectedPort != effectivePort) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             provider.selectPort(effectivePort!);
           });
@@ -29,7 +34,7 @@ class PortSelector extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Text(
+                    const TrText(
                       'COM-порт',
                       style: TextStyle(
                         fontSize: 16,
@@ -40,7 +45,7 @@ class PortSelector extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.refresh, size: 20),
                       onPressed: provider.refreshPorts,
-                      tooltip: 'Обновить список портов',
+                      tooltip: L10n.of(context, 'Обновить список портов'),
                     ),
                   ],
                 ),
@@ -55,12 +60,14 @@ class PortSelector extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
+                        Icon(Icons.warning_amber,
+                            color: Colors.orange.shade700, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
+                          child: TrText(
                             'Устройства не обнаружены. Подключите ESP32 по USB.',
-                            style: TextStyle(color: Colors.orange.shade700, fontSize: 13),
+                            style: TextStyle(
+                                color: Colors.orange.shade700, fontSize: 13),
                           ),
                         ),
                       ],
@@ -75,10 +82,11 @@ class PortSelector extends StatelessWidget {
                   DropdownButtonFormField<String>(
                     key: ValueKey(effectivePort),
                     initialValue: effectivePort,
-                    decoration: const InputDecoration(
-                      labelText: 'Изменить порт',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: InputDecoration(
+                      labelText: L10n.of(context, 'Изменить порт'),
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                     ),
                     items: provider.availablePorts.map((port) {
                       final info = provider.portInfoFor(port);
@@ -89,11 +97,12 @@ class PortSelector extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
+                                  TrText(
                                     port,
-                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600),
                                   ),
-                                  Text(
+                                  TrText(
                                     info.description,
                                     style: TextStyle(
                                       fontSize: 11,
@@ -102,7 +111,7 @@ class PortSelector extends StatelessWidget {
                                   ),
                                 ],
                               )
-                            : Text(port),
+                            : TrText(port),
                       );
                     }).toList(),
                     onChanged: (value) {
@@ -115,9 +124,8 @@ class PortSelector extends StatelessWidget {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
-                      onPressed: provider.isDetectingChip
-                          ? null
-                          : provider.detectChip,
+                      onPressed:
+                          provider.isDetectingChip ? null : provider.detectChip,
                       icon: provider.isDetectingChip
                           ? const SizedBox(
                               width: 16,
@@ -125,7 +133,7 @@ class PortSelector extends StatelessWidget {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.memory_outlined, size: 18),
-                      label: Text(
+                      label: TrText(
                         provider.isDetectingChip
                             ? 'Определяю чип…'
                             : 'Определить чип',
@@ -152,8 +160,7 @@ class PortSelector extends StatelessWidget {
       },
     );
   }
-
-  }
+}
 
 String _descriptionOf(FirmwareProvider provider, String port) {
   final info = provider.portInfoFor(port);
@@ -185,7 +192,7 @@ class _ConnectedDevicePanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                TrText(
                   port,
                   style: TextStyle(
                     fontSize: 16,
@@ -194,7 +201,7 @@ class _ConnectedDevicePanel extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
+                TrText(
                   description.isNotEmpty
                       ? description
                       : 'Устройство не определено',
@@ -245,7 +252,7 @@ class _ChipResultBanner extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
+            child: TrText(
               matched
                   ? '$detected · совпадает с выбранным устройством'
                   : '$detected · не совпадает — выбрано $expected',
@@ -283,7 +290,7 @@ class _ChipErrorBanner extends StatelessWidget {
           Icon(Icons.warning_amber, color: Colors.red.shade700, size: 22),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
+            child: TrText(
               message,
               style: TextStyle(
                 fontSize: 12,

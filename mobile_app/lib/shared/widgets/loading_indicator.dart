@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
 
 class LoadingIndicator extends StatelessWidget {
   final String? message;
@@ -23,7 +24,7 @@ class LoadingIndicator extends StatelessWidget {
           ),
           if (message != null) ...[
             const SizedBox(height: 16),
-            Text(
+            TrText(
               message!,
               style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,

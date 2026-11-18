@@ -5,6 +5,7 @@ import 'package:aeris/features/dashboard/providers/dashboard_provider.dart';
 import 'package:aeris/models/device.dart';
 import 'package:aeris/models/sensor_data.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -20,6 +21,13 @@ void main() {
         ),
       ],
       child: MaterialApp(
+        locale: const Locale('ru'),
+        supportedLocales: const [Locale('ru'), Locale('en')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         theme: ThemeData.dark(),
         home: const ChartsScreen(),
       ),

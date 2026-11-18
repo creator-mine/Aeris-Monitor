@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
 
 class AppScaffold extends StatelessWidget {
   final String title;
@@ -22,7 +23,7 @@ class AppScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: TrText(title),
         leading: showBackButton
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),

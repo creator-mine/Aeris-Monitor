@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'core/i18n/l10n.dart';
 import 'shared/theme/app_theme.dart';
 import 'features/settings/providers/settings_provider.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -25,7 +27,15 @@ class IoTApp extends StatelessWidget {
         return MaterialApp(
           title: 'Aeris Monitor',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.getTheme(settings.accentColorIndex, settings.darkMode),
+          locale: Locale(settings.language),
+          supportedLocales: L10n.supportedLocales,
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          theme:
+              AppTheme.getTheme(settings.accentColorIndex, settings.darkMode),
           home: const MainNavigation(),
         );
       },
@@ -75,10 +85,8 @@ class _MainNavigationState extends State<MainNavigation> {
             selectedIndex: _currentIndex,
             onDestinationSelected: (index) {
               if (index == 1) {
-                final dashboardProvider =
-                    context.read<DashboardProvider>();
-                final selectedDevice =
-                    dashboardProvider.selectedDevice;
+                final dashboardProvider = context.read<DashboardProvider>();
+                final selectedDevice = dashboardProvider.selectedDevice;
                 if (selectedDevice != null) {
                   context.read<ChartsProvider>().setSelectedDevice(
                         selectedDevice.id,
@@ -92,40 +100,40 @@ class _MainNavigationState extends State<MainNavigation> {
               });
             },
             destinations: [
-              const NavigationDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard),
-                label: 'Главная',
+              NavigationDestination(
+                icon: const Icon(Icons.dashboard_outlined),
+                selectedIcon: const Icon(Icons.dashboard),
+                label: L10n.of(context, 'Главная'),
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.show_chart_outlined),
-                selectedIcon: Icon(Icons.show_chart),
-                label: 'Графики',
+              NavigationDestination(
+                icon: const Icon(Icons.show_chart_outlined),
+                selectedIcon: const Icon(Icons.show_chart),
+                label: L10n.of(context, 'Графики'),
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.devices_other_outlined),
-                selectedIcon: Icon(Icons.devices_other),
-                label: 'Устройства',
+              NavigationDestination(
+                icon: const Icon(Icons.devices_other_outlined),
+                selectedIcon: const Icon(Icons.devices_other),
+                label: L10n.of(context, 'Устройства'),
               ),
               NavigationDestination(
                 icon: Icon(_isMobile ? Icons.wifi : Icons.tune),
                 selectedIcon: Icon(_isMobile ? Icons.wifi : Icons.tune),
-                label: _isMobile ? 'Wi-Fi' : 'Настройка',
+                label: _isMobile ? 'Wi-Fi' : L10n.of(context, 'Настройка'),
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.memory_outlined),
-                selectedIcon: Icon(Icons.memory),
-                label: 'Прошивка',
+              NavigationDestination(
+                icon: const Icon(Icons.memory_outlined),
+                selectedIcon: const Icon(Icons.memory),
+                label: L10n.of(context, 'Прошивка'),
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: 'Настройки',
+              NavigationDestination(
+                icon: const Icon(Icons.settings_outlined),
+                selectedIcon: const Icon(Icons.settings),
+                label: L10n.of(context, 'Настройки'),
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.smart_toy_outlined),
-                selectedIcon: Icon(Icons.smart_toy),
-                label: 'Умный дом',
+              NavigationDestination(
+                icon: const Icon(Icons.smart_toy_outlined),
+                selectedIcon: const Icon(Icons.smart_toy),
+                label: L10n.of(context, 'Умный дом'),
               ),
             ],
           ),

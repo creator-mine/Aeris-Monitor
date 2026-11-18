@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/devices_provider.dart';
 import 'widgets/device_diagnostics_dialog.dart';
+import 'widgets/rename_device_dialog.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/loading_indicator.dart';
 import '../../shared/widgets/error_widget.dart';
@@ -9,6 +10,7 @@ import '../../shared/theme/app_theme.dart';
 import '../../shared/helpers/device_helper.dart';
 import '../../models/device.dart';
 import '../logs/logs_screen.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
 
 class DevicesScreen extends StatefulWidget {
   const DevicesScreen({super.key});
@@ -60,12 +62,12 @@ class _DevicesScreenState extends State<DevicesScreen> {
                 children: [
                   Icon(Icons.devices_other, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
-                  Text(
+                  TrText(
                     'Нет устройств',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                   SizedBox(height: 8),
-                  Text(
+                  TrText(
                     'Устройства регистрируются автоматически\nпри подключении к сети',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey),
@@ -91,7 +93,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
     );
   }
 
-  Widget _buildDeviceCard(BuildContext context, Device device, DevicesProvider provider) {
+  Widget _buildDeviceCard(
+      BuildContext context, Device device, DevicesProvider provider) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -110,7 +113,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
             color: device.isOnline ? AppTheme.successColor : Colors.grey,
           ),
         ),
-        title: Text(
+        title: TrText(
           device.name,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
@@ -118,7 +121,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text(
+            TrText(
               'ID: ${device.id}',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
@@ -129,15 +132,17 @@ class _DevicesScreenState extends State<DevicesScreen> {
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: device.isOnline ? AppTheme.successColor : Colors.grey,
+                    color:
+                        device.isOnline ? AppTheme.successColor : Colors.grey,
                     shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 6),
-                Text(
+                TrText(
                   device.isOnline ? 'Онлайн' : 'Офлайн',
                   style: TextStyle(
-                    color: device.isOnline ? AppTheme.successColor : Colors.grey,
+                    color:
+                        device.isOnline ? AppTheme.successColor : Colors.grey,
                     fontSize: 12,
                   ),
                 ),
@@ -146,7 +151,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Text(
+                TrText(
                   device.firmwareVersion == null
                       ? 'fw: —'
                       : 'fw v${device.firmwareVersion}',
@@ -155,7 +160,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
                 if (provider.isOutdated(device)) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: AppTheme.warningColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
@@ -166,7 +172,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                         Icon(Icons.system_update_alt,
                             size: 12, color: AppTheme.warningColor),
                         SizedBox(width: 4),
-                        Text(
+                        TrText(
                           'обновление',
                           style: TextStyle(
                             fontSize: 11,
@@ -184,6 +190,16 @@ class _DevicesScreenState extends State<DevicesScreen> {
         ),
         trailing: PopupMenuButton(
           itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'rename',
+              child: Row(
+                children: [
+                  Icon(Icons.edit_outlined, size: 20),
+                  SizedBox(width: 8),
+                  TrText('Переименовать устройство'),
+                ],
+              ),
+            ),
             if (device.isOnline)
               const PopupMenuItem(
                 value: 'ota',
@@ -191,7 +207,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                   children: [
                     Icon(Icons.system_update_alt, size: 20),
                     SizedBox(width: 8),
-                    Text('Обновить прошивку'),
+                    TrText('Обновить прошивку'),
                   ],
                 ),
               ),
@@ -202,7 +218,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                   children: [
                     Icon(Icons.monitor_heart_outlined, size: 20),
                     SizedBox(width: 8),
-                    Text('Диагностика'),
+                    TrText('Диагностика'),
                   ],
                 ),
               ),
@@ -213,7 +229,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                   children: [
                     Icon(Icons.terminal, size: 20),
                     SizedBox(width: 8),
-                    Text('Живые логи'),
+                    TrText('Живые логи'),
                   ],
                 ),
               ),
@@ -224,7 +240,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                   children: [
                     Icon(Icons.settings_backup_restore, size: 20),
                     SizedBox(width: 8),
-                    Text('Откатить прошивку'),
+                    TrText('Откатить прошивку'),
                   ],
                 ),
               ),
@@ -234,13 +250,15 @@ class _DevicesScreenState extends State<DevicesScreen> {
                 children: [
                   Icon(Icons.delete, size: 20, color: Colors.red),
                   SizedBox(width: 8),
-                  Text('Удалить', style: TextStyle(color: Colors.red)),
+                  TrText('Удалить', style: TextStyle(color: Colors.red)),
                 ],
               ),
             ),
           ],
           onSelected: (value) {
-            if (value == 'delete') {
+            if (value == 'rename') {
+              _renameDevice(context, device, provider);
+            } else if (value == 'delete') {
               _showDeleteConfirmation(context, device, provider);
             } else if (value == 'ota') {
               _showOtaDialog(context, device, provider);
@@ -261,6 +279,24 @@ class _DevicesScreenState extends State<DevicesScreen> {
     );
   }
 
+  Future<void> _renameDevice(
+    BuildContext context,
+    Device device,
+    DevicesProvider provider,
+  ) async {
+    final name = await showRenameDeviceDialog(context, device);
+    if (name == null || !context.mounted) return;
+    final updated = await provider.renameDevice(device, name);
+    if (!context.mounted) return;
+    if (updated == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: TrText('Не удалось переименовать устройство'),
+        ),
+      );
+    }
+  }
+
   Future<void> _showOtaDialog(
     BuildContext context,
     Device device,
@@ -269,15 +305,15 @@ class _DevicesScreenState extends State<DevicesScreen> {
     return showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Обновить прошивку?'),
-        content: Text(
+        title: const TrText('Обновить прошивку?'),
+        content: TrText(
           'Устройство "${device.name}" скачает последнюю версию прошивки '
           '(${provider.manifestFor(device)?.version ?? '…'}) с сайта и перезагрузится.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
+            child: const TrText('Отмена'),
           ),
           FilledButton(
             onPressed: () async {
@@ -285,10 +321,10 @@ class _DevicesScreenState extends State<DevicesScreen> {
               final message = await provider.sendOtaCommand(device);
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(message)),
+                SnackBar(content: TrText(message)),
               );
             },
-            child: const Text('Обновить'),
+            child: const TrText('Обновить'),
           ),
         ],
       ),
@@ -303,15 +339,15 @@ class _DevicesScreenState extends State<DevicesScreen> {
     return showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Откатить прошивку?'),
-        content: Text(
+        title: const TrText('Откатить прошивку?'),
+        content: TrText(
           'Устройство "${device.name}" переключится на предыдущую версию '
           'прошивки и перезагрузится.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
+            child: const TrText('Отмена'),
           ),
           FilledButton(
             onPressed: () async {
@@ -319,10 +355,10 @@ class _DevicesScreenState extends State<DevicesScreen> {
               final message = await provider.sendOtaRollbackCommand(device);
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(message)),
+                SnackBar(content: TrText(message)),
               );
             },
-            child: const Text('Откатить'),
+            child: const TrText('Откатить'),
           ),
         ],
       ),
@@ -337,12 +373,12 @@ class _DevicesScreenState extends State<DevicesScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Удалить устройство?'),
-        content: Text('Вы уверены, что хотите удалить "${device.name}"?'),
+        title: const TrText('Удалить устройство?'),
+        content: TrText('Вы уверены, что хотите удалить "${device.name}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
+            child: const TrText('Отмена'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -353,7 +389,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
+                    content: TrText(
                       provider.error ?? 'Не удалось удалить устройство',
                     ),
                   ),
@@ -363,7 +399,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
             ),
-            child: const Text('Удалить'),
+            child: const TrText('Удалить'),
           ),
         ],
       ),

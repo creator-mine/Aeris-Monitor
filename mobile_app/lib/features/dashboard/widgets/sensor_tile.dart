@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../shared/theme/app_theme.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
 
 class SensorTile extends StatelessWidget {
   final String name;
@@ -40,7 +41,7 @@ class SensorTile extends StatelessWidget {
                   color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
+                child: TrText(
                   unit,
                   style: const TextStyle(
                     fontSize: 10,
@@ -52,14 +53,14 @@ class SensorTile extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          Text(
+          TrText(
             name,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.grey,
                 ),
           ),
           const SizedBox(height: 4),
-          Text(
+          TrText(
             value != null ? value!.toStringAsFixed(1) : '--',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,

@@ -11,6 +11,8 @@ import '../devices/providers/devices_provider.dart';
 import '../dashboard/providers/dashboard_provider.dart';
 import '../../models/sensor_data.dart';
 import '../../models/device.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 class ChartsScreen extends StatefulWidget {
   const ChartsScreen({super.key});
@@ -37,12 +39,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
       title: 'Графики',
       actions: [
         IconButton(
-          tooltip: 'Сравнить устройства',
+          tooltip: L10n.of(context, 'Сравнить устройства'),
           icon: const Icon(Icons.compare_arrows),
           onPressed: () => _openCompareDialog(context),
         ),
         IconButton(
-          tooltip: 'Экспорт CSV',
+          tooltip: L10n.of(context, 'Экспорт CSV'),
           icon: const Icon(Icons.save_alt),
           onPressed: () => _exportCsv(context),
         ),
@@ -79,14 +81,14 @@ class _ChartsScreenState extends State<ChartsScreen> {
           const Icon(Icons.compare_arrows, size: 16, color: AppTheme.infoColor),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
+            child: TrText(
               'Сравнение: $names',
               style: const TextStyle(fontSize: 13),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           IconButton(
-            tooltip: 'Остановить сравнение',
+            tooltip: L10n.of(context, 'Остановить сравнение'),
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.close, size: 18),
             onPressed: () => provider.clearComparison(),
@@ -116,7 +118,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
               child: DropdownButton<String>(
                 value: selectedId,
                 isExpanded: true,
-                hint: const Text('Выберите устройство'),
+                hint: const TrText('Выберите устройство'),
                 items: devices.map((device) {
                   return DropdownMenuItem<String>(
                     value: device.id,
@@ -129,7 +131,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
+                          child: TrText(
                             device.isOnline
                                 ? device.name
                                 : '${device.name} — офлайн',
@@ -175,7 +177,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
-              label: Text(provider.getSensorName(sensorType)),
+              label: TrText(provider.getSensorName(sensorType)),
               selected: isSelected,
               onSelected: (selected) {
                 provider.setSelectedSensorType(sensorType);
@@ -238,7 +240,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           color: isSelected ? AppTheme.primaryColor : Colors.grey,
         ),
       ),
-      child: Text(label),
+      child: TrText(label),
     );
   }
 
@@ -256,12 +258,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
             children: [
               const Icon(Icons.sensors_off, size: 64, color: Colors.grey),
               const SizedBox(height: 16),
-              const Text(
+              const TrText(
                 'Датчик не подключён',
                 style: TextStyle(fontSize: 18, color: Colors.grey),
               ),
               const SizedBox(height: 8),
-              Text(
+              TrText(
                 'Устройство не сообщает параметр «${provider.getSensorName(provider.selectedSensorType)}».',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13, color: Colors.grey),
@@ -283,7 +285,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
       final series = provider.compareSeries;
       if (series.isEmpty) {
         return const Center(
-          child: Text(
+          child: TrText(
             'Нет данных для сравнения',
             style: TextStyle(fontSize: 16, color: Colors.grey),
           ),
@@ -312,7 +314,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           children: [
             Icon(Icons.show_chart, size: 64, color: Colors.grey),
             SizedBox(height: 16),
-            Text(
+            TrText(
               'Нет данных для отображения',
               style: TextStyle(fontSize: 18, color: Colors.grey),
             ),
@@ -373,14 +375,14 @@ class _ChartsScreenState extends State<ChartsScreen> {
       ),
       child: Column(
         children: [
-          Text(
+          TrText(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.grey,
                 ),
           ),
           const SizedBox(height: 4),
-          Text(
+          TrText(
             value,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
@@ -434,12 +436,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
               interval: safePointCount / 5,
               getTitlesWidget: (value, meta) {
                 if (value.toInt() >= series.points.length) {
-                  return const Text('');
+                  return const TrText('');
                 }
                 final point = series.points[value.toInt()];
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text(
+                  child: TrText(
                     '${point.timestamp.hour}:${point.timestamp.minute.toString().padLeft(2, '0')}',
                     style: const TextStyle(fontSize: 10),
                   ),
@@ -453,7 +455,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
               reservedSize: 50,
               interval: safeRange / 5,
               getTitlesWidget: (value, meta) {
-                return Text(
+                return TrText(
                   value.toStringAsFixed(1),
                   style: const TextStyle(fontSize: 10),
                 );
@@ -547,7 +549,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
+              TrText(
                 provider.compareNames[entries[i].key] ?? entries[i].key,
                 style: const TextStyle(fontSize: 12),
               ),
@@ -606,12 +608,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
               getTitlesWidget: (value, meta) {
                 final longest = _longestSeries(entries);
                 if (longest == null || value.toInt() >= longest.points.length) {
-                  return const Text('');
+                  return const TrText('');
                 }
                 final point = longest.points[value.toInt()];
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text(
+                  child: TrText(
                     '${point.timestamp.hour}:${point.timestamp.minute.toString().padLeft(2, '0')}',
                     style: const TextStyle(fontSize: 10),
                   ),
@@ -624,7 +626,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
               showTitles: true,
               reservedSize: 50,
               interval: safeRange / 5,
-              getTitlesWidget: (value, meta) => Text(value.toStringAsFixed(1),
+              getTitlesWidget: (value, meta) => TrText(value.toStringAsFixed(1),
                   style: const TextStyle(fontSize: 10)),
             ),
           ),
@@ -737,7 +739,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
     if (rows == 0) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Нет данных для экспорта')),
+          const SnackBar(content: TrText('Нет данных для экспорта')),
         );
       }
       return;
@@ -751,18 +753,18 @@ class _ChartsScreenState extends State<ChartsScreen> {
       final path = await exportCsv(fileName, buffer.toString());
       if (path != null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('График сохранён: $path')),
+          SnackBar(content: TrText('График сохранён: $path')),
         );
       } else if (path == null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Экспорт доступен только в настольной версии')),
+              content: TrText('Экспорт доступен только в настольной версии')),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка экспорта: $e')),
+          SnackBar(content: TrText('Ошибка экспорта: $e')),
         );
       }
     }
@@ -805,11 +807,11 @@ class _CompareDevicesDialogState extends State<_CompareDevicesDialog> {
   Widget build(BuildContext context) {
     final provider = context.read<ChartsProvider>();
     return AlertDialog(
-      title: const Text('Сравнить устройства'),
+      title: const TrText('Сравнить устройства'),
       content: SizedBox(
         width: 360,
         child: widget.devices.isEmpty
-            ? const Text('Нет устройств в реестре',
+            ? const TrText('Нет устройств в реестре',
                 style: TextStyle(color: Colors.grey))
             : ListView.builder(
                 shrinkWrap: true,
@@ -818,9 +820,9 @@ class _CompareDevicesDialogState extends State<_CompareDevicesDialog> {
                   final device = widget.devices[index];
                   return CheckboxListTile(
                     value: _checked[device.id] ?? false,
-                    title: Text(device.name),
+                    title: TrText(device.name),
                     subtitle:
-                        Text(device.id, style: const TextStyle(fontSize: 12)),
+                        TrText(device.id, style: const TextStyle(fontSize: 12)),
                     controlAffinity: ListTileControlAffinity.leading,
                     onChanged: (value) {
                       setState(() => _checked[device.id] = value ?? false);
@@ -832,7 +834,7 @@ class _CompareDevicesDialogState extends State<_CompareDevicesDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Отмена'),
+          child: const TrText('Отмена'),
         ),
         FilledButton(
           onPressed: widget.devices.isEmpty
@@ -850,7 +852,7 @@ class _CompareDevicesDialogState extends State<_CompareDevicesDialog> {
                     );
                   }
                 },
-          child: const Text('Сравнить'),
+          child: const TrText('Сравнить'),
         ),
       ],
     );

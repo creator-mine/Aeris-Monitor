@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import '../../../models/device.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../../../shared/helpers/device_helper.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
 
 class DeviceCard extends StatelessWidget {
   final Device device;
   final bool isSelected;
   final VoidCallback? onTap;
+  final VoidCallback? onRename;
 
   const DeviceCard({
     super.key,
     required this.device,
     this.isSelected = false,
     this.onTap,
+    this.onRename,
   });
 
   @override
@@ -21,6 +24,7 @@ class DeviceCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onRename,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: 140,
@@ -54,23 +58,39 @@ class DeviceCard extends StatelessWidget {
               children: [
                 Icon(
                   DeviceHelper.getDeviceIcon(device.type),
-                  color: isSelected
-                      ? Colors.white
-                      : AppTheme.primaryColor,
+                  color: isSelected ? Colors.white : AppTheme.primaryColor,
                   size: 24,
                 ),
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: device.isOnline ? AppTheme.successColor : Colors.grey,
-                    shape: BoxShape.circle,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: device.isOnline
+                            ? AppTheme.successColor
+                            : Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    if (onRename != null) ...[
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: onRename,
+                        child: Icon(
+                          Icons.edit_outlined,
+                          size: 15,
+                          color: isSelected ? Colors.white70 : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
             const Spacer(),
-            Text(
+            TrText(
               device.name,
               style: TextStyle(
                 fontSize: 14,
@@ -83,7 +103,7 @@ class DeviceCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
-            Text(
+            TrText(
               device.type.toUpperCase(),
               style: TextStyle(
                 fontSize: 10,

@@ -13,7 +13,8 @@ class SignalingApi {
   String _password;
 
   SignalingApi({String? baseUrl, String username = '', String password = ''})
-      : _baseUrl = baseUrl ?? '${AppConfig.signalingUrl}${AppConfig.signalingApiVersion}',
+      : _baseUrl = baseUrl ??
+            '${AppConfig.signalingUrl}${AppConfig.signalingApiVersion}',
         _username = username,
         _password = password {
     final auth = basicAuthHeader(_username, _password);
@@ -65,6 +66,19 @@ class SignalingApi {
       if (e.response?.statusCode == 404) return null;
       rethrow;
     }
+  }
+
+  /// Changes the display name stored in the registry. The device keeps its
+  /// firmware-reported name as a fallback, so clearing the custom name restores
+  /// the default on the server.
+  Future<Device> renameDevice(String id, String name) async {
+    final response = await _dio.put(
+      '/devices/${Uri.encodeComponent(id)}',
+      data: {'name': name},
+    );
+    final data = response.data as Map<String, dynamic>;
+    final deviceJson = data['device'] as Map<String, dynamic>? ?? data;
+    return Device.fromJson(deviceJson);
   }
 
   Future<bool> removeDevice(String id) async {

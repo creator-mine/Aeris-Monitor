@@ -71,8 +71,7 @@ class DevicesProvider extends ChangeNotifier {
     return (_manifests['esp32-c3'] ?? _manifests.values.first).version;
   }
 
-  List<Device> get onlineDevices =>
-      _devices.where((d) => d.isOnline).toList();
+  List<Device> get onlineDevices => _devices.where((d) => d.isOnline).toList();
 
   List<Device> get offlineDevices =>
       _devices.where((d) => !d.isOnline).toList();
@@ -177,7 +176,8 @@ class DevicesProvider extends ChangeNotifier {
         final client = DirectDeviceClient(baseUrl: baseUrl);
         try {
           final result = await client.sendOtaCommand();
-          final started = result?['status'] == 'started' || result?['ok'] == true;
+          final started =
+              result?['status'] == 'started' || result?['ok'] == true;
           if (started) {
             return 'Команда ОТА отправлена напрямую — устройство скачает прошивку и перезагрузится';
           }
@@ -218,7 +218,8 @@ class DevicesProvider extends ChangeNotifier {
         final client = DirectDeviceClient(baseUrl: baseUrl);
         try {
           final result = await client.sendCommand('ota_rollback');
-          final started = result?['status'] == 'started' || result?['ok'] == true;
+          final started =
+              result?['status'] == 'started' || result?['ok'] == true;
           if (started) {
             return 'Команда отката отправлена напрямую — устройство загрузит предыдущую прошивку и перезагрузится';
           }
@@ -235,6 +236,27 @@ class DevicesProvider extends ChangeNotifier {
     }
 
     return 'Нет связи с устройством (MQTT не подключён, IP неизвестен)';
+  }
+
+  /// Renames a device in the server registry and keeps the local module list
+  /// (the registry does not store modules, only connection metadata).
+  Future<Device?> renameDevice(Device device, String name) async {
+    try {
+      final updated = await _signalingApi.renameDevice(device.id, name.trim());
+      if (_disposed) return updated;
+      final merged = updated.copyWith(
+        modules: device.modules,
+        sensors: updated.sensors.isEmpty ? device.sensors : updated.sensors,
+      );
+      final index = _devices.indexWhere((d) => d.id == device.id);
+      if (index >= 0) _devices[index] = merged;
+      _safeNotify();
+      return merged;
+    } catch (e) {
+      _error = e.toString();
+      _safeNotify();
+      return null;
+    }
   }
 
   Future<bool> deleteDevice(String id) async {

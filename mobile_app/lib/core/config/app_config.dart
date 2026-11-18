@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 class AppConfig {
   static const String appName = 'Aeris Monitor';
-  static const String appVersion = '1.2.9';
-  
+  static const String appVersion = '1.3.0';
+
   // API Configuration
   static const String apiBaseUrl = 'https://spe4naz.online';
   static const String apiVersion = '/api/v1';
@@ -28,15 +28,15 @@ class AppConfig {
 
   // Signaling server write/read access uses the MQTT app login (HTTP Basic).
   // Live password — entered by the user in Настройки, never baked in.
-  
+
   // Timeouts
   static const Duration connectionTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
-  
+
   // Data
   static const int maxDataPoints = 1000;
   static const Duration defaultTimeRange = Duration(hours: 24);
-  
+
   /// Fallback defaults for known sensor types.
   /// Real units/names come dynamically from device modules (MetricInfo)
   /// via the Discovery Server / ESP32 REST API. These maps are used only

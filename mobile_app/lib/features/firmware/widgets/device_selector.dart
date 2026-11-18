@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/firmware_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
 
 class DeviceSelector extends StatelessWidget {
   const DeviceSelector({super.key});
@@ -16,7 +17,7 @@ class DeviceSelector extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                const TrText(
                   'Устройство',
                   style: TextStyle(
                     fontSize: 16,
@@ -28,17 +29,17 @@ class DeviceSelector extends StatelessWidget {
                   segments: const [
                     ButtonSegment(
                       value: 'esp32-c3',
-                      label: Text('ESP32-C3'),
+                      label: TrText('ESP32-C3'),
                       icon: Icon(Icons.memory),
                     ),
                     ButtonSegment(
                       value: 'esp32-s3',
-                      label: Text('ESP32-S3'),
+                      label: TrText('ESP32-S3'),
                       icon: Icon(Icons.memory),
                     ),
                     ButtonSegment(
                       value: 'esp32-c6',
-                      label: Text('ESP32-C6'),
+                      label: TrText('ESP32-C6'),
                       icon: Icon(Icons.sensors),
                     ),
                   ],
@@ -48,7 +49,7 @@ class DeviceSelector extends StatelessWidget {
                   },
                 ),
                 const SizedBox(height: 8),
-                Text(
+                TrText(
                   switch (provider.selectedDeviceType) {
                     'esp32-c3' =>
                       'Основной контроллер (LOLIN C3 mini): WiFi, MQTT, I2C, UART',

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'providers/dashboard_provider.dart';
@@ -10,7 +10,10 @@ import '../../shared/widgets/error_widget.dart';
 import '../../core/config/app_config.dart';
 import '../../core/config/connection_mode.dart';
 import '../../models/device.dart';
+import '../devices/widgets/rename_device_dialog.dart';
 import '../settings/providers/settings_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -48,7 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ConnectionMode.mqtt => Icons.cloud_queue,
                 },
               ),
-              tooltip: 'Режим соединения',
+              tooltip: L10n.of(context, 'Режим соединения'),
               onSelected: (mode) {
                 provider.setConnectionMode(mode);
                 context.read<SettingsProvider>().setConnectionMode(mode);
@@ -66,7 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           size: 18,
                         ),
                         const SizedBox(width: 8),
-                        Text(mode.label),
+                        TrText(mode.label),
                       ],
                     ),
                   ),
@@ -101,7 +104,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   Icon(Icons.devices_other, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
-                  Text(
+                  TrText(
                     'Нет подключённых устройств',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
@@ -132,20 +135,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDevicesSection(BuildContext context, DashboardProvider provider) {
+  Widget _buildDevicesSection(
+      BuildContext context, DashboardProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
+            TrText(
               'Устройства',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
             ),
-            Text(
+            TrText(
               '${provider.onlineDevices.length}/${provider.devices.length} онлайн',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey,
@@ -167,6 +171,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   device: device,
                   isSelected: provider.selectedDevice?.id == device.id,
                   onTap: () => provider.selectDevice(device),
+                  onRename: () => _renameDevice(context, provider, device),
                 ),
               );
             },
@@ -176,22 +181,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSelectedDeviceSection(BuildContext context, DashboardProvider provider) {
+  Future<void> _renameDevice(
+    BuildContext context,
+    DashboardProvider provider,
+    Device device,
+  ) async {
+    final name = await showRenameDeviceDialog(context, device);
+    if (name == null || !context.mounted) return;
+    final updated = await provider.renameDevice(device, name);
+    if (!context.mounted) return;
+    if (updated == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: TrText('Не удалось переименовать устройство'),
+        ),
+      );
+    }
+  }
+
+  Widget _buildSelectedDeviceSection(
+      BuildContext context, DashboardProvider provider) {
     final device = provider.selectedDevice!;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          device.name,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
+        Row(
+          children: [
+            Expanded(
+              child: TrText(
+                device.name,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
+            ),
+            IconButton(
+              tooltip: L10n.of(context, 'Переименовать устройство'),
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => _renameDevice(context, provider, device),
+            ),
+          ],
         ),
         const SizedBox(height: 4),
         Row(
           children: [
-            Text(
+            TrText(
               'Последнее обновление: ${DateFormat('dd.MM.yyyy HH:mm').format(device.lastSeen)}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey,
@@ -200,7 +235,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(width: 8),
             if (provider.activeChannelLabel != null)
               Chip(
-                label: Text(provider.activeChannelLabel!),
+                label: TrText(provider.activeChannelLabel!),
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
                 labelStyle: Theme.of(context).textTheme.labelSmall,
@@ -216,7 +251,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
+                    content: TrText(
                       sent
                           ? 'Устройство перейдёт в режим настройки Wi-Fi. '
                               'Подключитесь к его сети Aeris-Setup-XXXX и откройте http://192.168.4.1'
@@ -227,7 +262,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
               },
               icon: const Icon(Icons.wifi, size: 20),
-              label: const Text('Настроить Wi-Fi'),
+              label: const TrText('Настроить Wi-Fi'),
             ),
             const SizedBox(width: 12),
             OutlinedButton.icon(
@@ -235,7 +270,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 final sent = provider.sendCommand('restart');
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
+                    content: TrText(
                       sent
                           ? 'Команда перезагрузки отправлена'
                           : 'Нет связи с устройством: команда не отправлена',
@@ -245,7 +280,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
               },
               icon: const Icon(Icons.restart_alt, size: 20),
-              label: const Text('Перезагрузить'),
+              label: const TrText('Перезагрузить'),
             ),
           ],
         ),

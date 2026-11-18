@@ -1,10 +1,12 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api/mqtt_client.dart';
 import '../../devices/providers/devices_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 /// Android-only firmware panel: no PlatformIO and no USB flashing.
 /// The device is told to update itself over Wi-Fi via MQTT commands
@@ -28,12 +30,9 @@ class _AndroidOtaCardState extends State<AndroidOtaCard> {
         ..loadDevices()
         ..loadManifest();
     });
-    _mqttSub = context
-        .read<MqttService>()
-        .connectionStream
-        .listen((_) {
-          if (mounted) setState(() {});
-        });
+    _mqttSub = context.read<MqttService>().connectionStream.listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -60,7 +59,7 @@ class _AndroidOtaCardState extends State<AndroidOtaCard> {
 
   void _snack(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text), duration: const Duration(seconds: 2)),
+      SnackBar(content: TrText(text), duration: const Duration(seconds: 2)),
     );
   }
 
@@ -77,12 +76,12 @@ class _AndroidOtaCardState extends State<AndroidOtaCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  const TrText(
                     'Обновление по воздуху',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  Text(
+                  TrText(
                     provider.isLoading
                         ? 'Загрузка устройств…'
                         : 'Устройства не найдены. Откройте вкладку «Устройства» и обновите список.',
@@ -112,12 +111,12 @@ class _AndroidOtaCardState extends State<AndroidOtaCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                const TrText(
                   'Обновление по воздуху',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
-                Text(
+                TrText(
                   'Устройство скачает прошивку само. USB и сборка не нужны.',
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
@@ -125,16 +124,16 @@ class _AndroidOtaCardState extends State<AndroidOtaCard> {
                 DropdownButtonFormField<String>(
                   key: ValueKey(selected.id),
                   initialValue: selected.id,
-                  decoration: const InputDecoration(
-                    labelText: 'Устройство',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: L10n.of(context, 'Устройство'),
+                    border: const OutlineInputBorder(),
                     isDense: true,
                   ),
                   items: devices
                       .map(
                         (d) => DropdownMenuItem(
                           value: d.id,
-                          child: Text('${d.name} (${d.id})'),
+                          child: TrText('${d.name} (${d.id})'),
                         ),
                       )
                       .toList(),
@@ -162,7 +161,7 @@ class _AndroidOtaCardState extends State<AndroidOtaCard> {
                 ),
                 if (!canSend) ...[
                   const SizedBox(height: 8),
-                  Text(
+                  TrText(
                     'MQTT не подключён — команды недоступны.',
                     style: TextStyle(
                       fontSize: 12,
@@ -176,7 +175,7 @@ class _AndroidOtaCardState extends State<AndroidOtaCard> {
                   child: FilledButton.icon(
                     onPressed: canSend ? () => _send('ota') : null,
                     icon: const Icon(Icons.system_update),
-                    label: const Text('Обновить'),
+                    label: const TrText('Обновить'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -186,7 +185,7 @@ class _AndroidOtaCardState extends State<AndroidOtaCard> {
                       child: OutlinedButton.icon(
                         onPressed: canSend ? () => _send('rollback') : null,
                         icon: const Icon(Icons.undo, size: 18),
-                        label: const Text('Откатить'),
+                        label: const TrText('Откатить'),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -194,7 +193,7 @@ class _AndroidOtaCardState extends State<AndroidOtaCard> {
                       child: OutlinedButton.icon(
                         onPressed: canSend ? () => _send('restart') : null,
                         icon: const Icon(Icons.restart_alt, size: 18),
-                        label: const Text('Перезагрузить'),
+                        label: const TrText('Перезагрузить'),
                       ),
                     ),
                   ],
@@ -225,9 +224,10 @@ class _InfoTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+          TrText(label,
+              style: TextStyle(fontSize: 11, color: Colors.grey[600])),
           const SizedBox(height: 2),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          TrText(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     );

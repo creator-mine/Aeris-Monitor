@@ -9,6 +9,8 @@ import '../../shared/widgets/error_widget.dart';
 import '../../shared/theme/app_theme.dart';
 import '../devices/providers/devices_provider.dart';
 import 'providers/smart_home_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 String ruleTriggerLabel(RuleTrigger trigger) => switch (trigger) {
       RuleTrigger.thresholdAbove => 'Порог: выше',
@@ -30,7 +32,8 @@ IconData ruleActionIcon(RuleAction action) => switch (action) {
       RuleAction.deviceCommand => Icons.memory_outlined,
     };
 
-String describeRule(SmartRule rule, {required String Function(String) deviceName}) {
+String describeRule(SmartRule rule,
+    {required String Function(String) deviceName}) {
   final trigger = switch (rule.trigger) {
     RuleTrigger.thresholdAbove => '${rule.sensorType} > ${rule.threshold}',
     RuleTrigger.thresholdBelow => '${rule.sensorType} < ${rule.threshold}',
@@ -72,7 +75,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
       actions: [
         IconButton(
           icon: const Icon(Icons.add),
-          tooltip: 'Добавить правило',
+          tooltip: L10n.of(context, 'Добавить правило'),
           onPressed: () => _openEditor(context, rule: null),
         ),
         IconButton(
@@ -98,12 +101,12 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
                 children: [
                   const Icon(Icons.auto_awesome, size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
-                  const Text(
+                  const TrText(
                     'Нет правил',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                   const SizedBox(height: 8),
-                  Text(
+                  TrText(
                     'Создайте правило: при превышении порога\nотправить команду или уведомить',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey.shade600),
@@ -112,7 +115,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
                   FilledButton.icon(
                     onPressed: () => _openEditor(context, rule: null),
                     icon: const Icon(Icons.add),
-                    label: const Text('Добавить правило'),
+                    label: const TrText('Добавить правило'),
                   ),
                 ],
               ),
@@ -148,7 +151,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
           height: 44,
           decoration: BoxDecoration(
             color: (enabled ? AppTheme.primaryColor : Colors.grey)
-              .withValues(alpha: 0.1),
+                .withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
@@ -159,7 +162,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
         title: Row(
           children: [
             Expanded(
-              child: Text(
+              child: TrText(
                 rule.name.isEmpty ? 'Правило' : rule.name,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
@@ -172,14 +175,14 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text(
+          child: TrText(
             describeRule(rule, deviceName: provider.deviceName),
             style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
           ),
         ),
         onTap: () => _openEditor(context, rule: rule),
         trailing: IconButton(
-          tooltip: 'Удалить',
+          tooltip: L10n.of(context, 'Удалить'),
           icon: const Icon(Icons.delete_outline, color: Colors.red),
           onPressed: () => _confirmDelete(context, provider, rule),
         ),
@@ -187,7 +190,8 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
     );
   }
 
-  Future<void> _openEditor(BuildContext context, {required SmartRule? rule}) async {
+  Future<void> _openEditor(BuildContext context,
+      {required SmartRule? rule}) async {
     final devices = context.read<DevicesProvider>().devices;
     await showDialog<void>(
       context: context,
@@ -198,16 +202,18 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
     );
   }
 
-  void _confirmDelete(BuildContext context, SmartHomeProvider provider, SmartRule rule) {
+  void _confirmDelete(
+      BuildContext context, SmartHomeProvider provider, SmartRule rule) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Удалить правило?'),
-        content: Text('Правило «${rule.name.isEmpty ? 'Правило' : rule.name}» будет удалено.'),
+        title: const TrText('Удалить правило?'),
+        content: TrText(
+            'Правило «${rule.name.isEmpty ? 'Правило' : rule.name}» будет удалено.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
+            child: const TrText('Отмена'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -215,7 +221,7 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
               await provider.deleteRule(rule.id);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Удалить'),
+            child: const TrText('Удалить'),
           ),
         ],
       ),
@@ -272,7 +278,8 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
   }
 
   bool get _isThresholdTrigger =>
-      _trigger == RuleTrigger.thresholdAbove || _trigger == RuleTrigger.thresholdBelow;
+      _trigger == RuleTrigger.thresholdAbove ||
+      _trigger == RuleTrigger.thresholdBelow;
 
   bool get _needsPayload =>
       _action == RuleAction.mqttCommand || _action == RuleAction.deviceCommand;
@@ -308,7 +315,7 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(_isNew ? 'Новое правило' : 'Редактировать правило'),
+      title: TrText(_isNew ? 'Новое правило' : 'Редактировать правило'),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -318,17 +325,18 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
             children: [
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Название',
-                  hintText: 'Например: Жара под потолком',
+                decoration: InputDecoration(
+                  labelText: L10n.of(context, 'Название'),
+                  hintText: L10n.of(context, 'Например: Жара под потолком'),
                 ),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 initialValue: _deviceId,
-                decoration: const InputDecoration(labelText: 'Устройство'),
+                decoration:
+                    InputDecoration(labelText: L10n.of(context, 'Устройство')),
                 items: _deviceOptions
-                    .map((id) => DropdownMenuItem(value: id, child: Text(id)))
+                    .map((id) => DropdownMenuItem(value: id, child: TrText(id)))
                     .toList(),
                 onChanged: (value) {
                   setState(() {
@@ -339,9 +347,9 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
               ),
               TextFormField(
                 controller: _manualDeviceController,
-                decoration: const InputDecoration(
-                  labelText: 'Или ID устройства вручную',
-                  hintText: 'Например: esp32c3_001',
+                decoration: InputDecoration(
+                  labelText: L10n.of(context, 'Или ID устройства вручную'),
+                  hintText: L10n.of(context, 'Например: esp32c3_001'),
                 ),
                 validator: (_) {
                   final id = _manualDeviceController.text.trim();
@@ -354,10 +362,11 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
               const SizedBox(height: 8),
               DropdownButtonFormField<RuleTrigger>(
                 initialValue: _trigger,
-                decoration: const InputDecoration(labelText: 'Триггер'),
+                decoration:
+                    InputDecoration(labelText: L10n.of(context, 'Триггер')),
                 items: RuleTrigger.values
-                    .map((t) =>
-                        DropdownMenuItem(value: t, child: Text(ruleTriggerLabel(t))))
+                    .map((t) => DropdownMenuItem(
+                        value: t, child: TrText(ruleTriggerLabel(t))))
                     .toList(),
                 onChanged: (value) {
                   if (value != null) setState(() => _trigger = value);
@@ -367,9 +376,11 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue: _sensorType.isEmpty ? null : _sensorType,
-                  decoration: const InputDecoration(labelText: 'Датчик'),
+                  decoration:
+                      InputDecoration(labelText: L10n.of(context, 'Датчик')),
                   items: _sensorOptions
-                      .map((key) => DropdownMenuItem(value: key, child: Text(key)))
+                      .map((key) =>
+                          DropdownMenuItem(value: key, child: TrText(key)))
                       .toList(),
                   onChanged: (value) {
                     if (value != null) setState(() => _sensorType = value);
@@ -378,8 +389,10 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _thresholdController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Порог'),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration:
+                      InputDecoration(labelText: L10n.of(context, 'Порог')),
                   validator: (_) {
                     final v = double.tryParse(_thresholdController.text.trim());
                     if (v == null) return 'Введите число';
@@ -390,10 +403,11 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
               const SizedBox(height: 8),
               DropdownButtonFormField<RuleAction>(
                 initialValue: _action,
-                decoration: const InputDecoration(labelText: 'Действие'),
+                decoration:
+                    InputDecoration(labelText: L10n.of(context, 'Действие')),
                 items: RuleAction.values
-                    .map((a) =>
-                        DropdownMenuItem(value: a, child: Text(ruleActionLabel(a))))
+                    .map((a) => DropdownMenuItem(
+                        value: a, child: TrText(ruleActionLabel(a))))
                     .toList(),
                 onChanged: (value) {
                   if (value != null) setState(() => _action = value);
@@ -407,7 +421,7 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
                     labelText: _action == RuleAction.mqttCommand
                         ? 'Команда (MQTT-топик iot/<id>/commands)'
                         : 'Команда на устройство (REST)',
-                    hintText: 'Например: relay:on',
+                    hintText: L10n.of(context, 'Например: relay:on'),
                   ),
                   validator: (_) {
                     if (_payloadController.text.trim().isEmpty) {
@@ -421,8 +435,9 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
               TextFormField(
                 controller: _cooldownController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Перерыв между срабатываниями, секунд',
+                decoration: InputDecoration(
+                  labelText:
+                      L10n.of(context, 'Перерыв между срабатываниями, секунд'),
                 ),
                 validator: (_) {
                   final v = int.tryParse(_cooldownController.text.trim());
@@ -437,11 +452,11 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Отмена'),
+          child: const TrText('Отмена'),
         ),
         FilledButton(
           onPressed: _save,
-          child: const Text('Сохранить'),
+          child: const TrText('Сохранить'),
         ),
       ],
     );
@@ -450,10 +465,9 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final deviceId =
-        _manualDeviceController.text.trim().isNotEmpty
-            ? _manualDeviceController.text.trim()
-            : _deviceId;
+    final deviceId = _manualDeviceController.text.trim().isNotEmpty
+        ? _manualDeviceController.text.trim()
+        : _deviceId;
     if (deviceId == null) return;
 
     final provider = context.read<SmartHomeProvider>();
@@ -483,7 +497,8 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
       Navigator.of(context).pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.error ?? 'Не удалось сохранить правило')),
+        SnackBar(
+            content: TrText(provider.error ?? 'Не удалось сохранить правило')),
       );
     }
   }

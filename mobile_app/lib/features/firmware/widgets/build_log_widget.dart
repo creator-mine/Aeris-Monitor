@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/firmware_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 class BuildLogWidget extends StatefulWidget {
   const BuildLogWidget({super.key});
@@ -78,7 +80,7 @@ class _BuildLogWidgetState extends State<BuildLogWidget> {
                   color: isActive ? Colors.orange : Colors.blue,
                 ),
                 const SizedBox(width: 8),
-                Text(
+                TrText(
                   provider.isInstallingPlatformio
                       ? 'Установка PlatformIO...'
                       : provider.isUploading
@@ -93,7 +95,7 @@ class _BuildLogWidgetState extends State<BuildLogWidget> {
                 ),
                 if (isActive) ...[
                   const SizedBox(width: 12),
-                  Text(
+                  TrText(
                     _elapsedText(),
                     style: TextStyle(
                       fontSize: 13,
@@ -103,7 +105,7 @@ class _BuildLogWidgetState extends State<BuildLogWidget> {
                   ),
                 ] else if (completedText != null) ...[
                   const SizedBox(width: 12),
-                  Text(
+                  TrText(
                     completedText,
                     style: TextStyle(
                       fontSize: 13,
@@ -114,7 +116,7 @@ class _BuildLogWidgetState extends State<BuildLogWidget> {
                 ],
                 const Spacer(),
                 IconButton(
-                  tooltip: 'Скопировать лог',
+                  tooltip: L10n.of(context, 'Скопировать лог'),
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.copy, size: 20),
                   onPressed: () async {
@@ -124,7 +126,7 @@ class _BuildLogWidgetState extends State<BuildLogWidget> {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Лог скопирован в буфер обмена'),
+                        content: TrText('Лог скопирован в буфер обмена'),
                         duration: Duration(seconds: 2),
                       ),
                     );
@@ -133,7 +135,7 @@ class _BuildLogWidgetState extends State<BuildLogWidget> {
                 if (isActive)
                   TextButton(
                     onPressed: provider.cancelBuild,
-                    child: const Text('Отмена',
+                    child: const TrText('Отмена',
                         style: TextStyle(color: Colors.red)),
                   ),
               ],
@@ -161,7 +163,7 @@ class _BuildLogWidgetState extends State<BuildLogWidget> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Скопировать команду',
+                    tooltip: L10n.of(context, 'Скопировать команду'),
                     visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.copy, size: 18),
                     onPressed: () async {
@@ -169,7 +171,7 @@ class _BuildLogWidgetState extends State<BuildLogWidget> {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Команда скопирована в буфер обмена'),
+                          content: TrText('Команда скопирована в буфер обмена'),
                           duration: Duration(seconds: 2),
                         ),
                       );
@@ -202,7 +204,7 @@ class _BuildLogWidgetState extends State<BuildLogWidget> {
                   lineColor = Colors.red.shade300;
                 }
 
-                return Text(
+                return TrText(
                   line,
                   style: TextStyle(
                     fontFamily: 'monospace',

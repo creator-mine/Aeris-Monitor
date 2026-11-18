@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../core/api/direct_device_client.dart';
 import '../../../models/device.dart';
 import '../../logs/logs_screen.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 /// Fetches live status + modules from a device over HTTP and shows a
 /// diagnostics sheet (uptime, heap, WiFi, firmware, sensor modules),
@@ -52,9 +54,7 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
       List<Map<String, dynamic>> modules = const [];
       try {
         final response = await widget.client.getModules();
-        modules = response
-            .map((m) => m.toJson())
-            .toList();
+        modules = response.map((m) => m.toJson()).toList();
       } catch (_) {}
       if (!mounted) return;
       setState(() {
@@ -85,7 +85,7 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
             Row(
               children: [
                 Expanded(
-                  child: Text(
+                  child: TrText(
                     'Диагностика · ${_device.name}',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
@@ -93,7 +93,7 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Живые логи',
+                  tooltip: L10n.of(context, 'Живые логи'),
                   icon: const Icon(Icons.terminal),
                   onPressed: () {
                     Navigator.of(context).pop();
@@ -105,7 +105,7 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
                   },
                 ),
                 IconButton(
-                  tooltip: 'Обновить',
+                  tooltip: L10n.of(context, 'Обновить'),
                   icon: const Icon(Icons.refresh),
                   onPressed: _load,
                 ),
@@ -119,15 +119,16 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
                       ? ListView(
                           controller: scrollController,
                           children: [
-                            Text(
+                            TrText(
                               'Не удалось получить данные: $_error',
-                              style: TextStyle(color: Theme.of(context).colorScheme.error),
+                              style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error),
                             ),
                             const SizedBox(height: 12),
                             FilledButton.icon(
                               onPressed: _load,
                               icon: const Icon(Icons.refresh),
-                              label: const Text('Повторить'),
+                              label: const TrText('Повторить'),
                             ),
                           ],
                         )
@@ -151,25 +152,33 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
       ('Wi-Fi', status['wifi_connected'] == true ? 'подключено' : 'нет'),
       ('Питание', _device.isOnline ? 'онлайн' : 'офлайн'),
       ('Uptime', uptime ?? '—'),
-      ('Свободная память', status['free_heap'] is num
-          ? _formatBytes((status['free_heap'] as num).toInt())
-          : '—'),
+      (
+        'Свободная память',
+        status['free_heap'] is num
+            ? _formatBytes((status['free_heap'] as num).toInt())
+            : '—'
+      ),
       if (status['rssi'] is num)
         ('RSSI', '${(status['rssi'] as num).toInt()} dBm'),
       if (status['chip_temp'] is num)
-        ('Температура чипа', '${(status['chip_temp'] as num).toStringAsFixed(1)} °C'),
+        (
+          'Температура чипа',
+          '${(status['chip_temp'] as num).toStringAsFixed(1)} °C'
+        ),
       ('Время синхронизировано', status['time_synced'] == true ? 'да' : 'нет'),
-      ('Прошивка', status['firmware'] as String? ?? _device.firmwareVersion ?? '—'),
+      (
+        'Прошивка',
+        status['firmware'] as String? ?? _device.firmwareVersion ?? '—'
+      ),
       ('Модули', '${_modules.length}'),
     ];
 
     return ListView(
       controller: scrollController,
       children: [
-        for (final (label, value) in rows)
-          _infoRow(label, value),
+        for (final (label, value) in rows) _infoRow(label, value),
         const SizedBox(height: 16),
-        Text(
+        TrText(
           'Модули устройства',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -179,7 +188,8 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
         if (_modules.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('Модули не отвечают', style: TextStyle(color: Colors.grey)),
+            child: TrText('Модули не отвечают',
+                style: TextStyle(color: Colors.grey)),
           )
         else
           ..._modules.map(_buildModuleCard),
@@ -196,8 +206,8 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
           Icons.memory,
           color: module['status'] == 'online' ? Colors.green : Colors.grey,
         ),
-        title: Text('${module['name'] ?? ''} (${module['id'] ?? ''})'),
-        subtitle: Text(
+        title: TrText('${module['name'] ?? ''} (${module['id'] ?? ''})'),
+        subtitle: TrText(
           'тип: ${module['type'] ?? '—'} · статус: ${module['status'] ?? '—'}',
         ),
       ),
@@ -212,13 +222,13 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
         children: [
           SizedBox(
             width: 160,
-            child: Text(
+            child: TrText(
               label,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
             ),
           ),
           Expanded(
-            child: Text(
+            child: TrText(
               value,
               style: const TextStyle(
                 fontSize: 13,
@@ -243,7 +253,9 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
   }
 
   String _formatBytes(int bytes) {
-    if (bytes >= 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} МБ';
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} МБ';
+    }
     if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(0)} КБ';
     return '$bytes Б';
   }

@@ -10,6 +10,8 @@ import '../../core/utils/csv_exporter.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/theme/app_theme.dart';
 import '../settings/providers/settings_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 /// Live network logs for a single device.
 ///
@@ -118,7 +120,7 @@ class _LogsScreenState extends State<LogsScreen> {
       title: _device.name,
       actions: [
         IconButton(
-          tooltip: 'Пауза',
+          tooltip: L10n.of(context, 'Пауза'),
           icon: Icon(_paused ? Icons.play_arrow : Icons.pause),
           onPressed: () => setState(() {
             _paused = !_paused;
@@ -126,7 +128,7 @@ class _LogsScreenState extends State<LogsScreen> {
           }),
         ),
         IconButton(
-          tooltip: 'Очистить',
+          tooltip: L10n.of(context, 'Очистить'),
           icon: const Icon(Icons.delete_sweep_outlined),
           onPressed: () {
             setState(() {
@@ -137,11 +139,13 @@ class _LogsScreenState extends State<LogsScreen> {
         ),
         IconButton(
           tooltip: _autoScroll ? 'Автопрокрутка: вкл' : 'Автопрокрутка: выкл',
-          icon: Icon(_autoScroll ? Icons.vertical_align_bottom : Icons.vertical_align_center),
+          icon: Icon(_autoScroll
+              ? Icons.vertical_align_bottom
+              : Icons.vertical_align_center),
           onPressed: () => setState(() => _autoScroll = !_autoScroll),
         ),
         IconButton(
-          tooltip: 'Экспорт CSV',
+          tooltip: L10n.of(context, 'Экспорт CSV'),
           icon: const Icon(Icons.save_alt),
           onPressed: _logs.isEmpty ? null : () => _exportCsv(settings),
         ),
@@ -153,7 +157,7 @@ class _LogsScreenState extends State<LogsScreen> {
           Expanded(
             child: _logs.isEmpty
                 ? const Center(
-                    child: Text(
+                    child: TrText(
                       'Логи пусты — ждём сообщений с устройства...',
                       style: TextStyle(color: Colors.grey),
                     ),
@@ -183,7 +187,7 @@ class _LogsScreenState extends State<LogsScreen> {
             color: _wsConnected ? AppTheme.successColor : Colors.grey,
           ),
           const SizedBox(width: 6),
-          Text(
+          TrText(
             _wsConnected ? 'WS: подключено' : 'WS: нет · HTTP polling',
             style: TextStyle(
               fontSize: 12,
@@ -191,7 +195,7 @@ class _LogsScreenState extends State<LogsScreen> {
             ),
           ),
           const Spacer(),
-          Text(
+          TrText(
             '${_logs.length} записей',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
@@ -200,7 +204,8 @@ class _LogsScreenState extends State<LogsScreen> {
     );
   }
 
-  Widget _buildLogEntry(BuildContext context, LogEntry entry, SettingsProvider settings) {
+  Widget _buildLogEntry(
+      BuildContext context, LogEntry entry, SettingsProvider settings) {
     final tagColor = switch (entry.tag) {
       'WiFi' => AppTheme.accentColors[2],
       'MQTT' => AppTheme.accentColors[0],
@@ -219,7 +224,7 @@ class _LogsScreenState extends State<LogsScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          TrText(
             '[${entry.ts}s]',
             style: TextStyle(
               fontSize: 11,
@@ -234,7 +239,7 @@ class _LogsScreenState extends State<LogsScreen> {
               color: tagColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Text(
+            child: TrText(
               entry.tag,
               style: TextStyle(
                 fontSize: 11,
@@ -246,7 +251,7 @@ class _LogsScreenState extends State<LogsScreen> {
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(
+            child: TrText(
               msg,
               style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
             ),
@@ -273,24 +278,26 @@ class _LogsScreenState extends State<LogsScreen> {
         ..write('\n');
     }
 
-    final date = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+    final date =
+        DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
     final fileName = 'logs_${_device.id}_$date.csv';
 
     try {
       final path = await exportCsv(fileName, buffer.toString());
       if (path != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Логи сохранены: $path')),
+          SnackBar(content: TrText('Логи сохранены: $path')),
         );
       } else if (path == null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Экспорт доступен только в настольной версии')),
+          const SnackBar(
+              content: TrText('Экспорт доступен только в настольной версии')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка экспорта: $e')),
+          SnackBar(content: TrText('Ошибка экспорта: $e')),
         );
       }
     }

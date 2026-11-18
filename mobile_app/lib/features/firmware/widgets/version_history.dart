@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../../models/firmware_version.dart';
 import '../../../shared/utils/line_diff.dart';
 import '../providers/firmware_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
 
 class VersionHistory extends StatelessWidget {
   const VersionHistory({super.key});
@@ -30,7 +31,7 @@ class VersionHistory extends StatelessWidget {
                   children: [
                     const Icon(Icons.history, size: 20),
                     const SizedBox(width: 8),
-                    Text(
+                    TrText(
                       'История сборок (${versions.length})',
                       style: const TextStyle(
                         fontSize: 16,
@@ -45,7 +46,7 @@ class VersionHistory extends StatelessWidget {
                 const Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(
-                    child: Text(
+                    child: TrText(
                       'Нет сохранённых сборок',
                       style: TextStyle(color: Colors.grey),
                     ),
@@ -66,16 +67,17 @@ class VersionHistory extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, FirmwareProvider provider, FirmwareVersion version) {
+  void _confirmDelete(BuildContext context, FirmwareProvider provider,
+      FirmwareVersion version) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Удалить сборку?'),
-        content: Text('Версия ${version.version} будет удалена навсегда.'),
+        title: const TrText('Удалить сборку?'),
+        content: TrText('Версия ${version.version} будет удалена навсегда.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Отмена'),
+            child: const TrText('Отмена'),
           ),
           TextButton(
             onPressed: () {
@@ -83,14 +85,15 @@ class VersionHistory extends StatelessWidget {
               Navigator.pop(ctx);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Удалить'),
+            child: const TrText('Удалить'),
           ),
         ],
       ),
     );
   }
 
-  void _showDetails(BuildContext context, FirmwareProvider provider, FirmwareVersion version) {
+  void _showDetails(BuildContext context, FirmwareProvider provider,
+      FirmwareVersion version) {
     final previous = provider.previousVersionOf(version);
 
     showDialog(
@@ -106,9 +109,10 @@ class VersionHistory extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
                 child: Row(
                   children: [
-                    Text(
+                    TrText(
                       'Прошивка v${version.version}',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const Spacer(),
                     IconButton(
@@ -131,15 +135,20 @@ class VersionHistory extends StatelessWidget {
                       if (version.lastUploadPort != null)
                         _MetaRow('Порт загрузки', version.lastUploadPort!),
                       if (version.buildHash != null)
-                        _MetaRow(version.isBuilt ? 'Хэш исходников' : 'SHA-256', version.buildHash!.substring(0, min(12, version.buildHash!.length)), monospace: true),
+                        _MetaRow(
+                            version.isBuilt ? 'Хэш исходников' : 'SHA-256',
+                            version.buildHash!.substring(
+                                0, min(12, version.buildHash!.length)),
+                            monospace: true),
                       _MetaRow('Источник', version.sourcePath, monospace: true),
                       if (version.firmwarePath != null)
-                        _MetaRow('firmware.bin', version.firmwarePath!, monospace: true),
+                        _MetaRow('firmware.bin', version.firmwarePath!,
+                            monospace: true),
                       if (previous != null) ...[
                         const SizedBox(height: 8),
                         const Divider(height: 1),
                         const SizedBox(height: 8),
-                        Text(
+                        TrText(
                           'Изменения конфига (v${previous.version} → v${version.version})',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
@@ -149,7 +158,7 @@ class VersionHistory extends StatelessWidget {
                       const SizedBox(height: 8),
                       const Divider(height: 1),
                       const SizedBox(height: 8),
-                      const Text(
+                      const TrText(
                         'Конфиг на момент сборки',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
@@ -170,19 +179,21 @@ class VersionHistory extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     if (kIsWeb) {
       messenger.showSnackBar(const SnackBar(
-        content: Text('Экспорт прошивки доступен только в настольной версии'),
+        content: TrText('Экспорт прошивки доступен только в настольной версии'),
       ));
       return;
     }
     final path = version.firmwarePath;
     if (path == null) {
-      messenger.showSnackBar(const SnackBar(content: Text('Путь к прошивке не сохранён')));
+      messenger.showSnackBar(
+          const SnackBar(content: TrText('Путь к прошивке не сохранён')));
       return;
     }
 
     final binFile = File(path);
     if (!await binFile.exists()) {
-      messenger.showSnackBar(const SnackBar(content: Text('Файл firmware.bin не найден')));
+      messenger.showSnackBar(
+          const SnackBar(content: TrText('Файл firmware.bin не найден')));
       return;
     }
 
@@ -216,9 +227,10 @@ class VersionHistory extends StatelessWidget {
         const JsonEncoder.withIndent('  ').convert(manifest),
       );
 
-      messenger.showSnackBar(SnackBar(content: Text('Экспортировано: $binTarget')));
+      messenger.showSnackBar(
+          SnackBar(content: TrText('Экспортировано: $binTarget')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Ошибка экспорта: $e')));
+      messenger.showSnackBar(SnackBar(content: TrText('Ошибка экспорта: $e')));
     }
   }
 }
@@ -239,10 +251,11 @@ class _MetaRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 130,
-            child: Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+            child: TrText(label,
+                style: TextStyle(fontSize: 13, color: Colors.grey[600])),
           ),
           Expanded(
-            child: Text(
+            child: TrText(
               value,
               style: TextStyle(
                 fontSize: 13,
@@ -269,7 +282,7 @@ class _ConfigSnapshotView extends StatelessWidget {
     if (files == null || (files as Map).isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(
+        child: TrText(
           'Конфиг не сохранён для этой версии',
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
@@ -294,13 +307,15 @@ class _ConfigDiff extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final prevFiles = (previous.configSnapshot?['files'] as Map?) ?? const <dynamic, dynamic>{};
-    final currFiles = (current.configSnapshot?['files'] as Map?) ?? const <dynamic, dynamic>{};
+    final prevFiles = (previous.configSnapshot?['files'] as Map?) ??
+        const <dynamic, dynamic>{};
+    final currFiles = (current.configSnapshot?['files'] as Map?) ??
+        const <dynamic, dynamic>{};
 
     if (prevFiles.isEmpty || currFiles.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(
+        child: TrText(
           'Для одной из версий нет конфига',
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
@@ -361,15 +376,18 @@ class _FileExpansionTile extends StatelessWidget {
           dense: true,
           tilePadding: const EdgeInsets.symmetric(horizontal: 12),
           childrenPadding: const EdgeInsets.only(bottom: 8),
-          leading: Icon(Icons.description_outlined, size: 18, color: Colors.grey[600]),
+          leading: Icon(Icons.description_outlined,
+              size: 18, color: Colors.grey[600]),
           title: Row(
             children: [
               Flexible(
-                child: Text(name, style: const TextStyle(fontSize: 13, fontFamily: 'monospace')),
+                child: TrText(name,
+                    style:
+                        const TextStyle(fontSize: 13, fontFamily: 'monospace')),
               ),
               if (badge != null) ...[
                 const SizedBox(width: 8),
-                Text(
+                TrText(
                   badge!,
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
@@ -385,7 +403,9 @@ class _FileExpansionTile extends StatelessWidget {
                   width: isDiff ? 460 : 440,
                   constraints: const BoxConstraints(maxHeight: 260),
                   decoration: BoxDecoration(
-                    color: isDiff ? Colors.grey.shade100 : Colors.black.withValues(alpha: 0.03),
+                    color: isDiff
+                        ? Colors.grey.shade100
+                        : Colors.black.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   padding: const EdgeInsets.all(8),
@@ -418,7 +438,7 @@ class _FileExpansionTile extends StatelessWidget {
           '-' => Colors.red.shade700,
           _ => Colors.grey.shade700,
         };
-        return Text(
+        return TrText(
           '${line.prefix} ${line.text}',
           style: TextStyle(
             fontSize: 12,
@@ -456,14 +476,15 @@ class _VersionTile extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       leading: CircleAvatar(
-        backgroundColor: version.isBuilt ? Colors.green.shade50 : Colors.grey.shade100,
+        backgroundColor:
+            version.isBuilt ? Colors.green.shade50 : Colors.grey.shade100,
         child: Icon(
           Icons.code,
           color: version.isBuilt ? Colors.green : Colors.grey,
           size: 20,
         ),
       ),
-      title: Text(
+      title: TrText(
         'v${version.version}',
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
@@ -471,23 +492,26 @@ class _VersionTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 2),
-          Text(
+          TrText(
             'Собрано: ${version.buildDateFormatted}',
             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
-          Text(
+          TrText(
             'Загружено: ${version.lastUploadFormatted}',
             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
           if (version.firmwarePath != null)
-            Text(
+            TrText(
               'firmware.bin готов (${_binExists(version) ? 'на месте' : 'не найден'})',
               style: TextStyle(fontSize: 11, color: Colors.grey[500]),
             ),
           if (version.buildHash != null)
-            Text(
+            TrText(
               'Hash: ${version.buildHash!.substring(0, min(8, version.buildHash!.length))}...',
-              style: TextStyle(fontSize: 11, color: Colors.grey[500], fontFamily: 'monospace'),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[500],
+                  fontFamily: 'monospace'),
             ),
         ],
       ),
@@ -511,7 +535,7 @@ class _VersionTile extends StatelessWidget {
             value: 'upload',
             child: ListTile(
               leading: Icon(Icons.upload, size: 20),
-              title: Text('Загрузить'),
+              title: TrText('Загрузить'),
               dense: true,
               contentPadding: EdgeInsets.zero,
             ),
@@ -520,7 +544,7 @@ class _VersionTile extends StatelessWidget {
             value: 'export',
             child: ListTile(
               leading: Icon(Icons.save_alt, size: 20),
-              title: Text('Экспорт'),
+              title: TrText('Экспорт'),
               dense: true,
               contentPadding: EdgeInsets.zero,
             ),
@@ -529,7 +553,7 @@ class _VersionTile extends StatelessWidget {
             value: 'delete',
             child: ListTile(
               leading: Icon(Icons.delete, size: 20, color: Colors.red),
-              title: Text('Удалить', style: TextStyle(color: Colors.red)),
+              title: TrText('Удалить', style: TextStyle(color: Colors.red)),
               dense: true,
               contentPadding: EdgeInsets.zero,
             ),

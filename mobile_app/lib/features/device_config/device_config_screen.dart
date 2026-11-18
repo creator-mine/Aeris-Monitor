@@ -9,6 +9,8 @@ import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/theme/app_theme.dart';
 import '../../models/log_entry.dart';
 import '../settings/providers/settings_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 class DeviceConfigScreen extends StatefulWidget {
   const DeviceConfigScreen({super.key});
@@ -92,7 +94,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
           Icon(Icons.info_outline, color: Colors.amber.shade800),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
+            child: TrText(
               'На телефоне настройка по USB недоступна. Подключитесь к точке '
               'доступа устройства (Aeris-Setup-XXXX) и откройте '
               'http://192.168.4.1, либо настройте Wi-Fi с компьютера.',
@@ -112,7 +114,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
+            TrText(
               'Подключение по USB',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
@@ -121,7 +123,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.refresh, size: 20),
-              tooltip: 'Обновить список портов',
+              tooltip: L10n.of(context, 'Обновить список портов'),
               onPressed: () => provider.refreshPorts(),
             ),
           ],
@@ -138,16 +140,16 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 initialValue: _selectedPort,
                 isExpanded: true,
                 decoration: InputDecoration(
-                  labelText: 'COM-порт',
+                  labelText: L10n.of(context, 'COM-порт'),
                   prefixIcon: const Icon(Icons.usb),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                hint: const Text('Выберите порт'),
+                hint: const TrText('Выберите порт'),
                 items: [
                   for (final port in provider.ports)
-                    DropdownMenuItem(value: port, child: Text(port)),
+                    DropdownMenuItem(value: port, child: TrText(port)),
                 ],
                 onChanged: provider.isConnecting
                     ? null
@@ -166,8 +168,9 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.link, size: 18),
-                  label: Text(
-                      provider.isConnecting ? 'Подключение...' : 'Подключиться'),
+                  label: TrText(provider.isConnecting
+                      ? 'Подключение...'
+                      : 'Подключиться'),
                 )
               else
                 Row(
@@ -179,11 +182,11 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                                 const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 ),
                                 const SizedBox(width: 10),
-                                Text(
+                                TrText(
                                   'Устройство перезагружается, переподключаюсь...',
                                   style: TextStyle(
                                       fontSize: 12,
@@ -197,14 +200,14 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                           : OutlinedButton.icon(
                               onPressed: () => _disconnect(context, provider),
                               icon: const Icon(Icons.link_off, size: 18),
-                              label: const Text('Отключиться'),
+                              label: const TrText('Отключиться'),
                             ),
                     ),
                   ],
                 ),
               if (provider.error != null) ...[
                 const SizedBox(height: 12),
-                Text(
+                TrText(
                   '${provider.error}',
                   style: TextStyle(
                       fontSize: 12, color: Theme.of(context).colorScheme.error),
@@ -225,12 +228,12 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
           Icon(Icons.settings_input_component,
               size: 64, color: Colors.grey.shade500),
           const SizedBox(height: 16),
-          Text(
+          TrText(
             'Подключите ESP32 по USB',
             style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
-          Text(
+          TrText(
             'Выберите COM-порт и нажмите «Подключиться»',
             style: TextStyle(color: Colors.grey.shade500),
           ),
@@ -246,7 +249,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        TrText(
           'Информация об устройстве',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -271,9 +274,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                       ? 'подключен'
                       : 'не подключен'),
               _infoRow(context, Icons.cloud, 'MQTT',
-                  (status?['mqtt_enabled'] == true)
-                      ? 'включен'
-                      : 'отключен'),
+                  (status?['mqtt_enabled'] == true) ? 'включен' : 'отключен'),
               if (status?['uptime'] != null)
                 _infoRow(context, Icons.timer, 'Аптайм',
                     _formatUptime((status!['uptime'] as num).toInt())),
@@ -284,7 +285,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     );
   }
 
-  Widget _infoRow(BuildContext context, IconData icon, String label, String value) {
+  Widget _infoRow(
+      BuildContext context, IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -293,13 +295,12 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
           const SizedBox(width: 12),
           SizedBox(
             width: 96,
-            child: Text(label, style: const TextStyle(fontSize: 13)),
+            child: TrText(label, style: const TextStyle(fontSize: 13)),
           ),
           Expanded(
-            child: Text(
+            child: TrText(
               value,
-              style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -316,7 +317,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     return '$mм ${seconds % 60}с';
   }
 
-  Widget _buildFirmwareSection(BuildContext context, DeviceConfigProvider provider) {
+  Widget _buildFirmwareSection(
+      BuildContext context, DeviceConfigProvider provider) {
     final manifest = provider.manifest;
     final freshness = provider.freshness;
     final (color, icon, label) = switch (freshness) {
@@ -348,7 +350,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
+            TrText(
               'Прошивка',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
@@ -363,7 +365,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.cloud_download_outlined, size: 20),
-              tooltip: 'Проверить обновления',
+              tooltip: L10n.of(context, 'Проверить обновления'),
               onPressed: provider.isCheckingManifest
                   ? null
                   : () => provider.checkManifest(),
@@ -378,7 +380,10 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _infoRow(context, Icons.memory, 'На устройстве',
+              _infoRow(
+                  context,
+                  Icons.memory,
+                  'На устройстве',
                   provider.firmwareVersion == null
                       ? '—'
                       : 'v${provider.firmwareVersion}'),
@@ -392,7 +397,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
               ),
               if (provider.manifestError != null) ...[
                 const SizedBox(height: 4),
-                Text(
+                TrText(
                   provider.manifestError!,
                   style: TextStyle(
                       fontSize: 12, color: Theme.of(context).colorScheme.error),
@@ -401,7 +406,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -412,7 +418,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                     Icon(icon, size: 18, color: color),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
+                      child: TrText(
                         label,
                         style: TextStyle(fontSize: 12, color: color),
                       ),
@@ -435,7 +441,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.system_update_alt, size: 18),
-                    label: Text(provider.isSendingOta
+                    label: TrText(provider.isSendingOta
                         ? 'Запуск обновления...'
                         : 'Обновить прошивку'),
                   ),
@@ -453,19 +459,19 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Обновить прошивку?'),
-        content: Text(
+        title: const TrText('Обновить прошивку?'),
+        content: TrText(
           'Устройство (текущая v${provider.firmwareVersion ?? '—'}) скачает '
           'v${provider.latestPublishedVersion ?? '…'} с сайта и перезагрузится.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Отмена'),
+            child: const TrText('Отмена'),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Обновить'),
+            child: const TrText('Обновить'),
           ),
         ],
       ),
@@ -475,11 +481,12 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     if (context.mounted) _showSnack(context, message);
   }
 
-  Widget _buildWiFiSection(BuildContext context, DeviceConfigProvider provider) {
+  Widget _buildWiFiSection(
+      BuildContext context, DeviceConfigProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        TrText(
           'Подключение к Wi-Fi',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -509,7 +516,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 controller: _passwordController,
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'Пароль',
+                  labelText: L10n.of(context, 'Пароль'),
                   prefixIcon: const Icon(Icons.key),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -523,14 +530,14 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                     child: FilledButton.icon(
                       onPressed: () => _saveWifi(context, provider),
                       icon: const Icon(Icons.save, size: 18),
-                      label: const Text('Сохранить'),
+                      label: const TrText('Сохранить'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   OutlinedButton.icon(
                     onPressed: () => _restartDevice(context, provider),
                     icon: const Icon(Icons.restart_alt, size: 18),
-                    label: const Text('Перезагрузить'),
+                    label: const TrText('Перезагрузить'),
                   ),
                 ],
               ),
@@ -538,7 +545,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
               TextButton.icon(
                 onPressed: () => _clearWifi(context, provider),
                 icon: const Icon(Icons.wifi_off, size: 16),
-                label: const Text('Сбросить Wi-Fi'),
+                label: const TrText('Сбросить Wi-Fi'),
               ),
             ],
           ),
@@ -553,12 +560,12 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        TrText(
           'MQTT и API',
           style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryColor,
-              ),
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryColor,
+          ),
         ),
         const SizedBox(height: 12),
         Container(
@@ -581,8 +588,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 controller: _mqttUserController,
                 autofillHints: const [AutofillHints.username],
                 decoration: InputDecoration(
-                  labelText: 'Пользователь MQTT',
-                  hintText: 'по умолчанию: device',
+                  labelText: L10n.of(context, 'Пользователь MQTT'),
+                  hintText: L10n.of(context, 'по умолчанию: device'),
                   prefixIcon: const Icon(Icons.person_outline),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -595,8 +602,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 obscureText: true,
                 autofillHints: const [AutofillHints.password],
                 decoration: InputDecoration(
-                  labelText: 'Пароль MQTT',
-                  hintText: 'пусто — не менять',
+                  labelText: L10n.of(context, 'Пароль MQTT'),
+                  hintText: L10n.of(context, 'пусто — не менять'),
                   prefixIcon: const Icon(Icons.key),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -604,7 +611,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
+              TrText(
                 'Доступы сохраняются в NVS на устройстве и в приложение не '
                 'передаются. Пустые поля остаются без изменений; пароль '
                 'вводится заново при каждой смене.',
@@ -616,7 +623,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                 child: FilledButton.icon(
                   onPressed: () => _saveCredentials(context, provider),
                   icon: const Icon(Icons.save, size: 18),
-                  label: const Text('Сохранить доступы'),
+                  label: const TrText('Сохранить доступы'),
                 ),
               ),
             ],
@@ -641,13 +648,14 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
           Icon(isSet ? Icons.check_circle : Icons.radio_button_unchecked,
               size: 14, color: color),
           const SizedBox(width: 6),
-          Text(label, style: TextStyle(fontSize: 12, color: color)),
+          TrText(label, style: TextStyle(fontSize: 12, color: color)),
         ],
       ),
     );
   }
 
-  Widget _buildLogsSection(BuildContext context, DeviceConfigProvider provider) {
+  Widget _buildLogsSection(
+      BuildContext context, DeviceConfigProvider provider) {
     final settings = context.watch<SettingsProvider>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -655,7 +663,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
+            TrText(
               'Логи устройства',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
@@ -664,7 +672,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.refresh, size: 20),
-              tooltip: 'Обновить',
+              tooltip: L10n.of(context, 'Обновить'),
               onPressed: () => provider.fetchLogs(),
             ),
           ],
@@ -678,7 +686,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
               ? const Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(
-                    child: Text(
+                    child: TrText(
                       'Логи пусты',
                       style: TextStyle(color: Colors.grey),
                     ),
@@ -713,7 +721,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          TrText(
             '[${entry.ts}s]',
             style: TextStyle(
               fontSize: 11,
@@ -728,7 +736,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
               color: tagColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Text(
+            child: TrText(
               entry.tag,
               style: TextStyle(
                 fontSize: 11,
@@ -740,7 +748,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(
+            child: TrText(
               msg,
               style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
             ),
@@ -768,7 +776,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     _showSnack(context, 'Отключено');
   }
 
-  Future<void> _saveWifi(BuildContext context, DeviceConfigProvider provider) async {
+  Future<void> _saveWifi(
+      BuildContext context, DeviceConfigProvider provider) async {
     final ssid = _ssidController.text.trim();
     if (ssid.isEmpty) {
       _showSnack(context, 'Введите SSID');
@@ -776,7 +785,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     }
     final password = _passwordController.text;
     if (provider.setWifi(ssid, password)) {
-      _showSnack(context, 'Настройки отправлены. Устройство перезагружается...');
+      _showSnack(
+          context, 'Настройки отправлены. Устройство перезагружается...');
       _ssidController.clear();
       _passwordController.clear();
     } else {
@@ -804,13 +814,15 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
     provider.refreshInfo();
   }
 
-  Future<void> _restartDevice(BuildContext context, DeviceConfigProvider provider) async {
+  Future<void> _restartDevice(
+      BuildContext context, DeviceConfigProvider provider) async {
     provider.restart();
     if (!context.mounted) return;
     _showSnack(context, 'Команда перезагрузки отправлена');
   }
 
-  Future<void> _clearWifi(BuildContext context, DeviceConfigProvider provider) async {
+  Future<void> _clearWifi(
+      BuildContext context, DeviceConfigProvider provider) async {
     provider.clearWifi();
     if (!context.mounted) return;
     _showSnack(context, 'Wi-Fi очищен. Устройство перезагружается...');
@@ -818,7 +830,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
 
   void _showSnack(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      SnackBar(content: TrText(message), duration: const Duration(seconds: 2)),
     );
   }
 }

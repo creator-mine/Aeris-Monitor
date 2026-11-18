@@ -1,9 +1,11 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/api/provisioning_api.dart';
 import '../../shared/theme/app_theme.dart';
 import '../../shared/widgets/app_scaffold.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 /// First-time Wi-Fi setup on a phone.
 ///
@@ -168,7 +170,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
                     color: AppTheme.successColor, size: 28),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
+                  child: TrText(
                     'Устройство настроено',
                     style: theme.textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.bold),
@@ -177,7 +179,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            Text(
+            TrText(
               _savedSsid.isEmpty
                   ? 'Параметры сохранены. Устройство перезагружается.'
                   : 'Устройство подключается к сети «$_savedSsid» и '
@@ -185,7 +187,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
-            const Text(
+            const TrText(
               '1. Вернитесь к домашней сети в настройках Wi-Fi телефона.\n'
               '2. Откройте приложение — устройство появится в списке.',
             ),
@@ -194,13 +196,13 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
               OutlinedButton.icon(
                 onPressed: _openWifiSettings,
                 icon: const Icon(Icons.wifi, size: 18),
-                label: const Text('Настройки Wi-Fi телефона'),
+                label: const TrText('Настройки Wi-Fi телефона'),
               ),
             const SizedBox(height: 8),
             TextButton.icon(
               onPressed: _reset,
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Настроить ещё одно устройство'),
+              label: const TrText('Настроить ещё одно устройство'),
             ),
           ],
         ),
@@ -225,10 +227,10 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
             TextField(
               controller: _ssidController,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Имя сети (SSID)',
-                prefixIcon: Icon(Icons.wifi),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: L10n.of(context, 'Имя сети (SSID)'),
+                prefixIcon: const Icon(Icons.wifi),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
@@ -236,18 +238,19 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
               controller: _passwordController,
               obscureText: _obscure,
               decoration: InputDecoration(
-                labelText: 'Пароль',
+                labelText: L10n.of(context, 'Пароль'),
                 prefixIcon: const Icon(Icons.key),
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                  icon:
+                      Icon(_obscure ? Icons.visibility : Icons.visibility_off),
                   onPressed: () => setState(() => _obscure = !_obscure),
                 ),
               ),
               onSubmitted: (_) => _save(),
             ),
             const SizedBox(height: 8),
-            Text(
+            TrText(
               'Устройство работает в диапазоне 2,4 ГГц.',
               style: theme.textTheme.bodySmall,
             ),
@@ -266,17 +269,16 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : const Icon(Icons.save, size: 18),
-        label: Text(_saving ? 'Сохранение...' : 'Сохранить и перезагрузить'),
+        label: TrText(_saving ? 'Сохранение...' : 'Сохранить и перезагрузить'),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
       ),
       if (_error != null) ...[
         const SizedBox(height: 12),
-        Text(
+        TrText(
           _error!,
-          style: TextStyle(
-              fontSize: 12, color: theme.colorScheme.error),
+          style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
         ),
       ],
     ];
@@ -301,18 +303,19 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh),
-                tooltip: 'Проверить связь с устройством',
+                tooltip: L10n.of(context, 'Проверить связь с устройством'),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          _step(context, 1,
+          _step(
+              context,
+              1,
               'В настройках Wi-Fi телефона выберите сеть Aeris-Setup-XXXX '
               '(открытая, без пароля).'),
           _step(context, 2,
               'Вернитесь в приложение — оно проверит связь с устройством.'),
-          _step(context, 3,
-              'Введите имя и пароль домашней сети и сохраните.'),
+          _step(context, 3, 'Введите имя и пароль домашней сети и сохраните.'),
           const SizedBox(height: 12),
           _buildStatusChip(context),
           if (_isAndroid) ...[
@@ -320,11 +323,11 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
             OutlinedButton.icon(
               onPressed: _openWifiSettings,
               icon: const Icon(Icons.wifi, size: 18),
-              label: const Text('Открыть настройки Wi-Fi'),
+              label: const TrText('Открыть настройки Wi-Fi'),
             ),
           ],
           const SizedBox(height: 8),
-          Text(
+          TrText(
             'Точка доступа устройства работает около 5 минут и поднимается '
             'снова после каждой перезагрузки без сохранённой сети.',
             style: theme.textTheme.bodySmall,
@@ -337,7 +340,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
   Widget _buildStatusChip(BuildContext context) {
     final theme = Theme.of(context);
     if (_checking) {
-      return Text(
+      return TrText(
         'Проверяю связь с 192.168.4.1...',
         style: theme.textTheme.bodySmall,
       );
@@ -351,7 +354,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
             size: 16, color: color),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
+          child: TrText(
             ok
                 ? 'Устройство найдено (192.168.4.1)'
                 : 'Устройство не найдено — телефон не в сети Aeris-Setup-XXXX',
@@ -376,8 +379,8 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
             initiallyExpanded: _showAdvanced,
             onExpansionChanged: (v) => setState(() => _showAdvanced = v),
             leading: const Icon(Icons.key),
-            title: const Text('MQTT (необязательно)'),
-            subtitle: const Text(
+            title: const TrText('MQTT (необязательно)'),
+            subtitle: const TrText(
               'Пустые поля оставляют текущие значения устройства',
               style: TextStyle(fontSize: 11),
             ),
@@ -385,18 +388,18 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
             children: [
               TextField(
                 controller: _mqttUserController,
-                decoration: const InputDecoration(
-                  labelText: 'Пользователь MQTT',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: L10n.of(context, 'Пользователь MQTT'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _mqttPasswordController,
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Пароль MQTT',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: L10n.of(context, 'Пароль MQTT'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -418,7 +421,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
   }
 
   Widget _sectionTitle(BuildContext context, String text) {
-    return Text(
+    return TrText(
       text,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
@@ -442,7 +445,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
               color: AppTheme.primaryColor.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Text(
+            child: TrText(
               '$number',
               style: const TextStyle(
                 fontSize: 12,
@@ -452,7 +455,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
+          Expanded(child: TrText(text, style: theme.textTheme.bodyMedium)),
         ],
       ),
     );

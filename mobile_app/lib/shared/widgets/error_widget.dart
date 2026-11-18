@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
 
 class AppErrorWidget extends StatelessWidget {
   final String message;
@@ -25,13 +26,13 @@ class AppErrorWidget extends StatelessWidget {
               color: Theme.of(context).colorScheme.error,
             ),
             const SizedBox(height: 16),
-            Text(
+            TrText(
               'Произошла ошибка',
               style: Theme.of(context).textTheme.headlineSmall,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            Text(
+            TrText(
               message,
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
@@ -41,7 +42,7 @@ class AppErrorWidget extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Повторить'),
+                label: const TrText('Повторить'),
               ),
             ],
           ],

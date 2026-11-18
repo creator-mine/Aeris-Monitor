@@ -338,6 +338,28 @@ class DashboardProvider extends ChangeNotifier {
     await loadDevices();
   }
 
+  /// Renames the device in the registry and updates both the list and the
+  /// current selection without dropping the locally known module metrics.
+  Future<Device?> renameDevice(Device device, String name) async {
+    try {
+      final updated = await _signalingApi.renameDevice(device.id, name.trim());
+      if (_disposed) return updated;
+      final merged = updated.copyWith(
+        modules: device.modules,
+        sensors: updated.sensors.isEmpty ? device.sensors : updated.sensors,
+      );
+      final index = _devices.indexWhere((d) => d.id == device.id);
+      if (index >= 0) _devices[index] = merged;
+      if (_selectedDevice?.id == device.id) _selectedDevice = merged;
+      _safeNotify();
+      return merged;
+    } catch (e) {
+      _error = e.toString();
+      _safeNotify();
+      return null;
+    }
+  }
+
   bool hasSensorData(String sensorType) {
     return _latestSensorData.containsKey(sensorType);
   }

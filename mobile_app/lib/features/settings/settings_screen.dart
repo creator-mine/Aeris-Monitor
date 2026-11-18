@@ -18,6 +18,8 @@ import '../alerts/providers/alerts_provider.dart';
 import '../dashboard/providers/dashboard_provider.dart';
 import '../device_config/providers/device_config_provider.dart';
 import '../firmware/providers/firmware_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -95,7 +97,7 @@ class SettingsScreen extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: () => _applyAndReconnect(context, provider),
                       icon: const Icon(Icons.sync, size: 18),
-                      label: const Text('Применить и переподключиться'),
+                      label: const TrText('Применить и переподключиться'),
                     ),
                   ),
                 ],
@@ -125,12 +127,12 @@ class SettingsScreen extends StatelessWidget {
                     segments: const [
                       ButtonSegment(
                         value: LogMode.standard,
-                        label: Text('Стандартный'),
+                        label: TrText('Стандартный'),
                         icon: Icon(Icons.article_outlined, size: 18),
                       ),
                       ButtonSegment(
                         value: LogMode.lightweight,
-                        label: Text('Облегчённый'),
+                        label: TrText('Облегчённый'),
                         icon: Icon(Icons.translate, size: 18),
                       ),
                     ],
@@ -144,22 +146,27 @@ class SettingsScreen extends StatelessWidget {
                     initialValue: provider.language,
                     isExpanded: true,
                     decoration: InputDecoration(
-                      labelText: 'Язык логов',
+                      labelText: L10n.of(context, 'Язык интерфейса'),
                       prefixIcon: const Icon(Icons.language),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'ru', child: Text('Русский')),
-                      DropdownMenuItem(value: 'en', child: Text('English')),
+                      DropdownMenuItem(value: 'ru', child: TrText('Русский')),
+                      DropdownMenuItem(value: 'en', child: TrText('English')),
                     ],
                     onChanged: (lang) {
                       if (lang != null) provider.setLanguage(lang);
                     },
                   ),
+                  const SizedBox(height: 8),
+                  TrText(
+                    'Переключает язык интерфейса и перевод логов.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
                   const SizedBox(height: 12),
-                  Text(
+                  TrText(
                     'В облегчённом режиме известные системные события '
                     'показываются краткими переведёнными фразами.',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
@@ -195,11 +202,12 @@ class SettingsScreen extends StatelessWidget {
                       },
                       icon: Icons.notifications_active_outlined,
                     ),
-                    Text(
+                    TrText(
                       'Постоянное уведомление нужно Android, чтобы события '
                       'правил приходили при закрытом приложении. Выключите — '
                       'уведомление исчезнет, фоновый мониторинг остановится.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
                   ],
                 ),
@@ -231,11 +239,12 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildColorThemeSelector(BuildContext context, SettingsProvider provider) {
+  Widget _buildColorThemeSelector(
+      BuildContext context, SettingsProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        TrText(
           'Акцентный цвет',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
@@ -281,7 +290,8 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBackgroundSelector(BuildContext context, SettingsProvider provider) {
+  Widget _buildBackgroundSelector(
+      BuildContext context, SettingsProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -312,7 +322,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Text(
+              TrText(
                 'Прозрачность: ${(provider.backgroundOpacity * 100).round()}%',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
@@ -334,13 +344,13 @@ class SettingsScreen extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () => _pickImage(context, provider),
                 icon: const Icon(Icons.swap_horiz, size: 18),
-                label: const Text('Заменить'),
+                label: const TrText('Заменить'),
               ),
               const SizedBox(width: 12),
               OutlinedButton.icon(
                 onPressed: () => provider.clearBackgroundImage(),
                 icon: const Icon(Icons.delete_outline, size: 18),
-                label: const Text('Сбросить'),
+                label: const TrText('Сбросить'),
                 style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
               ),
             ],
@@ -350,9 +360,10 @@ class SettingsScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Column(
               children: [
-                Icon(Icons.image_outlined, size: 64, color: Colors.grey.shade400),
+                Icon(Icons.image_outlined,
+                    size: 64, color: Colors.grey.shade400),
                 const SizedBox(height: 12),
-                Text(
+                TrText(
                   'Фон не выбран',
                   style: TextStyle(
                     fontSize: 16,
@@ -360,7 +371,7 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
+                TrText(
                   'Выберите изображение для фона приложения',
                   style: TextStyle(
                     fontSize: 13,
@@ -371,7 +382,7 @@ class SettingsScreen extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: () => _pickImage(context, provider),
                   icon: const Icon(Icons.add_photo_alternate_outlined),
-                  label: const Text('Выбрать изображение'),
+                  label: const TrText('Выбрать изображение'),
                 ),
               ],
             ),
@@ -416,11 +427,10 @@ class SettingsScreen extends StatelessWidget {
     final ok = await mqtt.reconnect(
       broker: provider.mqttBroker,
       port: mqttPort,
-      useWebSocket: kIsWeb ||
-          mqttPort == 9001 ||
-          mqttPort == AppConfig.mqttWssPort,
-      secure: mqttPort == AppConfig.mqttPort ||
-          mqttPort == AppConfig.mqttWssPort,
+      useWebSocket:
+          kIsWeb || mqttPort == 9001 || mqttPort == AppConfig.mqttWssPort,
+      secure:
+          mqttPort == AppConfig.mqttPort || mqttPort == AppConfig.mqttWssPort,
       username: provider.mqttUsername,
       password: provider.mqttPassword,
     );
@@ -440,15 +450,18 @@ class SettingsScreen extends StatelessWidget {
 
     messenger.showSnackBar(
       SnackBar(
-        content: Text(
-          ok ? 'Настройки применены, MQTT переподключён' : 'Настройки применены, MQTT не подключился',
+        content: TrText(
+          ok
+              ? 'Настройки применены, MQTT переподключён'
+              : 'Настройки применены, MQTT не подключился',
         ),
         duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  Future<void> _pickImage(BuildContext context, SettingsProvider provider) async {
+  Future<void> _pickImage(
+      BuildContext context, SettingsProvider provider) async {
     final picker = ImagePicker();
     final xFile = await picker.pickImage(
       source: ImageSource.gallery,
@@ -477,18 +490,19 @@ class SettingsScreen extends StatelessWidget {
           children: [
             Icon(Icons.broken_image, size: 48, color: Colors.grey),
             SizedBox(height: 8),
-            Text('Файл не найден', style: TextStyle(color: Colors.grey)),
+            TrText('Файл не найден', style: TextStyle(color: Colors.grey)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSection(BuildContext context, String title, List<Widget> children) {
+  Widget _buildSection(
+      BuildContext context, String title, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        TrText(
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -535,7 +549,7 @@ class SettingsScreen extends StatelessWidget {
     required IconData icon,
   }) {
     return SwitchListTile(
-      title: Text(title),
+      title: TrText(title),
       value: value,
       onChanged: onChanged,
       secondary: Icon(icon, color: AppTheme.primaryColor),
@@ -551,8 +565,8 @@ class SettingsScreen extends StatelessWidget {
   }) {
     return ListTile(
       leading: Icon(icon, color: AppTheme.primaryColor),
-      title: Text(title),
-      subtitle: Text(value),
+      title: TrText(title),
+      subtitle: TrText(value),
       contentPadding: EdgeInsets.zero,
     );
   }

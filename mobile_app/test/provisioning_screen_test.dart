@@ -1,6 +1,7 @@
 import 'package:aeris/core/api/provisioning_api.dart';
 import 'package:aeris/features/provisioning/provisioning_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// In-memory stand-in for the device's http://192.168.4.1 endpoint.
@@ -39,7 +40,16 @@ Future<void> _pump(WidgetTester tester, ProvisioningApi api) async {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  await tester.pumpWidget(MaterialApp(home: ProvisioningScreen(api: api)));
+  await tester.pumpWidget(MaterialApp(
+    locale: const Locale('ru'),
+    supportedLocales: const [Locale('ru'), Locale('en')],
+    localizationsDelegates: const [
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    home: ProvisioningScreen(api: api),
+  ));
   await tester.pump(); // post-frame probe
   await tester.pump(const Duration(milliseconds: 50));
 }

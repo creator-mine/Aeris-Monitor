@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/firmware_provider.dart';
 import '../../../core/utils/version.dart';
 import '../../../shared/theme/app_theme.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 /// Real published-version info from the OTA site (/fw/version.json) plus
 /// the freshness of the local project source against it.
@@ -25,7 +27,7 @@ class PublishedVersionCard extends StatelessWidget {
                 const Icon(Icons.cloud_done_outlined, size: 20),
                 const SizedBox(width: 8),
                 const Expanded(
-                  child: Text(
+                  child: TrText(
                     'Опубликованная версия (OTA)',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
@@ -38,7 +40,7 @@ class PublishedVersionCard extends StatelessWidget {
                   )
                 else
                   IconButton(
-                    tooltip: 'Проверить на сайте',
+                    tooltip: L10n.of(context, 'Проверить на сайте'),
                     visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.refresh, size: 18),
                     onPressed: provider.fetchServerManifest,
@@ -58,13 +60,13 @@ class PublishedVersionCard extends StatelessWidget {
 
     if (manifest == null) {
       if (provider.isCheckingServer) {
-        return const Text('Проверка актуальной версии на сайте...',
+        return const TrText('Проверка актуальной версии на сайте...',
             style: TextStyle(color: Colors.grey));
       }
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          TrText(
             provider.serverCheckError ?? 'Версия на сайте не проверена.',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
@@ -73,7 +75,7 @@ class PublishedVersionCard extends StatelessWidget {
             FilledButton.tonalIcon(
               onPressed: provider.fetchServerManifest,
               icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Повторить'),
+              label: const TrText('Повторить'),
             ),
           ],
         ],
@@ -112,12 +114,12 @@ class PublishedVersionCard extends StatelessWidget {
           runSpacing: 4,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text(
+            TrText(
               'v${manifest.version}',
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             _pill(manifest.deviceType),
-            Text(
+            TrText(
               'сборка ${manifest.buildDateLabel}',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
@@ -125,7 +127,7 @@ class PublishedVersionCard extends StatelessWidget {
         ),
         if (manifest.sha256 != null && manifest.sha256!.isNotEmpty) ...[
           const SizedBox(height: 4),
-          Text(
+          TrText(
             'sha256: ${_shortHash(manifest.sha256!)}',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
@@ -144,7 +146,7 @@ class PublishedVersionCard extends StatelessWidget {
               Icon(icon, size: 18, color: color),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
+                child: TrText(
                   '$label: локально '
                   '${provider.localVersion == null || provider.localVersion!.isEmpty ? '—' : 'v${provider.localVersion}'}'
                   ', на сайте v${manifest.version}',
@@ -172,7 +174,7 @@ class PublishedVersionCard extends StatelessWidget {
         color: Colors.blueGrey.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(
+      child: TrText(
         text,
         style: const TextStyle(fontSize: 11, color: Colors.blueGrey),
       ),

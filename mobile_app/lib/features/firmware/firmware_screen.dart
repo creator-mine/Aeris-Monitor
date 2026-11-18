@@ -14,6 +14,8 @@ import 'package:aeris/features/firmware/widgets/preflight_card.dart';
 import 'package:aeris/features/firmware/widgets/published_version_card.dart';
 import 'package:aeris/features/firmware/widgets/version_history.dart';
 import 'package:aeris/shared/widgets/app_scaffold.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 class FirmwareScreen extends StatefulWidget {
   const FirmwareScreen({super.key});
@@ -55,14 +57,14 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            TrText(
                               'PlatformIO не найден',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.red.shade700,
                               ),
                             ),
-                            Text(
+                            TrText(
                               'Установите PlatformIO, чтобы собирать и заливать прошивки.',
                               style: TextStyle(
                                   fontSize: 12, color: Colors.red.shade600),
@@ -82,7 +84,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                                             strokeWidth: 2),
                                       )
                                     : const Icon(Icons.download, size: 18),
-                                label: Text(
+                                label: TrText(
                                   provider.isInstallingPlatformio
                                       ? 'Установка...'
                                       : 'Установить PlatformIO',
@@ -106,8 +108,8 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   child: ListTile(
                     leading: const Icon(Icons.build_outlined),
-                    title: const Text('Сборка из исходников'),
-                    subtitle: const Text(
+                    title: const TrText('Сборка из исходников'),
+                    subtitle: const TrText(
                       'PlatformIO, папка проекта, версия и предпросмотр',
                     ),
                     trailing: Icon(
@@ -126,7 +128,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        const TrText(
                           'Исходный код',
                           style: TextStyle(
                             fontSize: 16,
@@ -148,7 +150,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                                     color: Colors.green.shade700, size: 20),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text(
+                                  child: TrText(
                                     provider.sourcePath!,
                                     style: TextStyle(
                                         fontSize: 13,
@@ -164,14 +166,14 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                                       color: Colors.orange,
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: const Text(
+                                    child: const TrText(
                                       'Есть обновления',
                                       style: TextStyle(
                                           color: Colors.white, fontSize: 10),
                                     ),
                                   ),
                                 IconButton(
-                                  tooltip: 'Скопировать путь',
+                                  tooltip: L10n.of(context, 'Скопировать путь'),
                                   visualDensity: VisualDensity.compact,
                                   icon: const Icon(Icons.copy,
                                       size: 18, color: Colors.green),
@@ -183,7 +185,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
                                         const SnackBar(
-                                          content: Text(
+                                          content: TrText(
                                               'Путь скопирован в буфер обмена'),
                                           duration: Duration(seconds: 2),
                                         ),
@@ -205,7 +207,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                               }
                             },
                             icon: const Icon(Icons.folder_open),
-                            label: const Text('Выбрать папку проекта'),
+                            label: const TrText('Выбрать папку проекта'),
                           ),
                         if (provider.sourcePath != null) ...[
                           const SizedBox(height: 8),
@@ -222,20 +224,20 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                                   }
                                 },
                                 icon: const Icon(Icons.folder_open, size: 16),
-                                label: const Text('Изменить'),
+                                label: const TrText('Изменить'),
                               ),
                               const SizedBox(width: 8),
                               TextButton.icon(
                                 onPressed: provider.checkForUpdates,
                                 icon: const Icon(Icons.refresh, size: 16),
-                                label: const Text('Проверить обновления'),
+                                label: const TrText('Проверить обновления'),
                               ),
                             ],
                           ),
                           if (provider.updateCheckError != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
-                              child: Text(
+                              child: TrText(
                                 provider.updateCheckError!,
                                 style: TextStyle(
                                     fontSize: 12,
@@ -266,7 +268,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                                 : Icons.tag_outlined,
                             size: 18,
                           ),
-                          label: Text(
+                          label: TrText(
                             provider.pendingVersion != null
                                 ? 'v${provider.pendingVersion} (ручная)'
                                 : 'v${provider.autoNextVersion} (авто)',
@@ -276,7 +278,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                       if (provider.pendingVersion != null) ...[
                         const SizedBox(width: 8),
                         IconButton(
-                          tooltip: 'Сбросить версию (авто)',
+                          tooltip: L10n.of(context, 'Сбросить версию (авто)'),
                           onPressed: provider.clearPendingVersion,
                           icon: const Icon(Icons.close, size: 18),
                         ),
@@ -305,7 +307,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                                       CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.build),
-                          label: Text(
+                          label: TrText(
                               provider.isBuilding ? 'Сборка...' : 'Собрать'),
                         ),
                       ),
@@ -325,7 +327,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                                       CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.upload),
-                          label: Text(provider.isUploading
+                          label: TrText(provider.isUploading
                               ? 'Загрузка...'
                               : 'Загрузить'),
                         ),
@@ -354,16 +356,17 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
     final accepted = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Версия сборки'),
+        title: const TrText('Версия сборки'),
         content: Form(
           key: formKey,
           child: TextFormField(
             controller: controller,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              labelText: 'Версия (x.y.z)',
-              hintText: 'Например: 2.1.0',
-              helperText: 'Пусто — автоматически (${provider.autoNextVersion})',
+              labelText: L10n.of(context, 'Версия (x.y.z)'),
+              hintText: L10n.of(context, 'Например: 2.1.0'),
+              helperText: L10n.of(context,
+                  'Пусто — автоматически (${provider.autoNextVersion})'),
             ),
             validator: (value) {
               final v = value?.trim() ?? '';
@@ -378,7 +381,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Отмена'),
+            child: const TrText('Отмена'),
           ),
           FilledButton(
             onPressed: () {
@@ -386,7 +389,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
                 Navigator.pop(ctx, true);
               }
             },
-            child: const Text('Сохранить'),
+            child: const TrText('Сохранить'),
           ),
         ],
       ),
@@ -396,7 +399,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
       final valid = provider.setPendingVersion(controller.text);
       if (!valid && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Недопустимый формат версии')),
+          const SnackBar(content: TrText('Недопустимый формат версии')),
         );
       }
     }

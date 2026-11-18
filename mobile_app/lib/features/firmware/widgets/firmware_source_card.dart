@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/firmware_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 /// Primary Windows workflow: pick a `.bin` or paste a GitHub/HTTPS link,
 /// inspect what was staged, then press one button to flash it over USB.
@@ -81,7 +83,7 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                 const Icon(Icons.system_update_alt, size: 22),
                 const SizedBox(width: 8),
                 const Expanded(
-                  child: Text(
+                  child: TrText(
                     'Прошивка',
                     style: TextStyle(
                       fontSize: 16,
@@ -90,14 +92,14 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                   ),
                 ),
                 IconButton(
-                  tooltip:
-                      'Нужен образ приложения .bin (OTA), не merged/factory',
+                  tooltip: L10n.of(context,
+                      'Нужен образ приложения .bin (OTA), не merged/factory'),
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.info_outline, size: 18),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
+                        content: TrText(
                           'Выберите firmware.bin, собранный PlatformIO, или '
                           'OTA-образ с сервера/GitHub. Полный merged-образ '
                           'с bootloader не подходит.',
@@ -109,7 +111,7 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
               ],
             ),
             const SizedBox(height: 4),
-            Text(
+            TrText(
               'Выберите файл или вставьте ссылку — прошивка скачается сама. '
               'Останется нажать «Загрузить».',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
@@ -125,7 +127,7 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                       ? null
                       : () => _pickFile(provider),
                   icon: const Icon(Icons.folder_open, size: 18),
-                  label: const Text('Выбрать .bin'),
+                  label: const TrText('Выбрать .bin'),
                 ),
                 if (manifest != null)
                   TextButton.icon(
@@ -133,7 +135,7 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                         ? provider.stagePublishedFirmware
                         : null,
                     icon: const Icon(Icons.cloud_download_outlined, size: 18),
-                    label: Text('Опубликованная v${manifest.version}'),
+                    label: TrText('Опубликованная v${manifest.version}'),
                   ),
               ],
             ),
@@ -152,7 +154,7 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                 }
               },
               decoration: InputDecoration(
-                labelText: 'Ссылка на .bin или GitHub',
+                labelText: L10n.of(context, 'Ссылка на .bin или GitHub'),
                 hintText: 'https://github.com/owner/repo/releases/latest',
                 prefixIcon: const Icon(Icons.link, size: 20),
                 border: const OutlineInputBorder(),
@@ -160,12 +162,12 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 suffixIcon: provider.isStaging
                     ? IconButton(
-                        tooltip: 'Отменить скачивание',
+                        tooltip: L10n.of(context, 'Отменить скачивание'),
                         icon: const Icon(Icons.stop_circle_outlined, size: 20),
                         onPressed: provider.cancelStaging,
                       )
                     : IconButton(
-                        tooltip: 'Скачать',
+                        tooltip: L10n.of(context, 'Скачать'),
                         icon: const Icon(Icons.download, size: 20),
                         onPressed: provider.isUploading
                             ? null
@@ -187,7 +189,7 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                     : null,
               ),
               const SizedBox(height: 4),
-              Text(
+              TrText(
                 provider.downloadProgress == null
                     ? 'Подготовка файла...'
                     : 'Скачано ${(provider.downloadProgress! * 100).round()}%',
@@ -224,7 +226,7 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
+                          child: TrText(
                             staged.fileName,
                             style: const TextStyle(fontWeight: FontWeight.w600),
                             overflow: TextOverflow.ellipsis,
@@ -246,7 +248,7 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                     ),
                     if (staged.sourceUrl != null) ...[
                       const SizedBox(height: 8),
-                      Text(
+                      TrText(
                         staged.sourceUrl!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -275,7 +277,7 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                             ),
                             const SizedBox(width: 6),
                             Expanded(
-                              child: Text(
+                              child: TrText(
                                 'Файл для ${staged.deviceLabel}, а выбрано '
                                 '${provider.selectedDeviceType}. Проверьте плату.',
                                 style: TextStyle(
@@ -289,7 +291,7 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                                 await provider
                                     .selectDeviceType(staged.deviceType);
                               },
-                              child: const Text('Переключить'),
+                              child: const TrText('Переключить'),
                             ),
                           ],
                         ),
@@ -303,7 +305,7 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                             ? null
                             : provider.clearStagedFirmware,
                         icon: const Icon(Icons.close, size: 16),
-                        label: const Text('Убрать'),
+                        label: const TrText('Убрать'),
                       ),
                     ),
                   ],
@@ -322,14 +324,14 @@ class _FirmwareSourceCardState extends State<FirmwareSourceCard> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.usb),
-                  label:
-                      Text(provider.isUploading ? 'Загрузка...' : 'Загрузить'),
+                  label: TrText(
+                      provider.isUploading ? 'Загрузка...' : 'Загрузить'),
                 ),
               ),
               if (provider.selectedPort == null)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: Text(
+                  child: TrText(
                     'Подключите плату и выберите COM-порт выше.',
                     style:
                         TextStyle(fontSize: 11, color: Colors.orange.shade800),
@@ -356,7 +358,7 @@ class _Chip extends StatelessWidget {
         color: Colors.blueGrey.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(
+      child: TrText(
         text,
         style: const TextStyle(fontSize: 11, color: Colors.blueGrey),
       ),
@@ -385,7 +387,7 @@ class _ErrorText extends StatelessWidget {
           Icon(Icons.error_outline, size: 18, color: Colors.red.shade700),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
+            child: TrText(
               message,
               style: TextStyle(fontSize: 12, color: Colors.red.shade800),
             ),

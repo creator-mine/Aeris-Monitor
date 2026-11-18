@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/firmware_provider.dart';
+import 'package:aeris/shared/widgets/tr_text.dart';
+import 'package:aeris/core/i18n/l10n.dart';
 
 const _platformioDocs = 'https://docs.platformio.org';
 
@@ -14,13 +16,13 @@ class PreflightCard extends StatelessWidget {
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!ok && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось открыть документацию')),
+          const SnackBar(content: TrText('Не удалось открыть документацию')),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось открыть документацию: $e')),
+          SnackBar(content: TrText('Не удалось открыть документацию: $e')),
         );
       }
     }
@@ -43,7 +45,7 @@ class PreflightCard extends StatelessWidget {
                   children: [
                     const Icon(Icons.fact_check_outlined, size: 20),
                     const SizedBox(width: 8),
-                    const Text(
+                    const TrText(
                       'Проверки перед сборкой',
                       style: TextStyle(
                         fontSize: 16,
@@ -52,15 +54,15 @@ class PreflightCard extends StatelessWidget {
                     ),
                     const Spacer(),
                     IconButton(
-                      tooltip: 'Документация PlatformIO',
+                      tooltip: L10n.of(context, 'Документация PlatformIO'),
                       onPressed: () => _openDocs(context),
                       icon: const Icon(Icons.menu_book_outlined, size: 20),
                     ),
                     FilledButton.tonalIcon(
-                      onPressed:
-                          provider.isPreflightChecking || provider.sourcePath == null
-                              ? null
-                              : provider.runPreflight,
+                      onPressed: provider.isPreflightChecking ||
+                              provider.sourcePath == null
+                          ? null
+                          : provider.runPreflight,
                       icon: provider.isPreflightChecking
                           ? const SizedBox(
                               width: 14,
@@ -68,7 +70,9 @@ class PreflightCard extends StatelessWidget {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.playlist_add_check, size: 18),
-                      label: Text(provider.isPreflightChecking ? 'Проверка...' : 'Запустить'),
+                      label: TrText(provider.isPreflightChecking
+                          ? 'Проверка...'
+                          : 'Запустить'),
                     ),
                   ],
                 ),
@@ -78,7 +82,7 @@ class PreflightCard extends StatelessWidget {
                 if (items.isEmpty && !provider.isPreflightChecking)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
+                    child: TrText(
                       'Запустите проверку, чтобы убедиться в готовности окружения к сборке.',
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
@@ -92,16 +96,18 @@ class PreflightCard extends StatelessWidget {
                             Icon(
                               item.ok ? Icons.check_circle : Icons.cancel,
                               size: 17,
-                              color: item.ok ? Colors.green.shade600 : Colors.red.shade600,
+                              color: item.ok
+                                  ? Colors.green.shade600
+                                  : Colors.red.shade600,
                             ),
                             const SizedBox(width: 8),
-                            Text(
+                            TrText(
                               item.title,
                               style: const TextStyle(fontSize: 13),
                             ),
                             const Spacer(),
                             Flexible(
-                              child: Text(
+                              child: TrText(
                                 item.detail,
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
@@ -123,12 +129,13 @@ class PreflightCard extends StatelessWidget {
                     children: [
                       Icon(Icons.launch, size: 14, color: Colors.blue.shade600),
                       const SizedBox(width: 6),
-                      Text(
+                      TrText(
                         'Документация PlatformIO',
-                        style: TextStyle(fontSize: 12, color: Colors.blue.shade600),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.blue.shade600),
                       ),
                       const SizedBox(width: 6),
-                      Text(
+                      TrText(
                         _platformioDocs,
                         style: TextStyle(
                           fontSize: 11,
