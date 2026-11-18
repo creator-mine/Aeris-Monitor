@@ -265,10 +265,14 @@ class ChartsProvider extends ChangeNotifier {
   }
 
   String getSensorName(String sensorType) {
+    // The module reports English names (for example "Illuminance"); prefer the
+    // shared localized label for metrics the app knows about.
+    final fallback = AppConfig.defaultSensorNames[sensorType];
+    if (fallback != null) return fallback;
     for (final metric in _deviceMetrics) {
       if (metric.key == sensorType) return metric.name;
     }
-    return AppConfig.defaultSensorNames[sensorType] ?? sensorType;
+    return sensorType;
   }
 
   @override

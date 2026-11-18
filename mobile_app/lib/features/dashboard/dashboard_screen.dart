@@ -307,9 +307,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.2,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 220,
+        mainAxisExtent: 140,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
@@ -319,7 +319,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final value = provider.getSensorValue(metric.key);
 
         return SensorTile(
-          name: metric.name,
+          name: AppConfig.defaultSensorNames[metric.key] ?? metric.name,
           value: value,
           unit: metric.unit,
           icon: AppConfig.metricIcon(metric.key),
