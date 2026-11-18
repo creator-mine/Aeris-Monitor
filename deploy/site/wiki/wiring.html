@@ -484,7 +484,7 @@
 
       <h2 id="platy" data-ru="Пины плат: что занято" data-en="Board pins: what is used">Пины плат: что занято</h2>
 
-      <p data-ru="Прошивка 1.3.4 занимает максимум четыре периферии: I²C для датчиков, UART для сенсорного модуля, SD-карту и реле (на S3 реле отключено). Экрана, кнопок и ШИМ в контроллере нет, поэтому большая часть GPIO остаётся свободной." data-en="Firmware 1.3.4 uses at most four peripherals: I²C for sensors, UART for the sensor module, the SD card and the relay (the relay is disabled on the S3). There is no display, no buttons and no PWM in the controller, so most GPIOs remain free.">Прошивка занимает максимум четыре периферии: I²C, UART, SD и реле.</p>
+      <p data-ru="Прошивка 1.3.5 занимает максимум четыре периферии: I²C для датчиков, UART для сенсорного модуля, SD-карту и реле (на S3 реле отключено). Дополнительно на S3 работает встроенный RGB-светодиод состояния на GPIO48. Экрана, кнопок и ШИМ в контроллере нет, поэтому большая часть GPIO остаётся свободной." data-en="Firmware 1.3.5 uses at most four peripherals: I²C for sensors, UART for the sensor module, the SD card and the relay (the relay is disabled on the S3). The S3 additionally uses its onboard RGB status LED on GPIO48. There is no display, no buttons and no PWM in the controller, so most GPIOs remain free.">Прошивка занимает максимум четыре периферии: I²C, UART, SD и реле; на S3 ещё светодиод состояния.</p>
 
       <h3 id="plata-c3" data-ru="ESP32-C3 (LOLIN C3 mini)" data-en="ESP32-C3 (LOLIN C3 mini)">ESP32-C3 (LOLIN C3 mini)</h3>
 
@@ -569,13 +569,13 @@
             <tr><td class="mono">26–32</td><td data-ru="Флеш-память" data-en="Flash memory">Флеш</td></tr>
             <tr><td class="mono">33–37</td><td data-ru="Восьмиканальная PSRAM платы N16R8" data-en="Octal PSRAM of the N16R8 board">PSRAM</td></tr>
             <tr><td class="mono">43 / 44</td><td data-ru="UART0, консоль" data-en="UART0, console">UART0</td></tr>
-            <tr><td class="mono">48</td><td data-ru="Встроенный RGB-светодиод; контроллер им не управляет" data-en="Onboard RGB LED; the controller does not drive it">RGB-светодиод</td></tr>
+            <tr><td class="mono">48</td><td data-ru="Встроенный RGB-светодиод состояния; управляется прошивкой (STATUS_LED_PIN=48)" data-en="Onboard RGB status LED; driven by firmware (STATUS_LED_PIN=48)">RGB-светодиод состояния</td></tr>
           </tbody>
         </table>
       </div>
 
       <ul>
-        <li data-ru-html="Свободны <code>GPIO1</code>, <code>2</code>, <code>6</code>, <code>7</code>, <code>14</code>–<code>18</code>, <code>21</code>, <code>38</code>–<code>42</code> и <code>47</code>. Вывод <code>48</code> освобождается, только если не нужен встроенный светодиод." data-en-html="<code>GPIO1</code>, <code>2</code>, <code>6</code>, <code>7</code>, <code>14</code>–<code>18</code>, <code>21</code>, <code>38</code>–<code>42</code> and <code>47</code> are free. <code>48</code> is free only if the onboard LED is not needed.">Свободны 1, 2, 6, 7, 14–18, 21, 38–42, 47.</li>
+        <li data-ru-html="Свободны <code>GPIO1</code>, <code>2</code>, <code>6</code>, <code>7</code>, <code>14</code>–<code>18</code>, <code>21</code>, <code>38</code>–<code>42</code> и <code>47</code>. Вывод <code>48</code> занят встроенным светодиодом состояния." data-en-html="<code>GPIO1</code>, <code>2</code>, <code>6</code>, <code>7</code>, <code>14</code>–<code>18</code>, <code>21</code>, <code>38</code>–<code>42</code> and <code>47</code> are free. <code>GPIO48</code> is used by the onboard status LED.">Свободны 1, 2, 6, 7, 14–18, 21, 38–42, 47; 48 занят светодиодом состояния.</li>
         <li data-ru-html="<code>GPIO39</code>–<code>42</code> — линии JTAG. Если не отлаживаете плату через JTAG, их можно использовать как обычные GPIO." data-en-html="<code>GPIO39</code>–<code>42</code> are the JTAG lines. Unless you debug the board over JTAG, they can be used as ordinary GPIOs.">GPIO39–42 — JTAG, свободны без отладки.</li>
         <li data-ru-html="Реле на S3 отключено (<code>RELAY_PIN=-1</code>): <code>GPIO3</code> не занят, но и управлять реле через API на этой плате нельзя. <code>GPIO0</code>, <code>3</code>, <code>45</code> и <code>46</code> — стриппинги." data-en-html="The relay is disabled on the S3 (<code>RELAY_PIN=-1</code>): <code>GPIO3</code> is not used, but the API cannot control a relay on this board either. <code>GPIO0</code>, <code>3</code>, <code>45</code> and <code>46</code> are strapping pins.">Реле на S3 отключено; 0, 3, 45, 46 — стриппинги.</li>
       </ul>
@@ -644,7 +644,7 @@
         </table>
       </div>
 
-      <p data-ru-html="Списки соответствуют прошивке <code>1.3.4</code>. Если вы меняете <code>I2C_SDA</code>, <code>I2C_SCL</code>, <code>UART_RX</code>, <code>UART_TX</code>, <code>SD_CS</code> или <code>RELAY_PIN</code> в <code>config.h</code> либо в <code>platformio.ini</code>, обновите и эту таблицу — иначе следующая сборка молча займёт уже используемый вывод." data-en-html="The lists match firmware <code>1.3.4</code>. If you change <code>I2C_SDA</code>, <code>I2C_SCL</code>, <code>UART_RX</code>, <code>UART_TX</code>, <code>SD_CS</code> or <code>RELAY_PIN</code> in <code>config.h</code> or <code>platformio.ini</code>, update this table too — otherwise the next build silently claims a pin that is already in use.">Списки соответствуют прошивке 1.3.3.</p>
+      <p data-ru-html="Списки соответствуют прошивке <code>1.3.5</code>. Если вы меняете <code>I2C_SDA</code>, <code>I2C_SCL</code>, <code>UART_RX</code>, <code>UART_TX</code>, <code>SD_CS</code> или <code>RELAY_PIN</code> в <code>config.h</code> либо в <code>platformio.ini</code>, обновите и эту таблицу — иначе следующая сборка молча займёт уже используемый вывод." data-en-html="The lists match firmware <code>1.3.5</code>. If you change <code>I2C_SDA</code>, <code>I2C_SCL</code>, <code>UART_RX</code>, <code>UART_TX</code>, <code>SD_CS</code> or <code>RELAY_PIN</code> in <code>config.h</code> or <code>platformio.ini</code>, update this table too — otherwise the next build silently claims a pin that is already in use.">Списки соответствуют прошивке 1.3.3.</p>
 
       <h2 id="proverka" data-ru="Проверка подключения" data-en="Checking the wiring">Проверка подключения</h2>
 
@@ -694,6 +694,6 @@
   </div>
 </footer>
 
-<script src="assets/wiki.js?v=20261118-4"></script>
+<script src="assets/wiki.js?v=20261118-5"></script>
 </body>
 </html>

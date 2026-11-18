@@ -139,9 +139,9 @@
               <td class="mono">GPIO3 (контроллер)</td>
             </tr>
             <tr>
-              <td data-ru="Встроенный RGB-светодиод" data-en="Onboard RGB LED">Встроенный RGB-светодиод</td>
+              <td data-ru="Встроенный RGB-светодиод состояния" data-en="Onboard RGB status LED">Встроенный RGB-светодиод</td>
               <td data-ru="GPIO7 (делит линию SCL)" data-en="GPIO7 (shares the SCL line)">GPIO7 (делит SCL)</td>
-              <td data-ru="GPIO48" data-en="GPIO48">GPIO48</td>
+              <td data-ru="GPIO48 (индикатор состояния)" data-en="GPIO48 (status indicator)">GPIO48</td>
               <td data-ru="GPIO8" data-en="GPIO8">GPIO8</td>
             </tr>
             <tr>
@@ -158,6 +158,13 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="callout ok">
+        <div class="co-ic">💡</div>
+        <div class="co-body">
+          <p data-ru-html="На ESP32-S3 встроенный WS2812 на <code>GPIO48</code> показывает состояние платы: белая вспышка при загрузке, синий при подключении к Wi-Fi, жёлтый при подключении к MQTT, зелёный в сети, красный при ошибке и фиолетовый во время OTA. Проверить цвета можно командой <code>CMD:led</code>." data-en-html="On the ESP32-S3 the onboard WS2812 on <code>GPIO48</code> shows the board state: a white flash at boot, blue while connecting to Wi-Fi, yellow while connecting to MQTT, green when online, red on error and magenta during OTA. Use <code>CMD:led</code> to verify the colours.">На S3 встроенный RGB-светодиод показывает состояние платы.</p>
+        </div>
       </div>
 
       <div class="callout info">
@@ -526,6 +533,6 @@
   </div>
 </footer>
 
-<script src="assets/wiki.js?v=20261118-4"></script>
+<script src="assets/wiki.js?v=20261118-5"></script>
 </body>
 </html>
