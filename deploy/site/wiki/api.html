@@ -448,6 +448,11 @@
               <td data-ru="Одно устройство по идентификатору" data-en="A single device by ID">Карточка устройства</td>
             </tr>
             <tr>
+              <td class="mono">PUT/PATCH /devices/:id</td>
+              <td data-ru="app" data-en="app">app</td>
+              <td data-ru-html="Переименовать устройство: <code>{&quot;name&quot;:&quot;Кухня&quot;}</code>. Имя сохраняется в реестре и переживает перерегистрацию" data-en-html="Rename a device: <code>{&quot;name&quot;:&quot;Kitchen&quot;}</code>. The name is stored in the registry and survives re-registration">Переименовать устройство</td>
+            </tr>
+            <tr>
               <td class="mono">DELETE /devices/:id</td>
               <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru="Удаление устройства вместе с его авариями и правилами" data-en="Delete a device along with its alerts and rules">Удаление устройства</td>
@@ -754,7 +759,7 @@ Content-Type: application/json
 
       <pre><code>{
   "ok": true,
-  "version": "0.4.0",
+  "version": "0.4.1",
   "uptime": 928371.4,
   "devices": { "total": 1, "online": 1, "offline": 0 },
   "alerts": 0,
@@ -780,6 +785,6 @@ Content-Type: application/json
   </div>
 </footer>
 
-<script src="assets/wiki.js?v=20261118-7"></script>
+<script src="assets/wiki.js?v=20261118-8"></script>
 </body>
 </html>

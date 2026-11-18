@@ -176,7 +176,7 @@
 
       <p data-ru="Живые метрики отдаются по Server-Sent Events — одно открытое соединение, лёгкие текстовые события. Транспорт сам себя переподключает, события приходят по типам. Поток требует логин приложения или сессию панели." data-en="Live metrics are served over Server-Sent Events — one open connection and lightweight text events. The transport reconnects by itself, events arrive typed. The stream requires the app login or a panel session.">Метрики отдаёт SSE.</p>
 
-      <pre><code>event: hello      data: {"version":"0.4.0","telemetry":{"esp32c3_001":{"temp":{"t":...}}}}
+      <pre><code>event: hello      data: {"version":"0.4.1","telemetry":{"esp32c3_001":{"temp":{"t":...}}}}
 event: metric     data: {"deviceId":"esp32c3_001","sensor":"temp","t":...,"v":23.45,"u":"degC"}
 event: status     data: {"deviceId":"esp32c3_001","status":"online","rssi":-61}
 event: rule       data: {"rule":{...},"action":"mqtt_command","topic":"iot/esp32c3_001/cmd"}
@@ -336,6 +336,6 @@ event: cmd        data: {"deviceId":"esp32c3_001","command":"relay:on","ts":...}
   </div>
 </footer>
 
-<script src="assets/wiki.js?v=20261118-7"></script>
+<script src="assets/wiki.js?v=20261118-8"></script>
 </body>
 </html>
