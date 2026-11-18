@@ -12,6 +12,15 @@ void main() {
     expect(L10n.translate('Освещённость', 'en'), 'Illuminance');
   });
 
+  test('English translates the SD card labels', () {
+    expect(L10n.translate('Карта памяти', 'en'), 'Memory card');
+    expect(L10n.translate('Работает', 'en'), 'Working');
+    expect(L10n.translate('Занято', 'en'), 'Used');
+    expect(L10n.translate('Свободно', 'en'), 'Free');
+    expect(L10n.translate('Всего', 'en'), 'Total');
+    expect(L10n.translate('Нет карты', 'en'), 'No card');
+  });
+
   test('English translates interpolated messages', () {
     expect(
       L10n.translate('1/2 онлайн', 'en'),
