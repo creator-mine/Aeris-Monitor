@@ -13,6 +13,11 @@
 #include <ArduinoJson.h>
 #include <cmath>
 
+// Set by sdInit() in main.cpp only after the filesystem has actually mounted.
+// SD.cardType() can already report a card while SD.begin() failed (for example
+// on an exFAT card), so the API must not treat card detection as a mount.
+extern bool sdMounted;
+
 static String lastCommandBody;
 
 WebServer& WebServer::instance() {
@@ -46,12 +51,12 @@ void WebServer::setupRoutes() {
         request->send(200, "text/plain", "Aeris Monitor - API at " API_PREFIX);
     });
 
+    _http->on(API_PREFIX "/sensors/history", HTTP_GET, handleHistory);
     _http->on(API_PREFIX "/sensors", HTTP_GET, handleSensors);
     _http->on(API_PREFIX "/status", HTTP_GET, handleStatus);
     _http->on(API_PREFIX "/data", HTTP_GET, handleData);
     _http->on(API_PREFIX "/modules", HTTP_GET, handleModules);
     _http->on(API_PREFIX "/sd/info", HTTP_GET, handleSdInfo);
-    _http->on(API_PREFIX "/sensors/history", HTTP_GET, handleHistory);
     _http->on(API_PREFIX "/logs", HTTP_GET, handleLogs);
 
     _http->on(API_PREFIX "/command", HTTP_POST,
@@ -234,12 +239,21 @@ void WebServer::handleSdInfo(AsyncWebServerRequest* request) {
 }
 
 String WebServer::buildSdInfoJson() {
-    bool mounted = SD.cardType() != CARD_NONE;
-    String json = "{";
-    json += "\"mounted\":" + String(mounted ? "true" : "false");
-    if (mounted) {
-        json += ",\"type\":\"" + String(SD.cardType() == CARD_SDHC ? "SDHC" : "SD") + "\"";
-        json += ",\"total_bytes\":" + String(SD.totalBytes());
+    const bool cardDetected = SD.cardType() != CARD_NONE;
+    String json = "{\"mounted\":";
+    json += sdMounted ? "true" : "false";
+    // While a card is present but the filesystem is unsupported (exFAT) or
+    // damaged, SD.begin() fails yet cardType()/totalBytes() still answer.
+    // Report that separately so "mounted" no longer looks healthy.
+    if (cardDetected) {
+        json += ",\"card_type\":\"";
+        json += (SD.cardType() == CARD_SDHC) ? "SDHC" : "SD";
+        json += "\",\"card_bytes\":" + String(SD.totalBytes());
+    }
+    if (sdMounted) {
+        json += ",\"type\":\"";
+        json += (SD.cardType() == CARD_SDHC) ? "SDHC" : "SD";
+        json += "\",\"total_bytes\":" + String(SD.totalBytes());
         json += ",\"used_bytes\":" + String(SD.usedBytes());
     }
     json += "}";
