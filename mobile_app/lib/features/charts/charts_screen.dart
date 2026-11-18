@@ -94,7 +94,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  Widget _buildSensorTypeSelector(BuildContext context, ChartsProvider provider) {
+  Widget _buildSensorTypeSelector(
+      BuildContext context, ChartsProvider provider) {
     return Container(
       height: 50,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -104,7 +105,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
         itemBuilder: (context, index) {
           final sensorType = provider.availableSensorTypes[index];
           final isSelected = provider.selectedSensorType == sensorType;
-          
+
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
@@ -126,17 +127,23 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  Widget _buildTimeRangeSelector(BuildContext context, ChartsProvider provider) {
+  Widget _buildTimeRangeSelector(
+      BuildContext context, ChartsProvider provider) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildTimeRangeButton(context, provider, '1ч', const Duration(hours: 1)),
-          _buildTimeRangeButton(context, provider, '6ч', const Duration(hours: 6)),
-          _buildTimeRangeButton(context, provider, '24ч', const Duration(hours: 24)),
-          _buildTimeRangeButton(context, provider, '7д', const Duration(days: 7)),
-          _buildTimeRangeButton(context, provider, '30д', const Duration(days: 30)),
+          _buildTimeRangeButton(
+              context, provider, '1ч', const Duration(hours: 1)),
+          _buildTimeRangeButton(
+              context, provider, '6ч', const Duration(hours: 6)),
+          _buildTimeRangeButton(
+              context, provider, '24ч', const Duration(hours: 24)),
+          _buildTimeRangeButton(
+              context, provider, '7д', const Duration(days: 7)),
+          _buildTimeRangeButton(
+              context, provider, '30д', const Duration(days: 30)),
         ],
       ),
     );
@@ -148,8 +155,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
     String label,
     Duration duration,
   ) {
-    final isSelected = provider.timeRange.end.difference(provider.timeRange.start) == duration;
-    
+    final isSelected =
+        provider.timeRange.end.difference(provider.timeRange.start) == duration;
+
     return OutlinedButton(
       onPressed: () {
         provider.setTimeRange(DateTimeRange(
@@ -237,7 +245,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  Widget _buildStatsRow(BuildContext context, ChartsProvider provider, SensorDataSeries series) {
+  Widget _buildStatsRow(
+      BuildContext context, ChartsProvider provider, SensorDataSeries series) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
@@ -263,7 +272,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  Widget _buildStatCard(BuildContext context, String label, String value, Color color) {
+  Widget _buildStatCard(
+      BuildContext context, String label, String value, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -291,7 +301,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  Widget _buildLineChart(BuildContext context, ChartsProvider provider, SensorDataSeries series) {
+  Widget _buildLineChart(
+      BuildContext context, ChartsProvider provider, SensorDataSeries series) {
     final range = series.maxValue - series.minValue;
     final safeRange = range == 0 ? 1.0 : range;
     final pointCount = series.points.length;
@@ -363,19 +374,20 @@ class _ChartsScreenState extends State<ChartsScreen> {
           show: true,
           border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
         ),
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: _tooltipItems,
+          ),
+        ),
         minX: 0,
         maxX: pointCount > 0 ? pointCount.toDouble() - 1 : 1,
         minY: series.minValue - safeRange * 0.1,
         maxY: series.maxValue + safeRange * 0.1,
         lineBarsData: [
           LineChartBarData(
-            spots: series.points
-                .asMap()
-                .entries
-                .map<FlSpot>((entry) {
-                  return FlSpot(entry.key.toDouble(), entry.value.value);
-                })
-                .toList(),
+            spots: series.points.asMap().entries.map<FlSpot>((entry) {
+              return FlSpot(entry.key.toDouble(), entry.value.value);
+            }).toList(),
             isCurved: true,
             gradient: LinearGradient(
               colors: [
@@ -401,6 +413,19 @@ class _ChartsScreenState extends State<ChartsScreen> {
         ],
       ),
     );
+  }
+
+  List<LineTooltipItem> _tooltipItems(List<LineBarSpot> touchedSpots) {
+    return touchedSpots.map((spot) {
+      return LineTooltipItem(
+        spot.y.toStringAsFixed(1),
+        const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      );
+    }).toList();
   }
 
   static const List<Color> _comparePalette = [
@@ -450,8 +475,16 @@ class _ChartsScreenState extends State<ChartsScreen> {
       final series = entry.value;
       if (series.points.isEmpty) continue;
       if (series.points.length > maxLength) maxLength = series.points.length;
-      minValue = minValue == 0 ? series.minValue : minValue <= series.minValue ? minValue : series.minValue;
-      maxValue = maxValue == 1 ? series.maxValue : maxValue >= series.maxValue ? maxValue : series.maxValue;
+      minValue = minValue == 0
+          ? series.minValue
+          : minValue <= series.minValue
+              ? minValue
+              : series.minValue;
+      maxValue = maxValue == 1
+          ? series.maxValue
+          : maxValue >= series.maxValue
+              ? maxValue
+              : series.maxValue;
     }
     final safeRange = maxValue - minValue == 0 ? 1.0 : maxValue - minValue;
     final safeLength = maxLength == 0 ? 1.0 : maxLength.toDouble();
@@ -470,8 +503,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
         ),
         titlesData: FlTitlesData(
           show: true,
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -498,14 +533,19 @@ class _ChartsScreenState extends State<ChartsScreen> {
               showTitles: true,
               reservedSize: 50,
               interval: safeRange / 5,
-              getTitlesWidget: (value, meta) =>
-                  Text(value.toStringAsFixed(1), style: const TextStyle(fontSize: 10)),
+              getTitlesWidget: (value, meta) => Text(value.toStringAsFixed(1),
+                  style: const TextStyle(fontSize: 10)),
             ),
           ),
         ),
         borderData: FlBorderData(
           show: true,
           border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        ),
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: _tooltipItems,
+          ),
         ),
         minX: 0,
         maxX: safeLength - 1,
@@ -519,7 +559,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   .points
                   .asMap()
                   .entries
-                  .map((entry) => FlSpot(entry.key.toDouble(), entry.value.value))
+                  .map((entry) =>
+                      FlSpot(entry.key.toDouble(), entry.value.value))
                   .toList(),
               isCurved: true,
               color: _comparePalette[i % _comparePalette.length],
@@ -532,10 +573,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  SensorDataSeries? _longestSeries(List<MapEntry<String, SensorDataSeries>> entries) {
+  SensorDataSeries? _longestSeries(
+      List<MapEntry<String, SensorDataSeries>> entries) {
     SensorDataSeries? longest;
     for (final entry in entries) {
-      if (longest == null || entry.value.points.length > longest.points.length) {
+      if (longest == null ||
+          entry.value.points.length > longest.points.length) {
         longest = entry.value;
       }
     }
@@ -609,7 +652,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
       return;
     }
 
-    final date = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+    final date =
+        DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
     final fileName = 'chart_${sensorType}_$date.csv';
 
     try {
@@ -620,7 +664,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
         );
       } else if (path == null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Экспорт доступен только в настольной версии')),
+          const SnackBar(
+              content: Text('Экспорт доступен только в настольной версии')),
         );
       }
     } catch (e) {
@@ -673,7 +718,8 @@ class _CompareDevicesDialogState extends State<_CompareDevicesDialog> {
       content: SizedBox(
         width: 360,
         child: widget.devices.isEmpty
-            ? const Text('Нет устройств в реестре', style: TextStyle(color: Colors.grey))
+            ? const Text('Нет устройств в реестре',
+                style: TextStyle(color: Colors.grey))
             : ListView.builder(
                 shrinkWrap: true,
                 itemCount: widget.devices.length,
@@ -682,7 +728,8 @@ class _CompareDevicesDialogState extends State<_CompareDevicesDialog> {
                   return CheckboxListTile(
                     value: _checked[device.id] ?? false,
                     title: Text(device.name),
-                    subtitle: Text(device.id, style: const TextStyle(fontSize: 12)),
+                    subtitle:
+                        Text(device.id, style: const TextStyle(fontSize: 12)),
                     controlAffinity: ListTileControlAffinity.leading,
                     onChanged: (value) {
                       setState(() => _checked[device.id] = value ?? false);
