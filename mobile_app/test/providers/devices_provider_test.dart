@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:aeris/core/api/ota_api.dart';
 import 'package:aeris/core/api/signaling_api.dart';
+import 'package:aeris/core/api/lan_discovery.dart';
 import 'package:aeris/features/devices/providers/devices_provider.dart';
 import 'package:aeris/models/device.dart';
 import 'package:aeris/models/firmware_manifest.dart';
@@ -60,6 +61,7 @@ void main() {
   group('DevicesProvider', () {
     test('loadDevices populates devices and online/offline filters', () async {
       final provider = DevicesProvider(
+        discoverLan: () async => const <DiscoveredDevice>[],
         signalingApi: _FakeSignalingApi([
           _device(id: 'a', status: 'online'),
           _device(id: 'b', status: 'offline'),
@@ -79,6 +81,7 @@ void main() {
 
     test('loadDevices surfaces errors without losing prior state', () async {
       final provider = DevicesProvider(
+        discoverLan: () async => const <DiscoveredDevice>[],
         signalingApi: _FakeSignalingApi([], failLoads: true),
       );
 
@@ -90,6 +93,7 @@ void main() {
 
     test('refreshDevices loads manifests for known device types', () async {
       final provider = DevicesProvider(
+        discoverLan: () async => const <DiscoveredDevice>[],
         signalingApi: _FakeSignalingApi([
           _device(id: 'a', status: 'online', firmwareVersion: '1.2.0'),
         ]),
@@ -104,6 +108,7 @@ void main() {
 
     test('isOutdated compares device firmware to the published manifest', () async {
       final provider = DevicesProvider(
+        discoverLan: () async => const <DiscoveredDevice>[],
         signalingApi: _FakeSignalingApi([
           _device(id: 'old', status: 'online', firmwareVersion: '1.2.0'),
           _device(id: 'new', status: 'online', firmwareVersion: '1.2.3'),
@@ -122,6 +127,7 @@ void main() {
 
     test('deleteDevice removes the device from the list', () async {
       final provider = DevicesProvider(
+        discoverLan: () async => const <DiscoveredDevice>[],
         signalingApi: _FakeSignalingApi([
           _device(id: 'a', status: 'online'),
           _device(id: 'b', status: 'offline'),
@@ -137,6 +143,7 @@ void main() {
 
     test('deleteDevice keeps the list and reports an error on failure', () async {
       final provider = DevicesProvider(
+        discoverLan: () async => const <DiscoveredDevice>[],
         signalingApi: _FakeSignalingApi(
           [_device(id: 'a', status: 'online')],
           removeFails: true,

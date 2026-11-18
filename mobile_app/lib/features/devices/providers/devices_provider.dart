@@ -13,6 +13,7 @@ class DevicesProvider extends ChangeNotifier {
   final SignalingApi _signalingApi;
   OtaApi? _otaApi;
   final MqttService? _mqtt;
+  final Future<List<DiscoveredDevice>> Function() _discoverLan;
 
   List<Device> _devices = [];
   bool _isLoading = false;
@@ -29,9 +30,11 @@ class DevicesProvider extends ChangeNotifier {
     required SignalingApi signalingApi,
     OtaApi? otaApi,
     MqttService? mqtt,
+    Future<List<DiscoveredDevice>> Function()? discoverLan,
   })  : _signalingApi = signalingApi,
         _otaApi = otaApi,
-        _mqtt = mqtt;
+        _mqtt = mqtt,
+        _discoverLan = discoverLan ?? discoverLanDevices;
 
   List<Device> get devices => _devices;
   bool get isLoading => _isLoading;
@@ -81,12 +84,12 @@ class DevicesProvider extends ChangeNotifier {
 
     try {
       final registry = await _signalingApi.getDevices();
-      final lan = await discoverLanDevices();
+      final lan = await _discoverLan();
       _devices = mergeLanDevices(registry, lan);
     } catch (e) {
       // The cloud registry may be unreachable while the device is still on
       // the same Wi-Fi: fall back to local discovery.
-      final lan = await discoverLanDevices();
+      final lan = await _discoverLan();
       _devices = mergeLanDevices(const [], lan);
       if (_devices.isEmpty) _error = e.toString();
     } finally {

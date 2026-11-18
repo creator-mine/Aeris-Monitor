@@ -76,6 +76,13 @@ class ChartsProvider extends ChangeNotifier {
     }
   }
 
+  @visibleForTesting
+  void setChartDataForTest(String sensorType, SensorDataSeries series) {
+    _selectedSensorType = sensorType;
+    _dataSeries[sensorType] = series;
+    notifyListeners();
+  }
+
   void setTimeRange(DateTimeRange timeRange) {
     _timeRange = timeRange;
     notifyListeners();

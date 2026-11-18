@@ -237,7 +237,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  Widget _buildStatsRow(BuildContext context, ChartsProvider provider, series) {
+  Widget _buildStatsRow(BuildContext context, ChartsProvider provider, SensorDataSeries series) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
@@ -291,7 +291,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  Widget _buildLineChart(BuildContext context, ChartsProvider provider, series) {
+  Widget _buildLineChart(BuildContext context, ChartsProvider provider, SensorDataSeries series) {
     final range = series.maxValue - series.minValue;
     final safeRange = range == 0 ? 1.0 : range;
     final pointCount = series.points.length;
@@ -372,7 +372,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
             spots: series.points
                 .asMap()
                 .entries
-                .map((entry) {
+                .map<FlSpot>((entry) {
                   return FlSpot(entry.key.toDouble(), entry.value.value);
                 })
                 .toList(),
