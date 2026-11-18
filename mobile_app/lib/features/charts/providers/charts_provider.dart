@@ -108,6 +108,15 @@ class ChartsProvider extends ChangeNotifier {
       return;
     }
 
+    if (!isMetricSupported(_selectedSensorType)) {
+      // The module is not on this board: nothing to request from the SD card.
+      _isLoading = false;
+      _error = null;
+      _dataSeries.remove(_selectedSensorType);
+      notifyListeners();
+      return;
+    }
+
     if (client == null) {
       _isLoading = false;
       _error =
@@ -164,11 +173,27 @@ class ChartsProvider extends ChangeNotifier {
   }
 
   List<String> get availableSensorTypes {
-    if (_deviceMetrics.isNotEmpty) {
-      return _deviceMetrics.map((m) => m.key).toList();
+    final keys = <String>[];
+    // Always offer the full known set so the screen explains what the board
+    // does not have instead of silently hiding parameters from other devices.
+    for (final key in AppConfig.defaultSensorUnits.keys) {
+      keys.add(key);
     }
-    return AppConfig.defaultSensorUnits.keys.toList();
+    for (final metric in _deviceMetrics) {
+      if (!keys.contains(metric.key)) keys.add(metric.key);
+    }
+    return keys;
   }
+
+  /// Whether the selected device actually has this metric. When the module
+  /// list has not arrived yet the device is treated as capable so the history
+  /// request can still be attempted instead of showing a false "not connected".
+  bool isMetricSupported(String sensorType) {
+    if (_deviceMetrics.isEmpty) return true;
+    return _deviceMetrics.any((metric) => metric.key == sensorType);
+  }
+
+  bool get isSelectedMetricSupported => isMetricSupported(_selectedSensorType);
 
   /// Loads the same sensor series from several devices for overlay
   /// comparison. Devices without a usable IP are skipped.

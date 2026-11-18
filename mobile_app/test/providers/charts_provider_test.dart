@@ -35,6 +35,25 @@ void main() {
     expect(provider.error, isNot(contains('DioException')));
   });
 
+  test('offers every known parameter and marks unsupported ones', () {
+    final provider = ChartsProvider();
+    final device = _device(status: 'online', ip: '');
+
+    provider.setSelectedDevice(
+      device.id,
+      metrics: const [_illuminanceMetric],
+      device: device,
+    );
+
+    expect(provider.availableSensorTypes, contains('temperature'));
+    expect(provider.availableSensorTypes, contains('humidity'));
+    expect(provider.availableSensorTypes, contains('pressure'));
+    expect(provider.availableSensorTypes, contains('gas_resistance'));
+    expect(provider.availableSensorTypes, contains('illuminance'));
+    expect(provider.isMetricSupported('illuminance'), isTrue);
+    expect(provider.isMetricSupported('temperature'), isFalse);
+  });
+
   test('online device without an IP reports the missing address', () {
     final provider = ChartsProvider();
     final device = _device(status: 'online', ip: '');

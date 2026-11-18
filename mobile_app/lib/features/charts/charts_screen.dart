@@ -8,6 +8,7 @@ import '../../shared/widgets/error_widget.dart';
 import '../../shared/theme/app_theme.dart';
 import '../../core/utils/csv_exporter.dart';
 import '../devices/providers/devices_provider.dart';
+import '../dashboard/providers/dashboard_provider.dart';
 import '../../models/sensor_data.dart';
 import '../../models/device.dart';
 
@@ -51,6 +52,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           return Column(
             children: [
               if (provider.isComparing) _buildCompareBanner(context, provider),
+              _buildDeviceSelector(context, provider),
               _buildSensorTypeSelector(context, provider),
               _buildTimeRangeSelector(context, provider),
               Expanded(
@@ -88,6 +90,70 @@ class _ChartsScreenState extends State<ChartsScreen> {
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.close, size: 18),
             onPressed: () => provider.clearComparison(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeviceSelector(BuildContext context, ChartsProvider provider) {
+    final dashboard = context.watch<DashboardProvider>();
+    final devices = dashboard.devices;
+    if (devices.isEmpty) return const SizedBox.shrink();
+
+    final ids = devices.map((device) => device.id).toSet();
+    var selectedId = provider.selectedDeviceId;
+    if (selectedId != null && !ids.contains(selectedId)) selectedId = null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
+        children: [
+          const Icon(Icons.devices_other, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: selectedId,
+                isExpanded: true,
+                hint: const Text('Выберите устройство'),
+                items: devices.map((device) {
+                  return DropdownMenuItem<String>(
+                    value: device.id,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.circle,
+                          size: 8,
+                          color: device.isOnline ? Colors.green : Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            device.isOnline
+                                ? device.name
+                                : '${device.name} — офлайн',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (id) async {
+                  if (id == null) return;
+                  final device = devices.firstWhere((d) => d.id == id);
+                  // Update charts first so the screen reacts immediately; the
+                  // dashboard selection below keeps both screens in sync.
+                  provider.setSelectedDevice(
+                    device.id,
+                    metrics: device.allMetrics,
+                    device: device,
+                  );
+                  await dashboard.selectDevice(device);
+                },
+              ),
+            ),
           ),
         ],
       ),
@@ -179,6 +245,31 @@ class _ChartsScreenState extends State<ChartsScreen> {
   Widget _buildChartArea(BuildContext context, ChartsProvider provider) {
     if (provider.isLoading || provider.isLoadingComparison) {
       return const LoadingIndicator(message: 'Загрузка данных...');
+    }
+
+    if (!provider.isSelectedMetricSupported) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.sensors_off, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text(
+                'Датчик не подключён',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Устройство не сообщает параметр «${provider.getSensorName(provider.selectedSensorType)}».',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     if (provider.error != null && !provider.isComparing) {
