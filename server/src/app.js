@@ -323,6 +323,33 @@ function createServer(options = {}) {
     sendJson(res, 200, { ok: true });
   }
 
+  /**
+   * App-side rename: only the display name can be changed, so a user cannot
+   * rewrite a device's IP/port through the public app API. The custom name is
+   * preserved when the board re-registers after a reboot.
+   */
+  async function handleRename(req, res, id) {
+    if (!appOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
+    if (rateLimited(req, 'write:' + clientIp(req), 'write')) {
+      return sendJson(res, 429, { error: 'rate_limited' });
+    }
+
+    let body;
+    try {
+      body = await readBody(req);
+    } catch {
+      return sendJson(res, 400, { error: 'invalid_json' });
+    }
+    if (!body || typeof body.name !== 'string') {
+      return sendJson(res, 400, { error: 'invalid_name' });
+    }
+
+    const updated = registry.update(id, { name: body.name });
+    if (updated instanceof Error) return sendJson(res, 400, { error: 'invalid_name' });
+    if (!updated) return sendJson(res, 404, { error: 'not_found' });
+    sendJson(res, 200, { ok: true, device: updated });
+  }
+
   /* ---------- alerts handlers ---------- */
 
   async function handleAlertsList(req, res) {
@@ -1030,6 +1057,7 @@ function createServer(options = {}) {
         return;
       }
       if (req.method === 'GET') return handleGet(req, res, id);
+      if (req.method === 'PUT' || req.method === 'PATCH') return handleRename(req, res, id);
       if (req.method === 'DELETE') return handleRemove(req, res, id);
     }
 

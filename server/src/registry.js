@@ -89,10 +89,15 @@ class DeviceRegistry {
 
     const now = Date.now();
     const existing = this.devices.get(String(data.id));
+    const reportedName = String(data.name || data.id).slice(0, MAX_NAME_LEN);
+    const customName =
+      existing && typeof existing.customName === 'string' ? existing.customName : '';
 
     const device = {
       id: String(data.id).slice(0, MAX_ID_LEN),
-      name: String(data.name || data.id).slice(0, MAX_NAME_LEN),
+      name: customName || reportedName,
+      reportedName,
+      customName,
       type: String(data.type || 'esp32').slice(0, MAX_TYPE_LEN),
       ip: data.ip.slice(0, MAX_IP_LEN),
       port: Number(data.port) > 0 && Number(data.port) <= 65535 ? Number(data.port) : 0,
@@ -152,7 +157,8 @@ class DeviceRegistry {
     };
 
     if (patch.name !== undefined) {
-      next.name = String(patch.name).slice(0, MAX_NAME_LEN) || device.id;
+      next.customName = String(patch.name).trim().slice(0, MAX_NAME_LEN);
+      next.name = next.customName || next.reportedName || next.id;
     }
     if (patch.type !== undefined) {
       next.type = String(patch.type).slice(0, MAX_TYPE_LEN) || 'esp32';

@@ -132,11 +132,26 @@ test('update caps the sensor list at 64 entries', () => {
   assert.equal(upd.sensors[63], 'sensor-63');
 });
 
-test('empty name and type fall back to sensible defaults', () => {
+test('empty name falls back to the reported name, empty type to a default', () => {
   const r = seeded('fallback.json');
-  assert.equal(r.update('dev1', { name: '' }).name, 'dev1');
+  assert.equal(r.update('dev1', { name: '' }).name, 'old name');
   assert.equal(r.update('dev1', { type: '' }).type, 'esp32');
   assert.equal(r.update('dev1', { name: 42 }).name, '42');
+});
+
+test('custom name survives re-registration and can be cleared', () => {
+  const r = registry('custom-name.json');
+  r.register({ id: 'dev2', name: 'Main Controller', ip: '10.0.0.8', port: 80 });
+
+  const renamed = r.update('dev2', { name: 'Kitchen' });
+  assert.equal(renamed.name, 'Kitchen');
+  assert.equal(renamed.customName, 'Kitchen');
+
+  r.register({ id: 'dev2', name: 'Main Controller', ip: '10.0.0.8', port: 80 });
+  assert.equal(r.get('dev2').name, 'Kitchen', 're-register keeps the custom name');
+
+  const cleared = r.update('dev2', { name: '' });
+  assert.equal(cleared.name, 'Main Controller', 'empty custom name falls back to the reported name');
 });
 
 test('update marks the registry dirty and survives a reload', () => {

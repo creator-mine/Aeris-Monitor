@@ -163,6 +163,48 @@ test('list and get device require the app login', async () => {
   assert.equal(missing.status, 404);
 });
 
+test('rename device requires the app login and survives re-registration', async () => {
+  const registered = await req('POST', '/api/v1/devices/register', {
+    body: { id: 'rename_dev', name: 'Main Controller', ip: '10.0.0.31', port: 80 },
+    auth: DEVICE_AUTH,
+  });
+  assert.equal(registered.status, 200);
+
+  assert.equal(
+    (await req('PUT', '/api/v1/devices/rename_dev', { body: { name: 'Kitchen' } })).status,
+    401,
+  );
+  assert.equal(
+    (await req('PUT', '/api/v1/devices/rename_dev', {
+      body: { name: 'Kitchen' },
+      auth: DEVICE_AUTH,
+    })).status,
+    401,
+    'a device login must not rename devices',
+  );
+
+  const renamed = await req('PUT', '/api/v1/devices/rename_dev', {
+    body: { name: 'Kitchen' },
+    auth: APP_AUTH,
+  });
+  assert.equal(renamed.status, 200);
+  assert.equal(renamed.json.device.name, 'Kitchen');
+
+  await req('POST', '/api/v1/devices/register', {
+    body: { id: 'rename_dev', name: 'Main Controller', ip: '10.0.0.31', port: 80 },
+    auth: DEVICE_AUTH,
+  });
+  const listed = await req('GET', '/api/v1/devices/rename_dev', { auth: APP_AUTH });
+  assert.equal(listed.json.name, 'Kitchen');
+
+  const cleared = await req('PUT', '/api/v1/devices/rename_dev', {
+    body: { name: '' },
+    auth: APP_AUTH,
+  });
+  assert.equal(cleared.status, 200);
+  assert.equal(cleared.json.device.name, 'Main Controller');
+});
+
 test('heartbeat registered returns 200, unknown 404', async () => {
   const ok = await req('POST', '/api/v1/devices/heartbeat', {
     body: { id: 'api_dev1' },
