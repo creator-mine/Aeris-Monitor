@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show DateTimeRange;
+import 'package:dio/dio.dart';
 import '../../../core/api/direct_device_client.dart';
 import '../../../models/sensor_data.dart';
 import '../../../models/device.dart';
@@ -7,6 +8,7 @@ import '../../../core/config/app_config.dart';
 
 class ChartsProvider extends ChangeNotifier {
   DirectDeviceClient? _deviceClient;
+  Device? _selectedDevice;
 
   final Map<String, SensorDataSeries> _dataSeries = {};
   String? _selectedDeviceId;
@@ -41,8 +43,10 @@ class ChartsProvider extends ChangeNotifier {
 
   SensorDataSeries? get currentSeries => _dataSeries[_selectedSensorType];
 
-  void setSelectedDevice(String deviceId, {List<MetricInfo> metrics = const [], Device? device}) {
+  void setSelectedDevice(String deviceId,
+      {List<MetricInfo> metrics = const [], Device? device}) {
     _selectedDeviceId = deviceId;
+    _selectedDevice = device;
     _deviceMetrics = metrics;
     _dataSeries.clear();
     _loadSeq++; // invalidate any request still running for the old device
@@ -91,7 +95,24 @@ class ChartsProvider extends ChangeNotifier {
 
   Future<void> loadData() async {
     final client = _deviceClient;
-    if (_selectedDeviceId == null || _selectedSensorType.isEmpty || client == null) {
+    if (_selectedDeviceId == null || _selectedSensorType.isEmpty) {
+      return;
+    }
+
+    final selected = _selectedDevice;
+    if (selected != null && !selected.isOnline) {
+      _isLoading = false;
+      _error =
+          'Устройство «${selected.name}» офлайн. Включите его или выберите онлайн-устройство в списке.';
+      notifyListeners();
+      return;
+    }
+
+    if (client == null) {
+      _isLoading = false;
+      _error =
+          'У устройства нет IP-адреса. Подключите его к той же сети Wi-Fi и обновите список.';
+      notifyListeners();
       return;
     }
 
@@ -112,6 +133,17 @@ class ChartsProvider extends ChangeNotifier {
       // this one was in flight — discard the stale response.
       if (_disposed || seq != _loadSeq) return;
       _dataSeries[sensorType] = series;
+    } on DioException catch (e) {
+      if (_disposed || seq != _loadSeq) return;
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.receiveTimeout) {
+        final address = selected?.httpBaseUrl ?? 'устройству';
+        _error =
+            'Не удалось подключиться к $address. Проверьте, что устройство включено и находится в той же сети Wi-Fi.';
+      } else {
+        _error = e.message ?? e.toString();
+      }
     } catch (e) {
       if (_disposed || seq != _loadSeq) return;
       _error = e.toString();
@@ -145,9 +177,7 @@ class ChartsProvider extends ChangeNotifier {
     String sensorType, {
     required DateTimeRange range,
   }) async {
-    final candidates = devices
-        .where((d) => d.httpBaseUrl != null)
-        .toList();
+    final candidates = devices.where((d) => d.httpBaseUrl != null).toList();
     if (sensorType.isEmpty || candidates.isEmpty) return;
 
     _isLoadingComparison = true;

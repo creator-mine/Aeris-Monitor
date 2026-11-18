@@ -11,6 +11,27 @@ import '../../../models/device.dart';
 import '../../../models/sensor_data.dart';
 import '../../../core/parsers/sensor_frame_parser.dart';
 
+/// Picks the device the app should open by default. Keeps an explicit previous
+/// selection while it is still registered; otherwise prefers an online device
+/// so a stale offline entry (for example a powered-down C6) does not hijack
+/// the first request and turn into a connection timeout.
+@visibleForTesting
+Device? pickPreferredDevice(List<Device> devices, {String? previousId}) {
+  if (devices.isEmpty) return null;
+
+  if (previousId != null) {
+    for (final device in devices) {
+      if (device.id == previousId) return device;
+    }
+  }
+
+  for (final device in devices) {
+    if (device.isOnline) return device;
+  }
+
+  return devices.first;
+}
+
 class DashboardProvider extends ChangeNotifier {
   final SignalingApi _signalingApi;
   final DeviceWsClient _wsClient;
@@ -79,8 +100,7 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  List<Device> get onlineDevices =>
-      _devices.where((d) => d.isOnline).toList();
+  List<Device> get onlineDevices => _devices.where((d) => d.isOnline).toList();
 
   List<Device> get offlineDevices =>
       _devices.where((d) => !d.isOnline).toList();
@@ -96,19 +116,23 @@ class DashboardProvider extends ChangeNotifier {
       _devices = mergeLanDevices(registry, lan);
       if (_devices.isNotEmpty) _error = null;
       if (_disposed) return;
+
       final previousId = _selectedDevice?.id;
+      Device? matched;
       if (previousId != null) {
         // Keep the selection in sync with fresh status/firmware/IP without
         // tearing down the active connection.
         for (final device in _devices) {
           if (device.id == previousId) {
-            _selectedDevice = device;
+            matched = device;
             break;
           }
         }
       }
+      _selectedDevice = matched;
+
       if (_devices.isNotEmpty && _selectedDevice == null) {
-        await selectDevice(_devices.first);
+        await selectDevice(pickPreferredDevice(_devices)!);
       }
     } catch (e) {
       // Cloud registry is optional: discover the device on the local network.
@@ -178,7 +202,10 @@ class DashboardProvider extends ChangeNotifier {
         }
       }
       final baseUrl = target.httpBaseUrl;
-      if (baseUrl != null) {
+      // A registry entry can stay offline long after the board was powered
+      // down. Do not open a socket to it: the connection would only hang for
+      // the client timeout and surface as a generic network error.
+      if (baseUrl != null && target.isOnline) {
         _deviceClient = DirectDeviceClient(baseUrl: baseUrl);
         await _wsClient.connect(target);
         if (seq != _connectionSeq || _disposed) return;
