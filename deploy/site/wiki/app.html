@@ -207,6 +207,13 @@
 
       <p data-ru="История приходит из двух источников: из кольцевого буфера устройства для коротких отрезков и из CSV на SD-карте за более длинные периоды. Приложение выбирает источник по длине запроса." data-en="History comes from two sources: the device's ring buffer for short windows and the SD card CSV for longer periods. The app picks the source according to the length of the request.">История берётся из буфера устройства или с SD-карты.</p>
 
+      <div class="callout info">
+        <div class="co-ic">📈</div>
+        <div class="co-body">
+          <p data-ru-html="В прошивке <code>1.3.4</code> исправлен маршрут <code>/api/v1/sensors/history</code>: раньше он перехватывался обработчиком <code>/api/v1/sensors</code> и возвращал текущие показания вместо точек истории. Для графиков нужна SD-карта в FAT32 и прямая доступность платы по LAN." data-en-html="Firmware <code>1.3.4</code> fixes the <code>/api/v1/sensors/history</code> route: it used to be captured by <code>/api/v1/sensors</code> and returned current readings instead of history points. Charts need a FAT32 SD card and direct LAN access to the board.">В 1.3.4 исправлен маршрут истории для графиков.</p>
+        </div>
+      </div>
+
       <h2 id="avarii" data-ru="Аварии и пороги" data-en="Alerts &amp; thresholds">Аварии и пороги</h2>
 
       <p data-ru="Порог задаётся на пару «устройство + тип датчика» и на одно из трёх условий: выше значения, ниже значения или равно значению." data-en="A threshold is set on a device plus sensor-type pair and one of three conditions: above, below or equals.">Порог задаётся на пару «устройство + тип датчика».</p>
@@ -406,6 +413,6 @@
   </div>
 </footer>
 
-<script src="assets/wiki.js?v=20261118-1"></script>
+<script src="assets/wiki.js?v=20261118-2"></script>
 </body>
 </html>
