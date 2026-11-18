@@ -170,8 +170,15 @@ void SensorRegistry::scanBus(uint8_t muxAddress, uint8_t muxChannel) {
     }
 
     for (uint8_t addr = 1; addr < 127; addr++) {
-        // 0x70..0x77 is reserved for TCA9548A muxes, never for a sensor.
-        if (addr >= 0x70 && addr <= 0x77) continue;
+        // Do not probe a configured multiplexer as if it were a sensor: a
+        // zero-length write to a TCA9548A can change its channel register.
+        // Only the main bus can hold the mux, so channels are scanned in full.
+        // Never skip 0x70..0x77 as a range: BME680 and BMP280 use 0x76/0x77.
+        if (muxAddress == 0 &&
+            std::find(_muxAddresses.begin(), _muxAddresses.end(), addr) !=
+                _muxAddresses.end()) {
+            continue;
+        }
 
         Wire.beginTransmission(addr);
         if (Wire.endTransmission() != 0) continue;
