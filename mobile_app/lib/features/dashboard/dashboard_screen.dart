@@ -7,6 +7,7 @@ import 'widgets/sensor_tile.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/loading_indicator.dart';
 import '../../shared/widgets/error_widget.dart';
+import '../../shared/widgets/sd_card_status.dart';
 import '../../core/config/app_config.dart';
 import '../../core/config/connection_mode.dart';
 import '../../models/device.dart';
@@ -286,6 +287,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 16),
         _buildSensorsGrid(context, provider),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: SdCardStatusCard(info: provider.sdCard),
+          ),
+        ),
       ],
     );
   }

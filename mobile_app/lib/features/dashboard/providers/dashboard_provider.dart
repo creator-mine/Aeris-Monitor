@@ -9,6 +9,7 @@ import '../../../core/api/lan_devices.dart';
 import '../../../core/config/connection_mode.dart';
 import '../../../models/device.dart';
 import '../../../models/sensor_data.dart';
+import '../../../models/sd_card_info.dart';
 import '../../../core/parsers/sensor_frame_parser.dart';
 
 /// Picks the device the app should open by default. Keeps an explicit previous
@@ -51,6 +52,7 @@ class DashboardProvider extends ChangeNotifier {
 
   List<Device> _devices = [];
   Device? _selectedDevice;
+  SdCardInfo? _sdCard;
   final Map<String, SensorData> _latestSensorData = {};
   bool _isLoading = false;
   String? _error;
@@ -80,6 +82,7 @@ class DashboardProvider extends ChangeNotifier {
 
   List<Device> get devices => _devices;
   Device? get selectedDevice => _selectedDevice;
+  SdCardInfo? get sdCard => _sdCard;
   Map<String, SensorData> get latestSensorData => _latestSensorData;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -151,6 +154,7 @@ class DashboardProvider extends ChangeNotifier {
     final seq = ++_connectionSeq;
     _selectedDevice = device;
     _latestSensorData.clear();
+    _sdCard = null;
     _lastUpdate = null;
     _isConnected = false;
     _safeNotify();
@@ -178,6 +182,7 @@ class DashboardProvider extends ChangeNotifier {
 
     _mqtt?.unsubscribeFromDevice(device.id);
     _isConnected = false;
+    _sdCard = null;
 
     final wantsDirect = _mode != ConnectionMode.mqtt;
     if (wantsDirect) {
@@ -209,6 +214,7 @@ class DashboardProvider extends ChangeNotifier {
         _deviceClient = DirectDeviceClient(baseUrl: baseUrl);
         await _wsClient.connect(target);
         if (seq != _connectionSeq || _disposed) return;
+        unawaited(refreshSdInfo());
       }
     }
 
@@ -278,6 +284,9 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   void _handleStatusUpdate(Map<String, dynamic> status) {
+    if (_disposed) return;
+    final sd = SdCardInfo.tryFromStatus(status);
+    if (sd != null) _sdCard = sd;
     _safeNotify();
   }
 
@@ -336,6 +345,24 @@ class DashboardProvider extends ChangeNotifier {
 
   Future<void> refreshData() async {
     await loadDevices();
+    await refreshSdInfo();
+  }
+
+  /// Pulls the SD-card state straight from the device so the dashboard shows
+  /// capacity as soon as it connects (the WebSocket status frame also carries
+  /// the same block in firmware 1.3.6+).
+  Future<void> refreshSdInfo() async {
+    final client = _deviceClient;
+    if (client == null || _disposed) return;
+    final seq = _connectionSeq;
+    try {
+      final json = await client.getSdInfo();
+      if (_disposed || seq != _connectionSeq) return;
+      _sdCard = SdCardInfo.fromJson(json);
+      _safeNotify();
+    } catch (_) {
+      // Offline or older firmware: keep the last known value.
+    }
   }
 
   /// Renames the device in the registry and updates both the list and the

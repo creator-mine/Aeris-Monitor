@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/api/direct_device_client.dart';
 import '../../../models/device.dart';
+import '../../../models/sd_card_info.dart';
+import '../../../shared/widgets/sd_card_status.dart';
 import '../../logs/logs_screen.dart';
 import 'package:aeris/shared/widgets/tr_text.dart';
 import 'package:aeris/core/i18n/l10n.dart';
@@ -32,6 +34,7 @@ class _DiagnosticsSheet extends StatefulWidget {
 
 class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
   Map<String, dynamic>? _status;
+  SdCardInfo? _sdCard;
   List<Map<String, dynamic>> _modules = const [];
   bool _loading = true;
   String? _error;
@@ -51,6 +54,10 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
     });
     try {
       final status = await widget.client.getStatus();
+      SdCardInfo? sdCard;
+      try {
+        sdCard = SdCardInfo.fromJson(await widget.client.getSdInfo());
+      } catch (_) {}
       List<Map<String, dynamic>> modules = const [];
       try {
         final response = await widget.client.getModules();
@@ -59,6 +66,7 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
       if (!mounted) return;
       setState(() {
         _status = status;
+        _sdCard = sdCard;
         _modules = modules;
         _loading = false;
       });
@@ -177,6 +185,8 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
       controller: scrollController,
       children: [
         for (final (label, value) in rows) _infoRow(label, value),
+        const SizedBox(height: 16),
+        SdCardStatusCard(info: _sdCard),
         const SizedBox(height: 16),
         TrText(
           'Модули устройства',

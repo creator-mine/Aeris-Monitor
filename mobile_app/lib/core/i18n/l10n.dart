@@ -269,6 +269,20 @@ class L10n {
     "Нет данных для отображения": "No data to display",
     "Нет данных для сравнения": "No data to compare",
     "Нет данных для экспорта": "No data to export",
+    "Нет данных": "No data",
+    "Карта памяти": "Memory card",
+    "Работает": "Working",
+    "Ошибка": "Error",
+    "Нет карты": "No card",
+    "Файловая система не поддерживается. Отформатируйте карту в FAT32.":
+        "The filesystem is not supported. Format the card as FAT32.",
+    "Карта не вставлена. Вставьте microSD-карту (FAT32).":
+        "No card inserted. Insert a microSD card (FAT32).",
+    "Устройство не сообщает состояние карты.":
+        "The device does not report the card state.",
+    "Занято": "Used",
+    "Свободно": "Free",
+    "Всего": "Total",
     "Нет подключённых устройств": "No connected devices",
     "Нет правил": "No rules",
     "Нет сохранённых сборок": "No saved builds",
