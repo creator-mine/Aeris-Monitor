@@ -169,11 +169,41 @@
   "time_synced": true,
   "rssi": -58,
   "chip_temp": 42.3,
-  "firmware": "1.3.5",
-  "led": "online"
+  "firmware": "1.3.6",
+  "led": "online",
+  "sd": {
+    "status": "ok",
+    "mounted": true,
+    "card_detected": true,
+    "type": "SDHC",
+    "total_bytes": 62494670848,
+    "used_bytes": 5120000000,
+    "free_bytes": 57374670848,
+    "used_pct": 8
+  }
 }</code></pre>
 
       <p data-ru-html="Поле <code>led</code> появилось в прошивке 1.3.5 и показывает состояние встроенного светодиода: <code>boot</code>, <code>wifi_connecting</code>, <code>provisioning</code>, <code>mqtt_connecting</code>, <code>online</code>, <code>error</code> или <code>ota</code>." data-en-html="The <code>led</code> field was added in firmware 1.3.5 and reports the onboard LED state: <code>boot</code>, <code>wifi_connecting</code>, <code>provisioning</code>, <code>mqtt_connecting</code>, <code>online</code>, <code>error</code> or <code>ota</code>.">Поле led показывает состояние индикатора.</p>
+
+
+      <h3 data-ru="Карта памяти" data-en="SD card">Карта памяти</h3>
+
+      <pre><code>GET /api/v1/sd/info</code></pre>
+
+      <p data-ru-html="Прошивка 1.3.6 добавила поле <code>status</code>, свободное место и процент заполнения. <code>ok</code> — карта смонтирована, <code>mount_failed</code> — карта есть, но файловая система не поддерживается (например exFAT), <code>no_card</code> — карты нет." data-en-html="Firmware 1.3.6 adds a <code>status</code> field, free space and used percentage. <code>ok</code> means the card is mounted, <code>mount_failed</code> means a card is present but the filesystem is unsupported (for example exFAT), and <code>no_card</code> means there is no card.">Статус, свободное место и процент заполнения.</p>
+
+      <pre><code>{
+  "status": "ok",
+  "mounted": true,
+  "card_detected": true,
+  "type": "SDHC",
+  "total_bytes": 62494670848,
+  "used_bytes": 5120000000,
+  "free_bytes": 57374670848,
+  "used_pct": 8
+}</code></pre>
+
+      <p data-ru-html="Тот же блок вложен в <code>/api/v1/status</code> и в кадры WebSocket как <code>sd</code>, поэтому приложение обновляет индикатор заполнения вместе с остальным состоянием." data-en-html="The same block is embedded in <code>/api/v1/status</code> and in WebSocket frames as <code>sd</code>, so the app refreshes the usage indicator together with the rest of the state.">Тот же блок есть в <code>/status</code>.</p>
 
       <h3 data-ru="Всё сразу" data-en="Everything at once">Всё сразу</h3>
 
@@ -183,7 +213,7 @@
 
       <pre><code>{
   "ok": true,
-  "status": { "device_id": "esp32c6_001", "firmware": "1.3.5", "ip": "192.168.1.50" },
+  "status": { "device_id": "esp32c6_001", "firmware": "1.3.6", "ip": "192.168.1.50" },
   "sensors": { "timestamp": 128374, "modules": { "BME680_0x76": { "temperature": 21.4 } } },
   "modules": [ { "id": "BME680_0x76", "driver": "BME680" } ]
 }</code></pre>
@@ -194,7 +224,7 @@
 
       <pre><code>$ echo -n AERIS_DISCOVER_V1 | nc -u -b 192.168.1.255 8266
 {"id":"esp32c6_001","name":"Main Controller C6","type":"esp32c6",
- "fw":"1.3.5","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
+ "fw":"1.3.6","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
 
       <p data-ru="Приложение 1.2.3 и новее делает это автоматически: при недоступном облачном реестре находит устройство по broadcast и подключается прямо к http://<ip>/api/v1." data-en="App 1.2.3 and newer does this automatically: when the cloud registry is unreachable it finds the device by broadcast and connects straight to http://&lt;ip&gt;/api/v1.">Приложение находит устройство само.</p>
 
@@ -731,7 +761,7 @@ Content-Type: application/json
       <pre><code>GET /fw/version-esp32-c6.json
 
 {
-  "version": "1.3.5",
+  "version": "1.3.6",
   "device_type": "esp32-c6",
   "build_date": "2026-11-17T18:54:12Z",
   "sha256": "457d937a…b8845b",
@@ -785,6 +815,6 @@ Content-Type: application/json
   </div>
 </footer>
 
-<script src="assets/wiki.js?v=20261118-9"></script>
+<script src="assets/wiki.js?v=20261119-1"></script>
 </body>
 </html>

@@ -517,7 +517,7 @@ GET  /api/v1/sensors/history    → { points: [{ timestamp, values }] }
        &type=<sensor_type>
        &limit=<max_points>
 GET  /api/v1/modules            → [{ moduleId, status, lastSeen }]
-GET  /api/v1/sd/info            → { mounted, totalBytes, usedBytes, files[] }
+GET  /api/v1/sd/info            → { status, mounted, card_detected, type, total_bytes, used_bytes, free_bytes, used_pct }
 POST /api/v1/command            → { command: "restart" | "read_sensor" }
 ```
 
