@@ -231,6 +231,13 @@
         <li data-ru="Датчик подогревается во время измерения. Не ставьте его вплотную над платой и не укрывайте теплоизоляцией: температура и влажность будут завышены." data-en="The sensor heats up while measuring. Do not mount it directly above the board and do not wrap it in insulation: temperature and humidity will read high.">Датчик греется — не ставьте над платой.</li>
       </ul>
 
+      <div class="callout warn">
+        <div class="co-ic">⚠️</div>
+        <div class="co-body">
+          <p data-ru-html="В прошивке <code>1.3.2</code> реестр ошибочно пропускал весь диапазон <code>0x70–0x77</code>, поэтому BME680 и BMP280 не находились даже при правильной распиновке. Это исправлено в <code>1.3.3</code>: если датчик не появляется в <code>/api/v1/modules</code>, сначала обновите прошивку." data-en-html="Firmware <code>1.3.2</code> mistakenly skipped the whole <code>0x70–0x77</code> range, so a BME680 or BMP280 was not detected even with correct wiring. This is fixed in <code>1.3.3</code>: if the sensor does not appear in <code>/api/v1/modules</code>, update the firmware first.">В 1.3.2 адреса 0x76/0x77 не сканировались; исправлено в 1.3.3.</p>
+        </div>
+      </div>
+
       <h3 id="bmp280" data-ru="BMP280 — температура и давление" data-en="BMP280 — temperature and pressure">BMP280 — температура и давление</h3>
 
       <div class="table-wrap">
