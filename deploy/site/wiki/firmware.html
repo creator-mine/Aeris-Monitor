@@ -255,7 +255,7 @@ pio run -e esp32-c6 -t upload</code></pre>
 
       <pre><code>$ echo -n AERIS_DISCOVER_V1 | nc -u -b 192.168.1.255 8266
 {"id":"esp32c6_001","name":"Main Controller C6","type":"esp32c6",
- "fw":"1.3.2","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
+ "fw":"1.3.3","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
 
       <p data-ru-html="Для опроса найденного устройства одним запросом служит <code>GET /api/v1/data</code>: он отдаёт состояние, текущие показания и список модулей сразу. Это удобнее трёх отдельных запросов и меньше нагружает плату." data-en-html="To poll a discovered device in one request use <code>GET /api/v1/data</code>: it returns the status, current readings and module list at once. That is handier than three separate requests and puts less load on the board.">Один запрос вместо трёх — /api/v1/data.</p>
 
@@ -501,6 +501,6 @@ for (каждый байт заголовка и полезной нагрузк
   </div>
 </footer>
 
-<script src="assets/wiki.js"></script>
+<script src="assets/wiki.js?v=20261118-1"></script>
 </body>
 </html>
