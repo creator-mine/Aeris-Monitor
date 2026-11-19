@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 import 'package:aeris/core/utils/firmware_file.dart';
 import 'package:aeris/core/utils/firmware_link.dart';
 
@@ -6,7 +6,7 @@ void main() {
   group('FirmwareLink.parse', () {
     test('accepts a raw GitHub file', () {
       final link = FirmwareLink.parse(
-        'https://raw.githubusercontent.com/Spe4naz/Aeris-firmware/main/fw/main_esp32-c6.bin',
+        'https://raw.githubusercontent.com/creator-mine/Aeris-firmware/main/fw/main_esp32-c6.bin',
       );
       expect(link, isNotNull);
       expect(link!.isGithubRelease, isFalse);
@@ -15,19 +15,19 @@ void main() {
 
     test('converts a GitHub blob page to raw', () {
       final link = FirmwareLink.parse(
-        'https://github.com/Spe4naz/Aeris-firmware/blob/main/fw/main_esp32-c6.bin',
+        'https://github.com/creator-mine/Aeris-firmware/blob/main/fw/main_esp32-c6.bin',
       );
       expect(link, isNotNull);
       expect(link!.directUri?.host, 'raw.githubusercontent.com');
       expect(
         link.directUri?.path,
-        '/Spe4naz/Aeris-firmware/main/fw/main_esp32-c6.bin',
+        '/creator-mine/Aeris-firmware/main/fw/main_esp32-c6.bin',
       );
     });
 
     test('accepts a release asset download URL', () {
       final link = FirmwareLink.parse(
-        'https://github.com/Spe4naz/Aeris-firmware/releases/download/v1.2.2/iot-modular-esp32c3-v1.2.2.bin',
+        'https://github.com/creator-mine/Aeris-firmware/releases/download/v1.2.2/iot-modular-esp32c3-v1.2.2.bin',
       );
       expect(link, isNotNull);
       expect(link!.isGithubRelease, isFalse);
@@ -36,7 +36,7 @@ void main() {
 
     test('accepts the latest release download shortcut', () {
       final link = FirmwareLink.parse(
-        'https://github.com/Spe4naz/Aeris-firmware/releases/latest/download/main_esp32-c6.bin',
+        'https://github.com/creator-mine/Aeris-firmware/releases/latest/download/main_esp32-c6.bin',
       );
       expect(link, isNotNull);
       expect(link!.isGithubRelease, isFalse);
@@ -45,22 +45,22 @@ void main() {
 
     test('accepts a latest release and repository root', () {
       final latest = FirmwareLink.parse(
-        'https://github.com/Spe4naz/Aeris-firmware/releases/latest',
+        'https://github.com/creator-mine/Aeris-firmware/releases/latest',
       );
       expect(latest, isNotNull);
       expect(latest!.isGithubRelease, isTrue);
-      expect(latest.owner, 'Spe4naz');
+      expect(latest.owner, 'creator-mine');
       expect(latest.repo, 'Aeris-firmware');
       expect(latest.tag, isNull);
 
-      final repo = FirmwareLink.parse('github.com/Spe4naz/Aeris-firmware');
+      final repo = FirmwareLink.parse('github.com/creator-mine/Aeris-firmware');
       expect(repo, isNotNull);
       expect(repo!.isGithubRelease, isTrue);
     });
 
     test('accepts a specific release tag', () {
       final link = FirmwareLink.parse(
-        'https://github.com/Spe4naz/Aeris-firmware/releases/tag/v1.3.2',
+        'https://github.com/creator-mine/Aeris-firmware/releases/tag/v1.3.2',
       );
       expect(link, isNotNull);
       expect(link!.isGithubRelease, isTrue);

@@ -189,6 +189,12 @@ cp .env.example .env   # заполнить NGINX_DOMAIN, PANEL_PASSWORD, MQTT_*
 docker compose up -d --build
 ```
 
+## Репозитории и релизы
+
+- Исходники: <https://github.com/creator-mine/Aeris-Monitor>
+- Приложение (Windows/Android): <https://github.com/creator-mine/Aeris-App/releases>
+- Прошивки (ESP32-C3/C6/S3): <https://github.com/creator-mine/Aeris-firmware/releases>
+
 ## Текущий статус и планы
 
 - [x] Главный контроллер ESP32-C3: WiFi, MQTT, UART, SD, локальные датчики
