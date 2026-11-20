@@ -12,6 +12,10 @@ import '../../core/config/app_config.dart';
 import '../../core/config/connection_mode.dart';
 import '../../models/device.dart';
 import '../devices/widgets/rename_device_dialog.dart';
+import '../wifi/wifi_screen.dart';
+import '../../core/api/direct_device_client.dart';
+import '../../core/api/api_client.dart';
+import '../../core/api/wifi_transport.dart';
 import '../settings/providers/settings_provider.dart';
 import 'package:aeris/shared/widgets/tr_text.dart';
 import 'package:aeris/core/i18n/l10n.dart';
@@ -248,8 +252,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             OutlinedButton.icon(
               onPressed: () async {
+                final device = provider.selectedDevice;
+                final baseUrl = device?.httpBaseUrl;
+                if (device != null && device.isOnline && baseUrl != null) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => WifiScreen(
+                        transport: HttpWifiTransport(
+                          DirectDeviceClient(baseUrl: baseUrl),
+                        ),
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
+                if (device != null) {
+                  final choice = await showModalBottomSheet<String>(
+                    context: context,
+                    showDragHandle: true,
+                    builder: (context) => SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.cloud_outlined),
+                            title: const Text('Через сервер'),
+                            subtitle: const Text(
+                                'Переключение на сохранённую сеть с подтверждением'),
+                            onTap: () => Navigator.pop(context, 'remote'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.wifi),
+                            title: const Text('Точка настройки'),
+                            subtitle: const Text(
+                                'Aeris-Setup-XXXX на 5 минут'),
+                            onTap: () => Navigator.pop(context, 'ap'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                  if (!context.mounted) return;
+                  if (choice == 'remote') {
+                    final api = context.read<ApiClient>();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => WifiScreen(
+                          title: 'Wi-Fi (удалённо)',
+                          transport: ServerWifiTransport(api, device.id),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                }
+
                 final sent = provider.sendCommand('wifi_reconfigure');
-                if (!mounted) return;
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: TrText(

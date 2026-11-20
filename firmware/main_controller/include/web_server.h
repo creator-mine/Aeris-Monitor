@@ -35,6 +35,8 @@ private:
     static void handleData(AsyncWebServerRequest* request);
     static void handleModules(AsyncWebServerRequest* request);
     static void handleSdInfo(AsyncWebServerRequest* request);
+    static void handleWifi(AsyncWebServerRequest* request);
+    static void handleWifiScan(AsyncWebServerRequest* request);
     static void handleHistory(AsyncWebServerRequest* request);
     static void handleLogs(AsyncWebServerRequest* request);
     static void handleCommand(AsyncWebServerRequest* request);

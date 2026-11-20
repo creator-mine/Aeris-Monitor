@@ -96,6 +96,25 @@ class SerialService {
     _send('wifi_set:$ssid:$password');
   }
 
+  void sendCommand(String command) => _send(command);
+
+  void requestWifiList() => _send('wifi_list');
+  void requestWifiScan() => _send('wifi_scan');
+
+  void addWifi(String ssid, String password, int priority) {
+    final s = base64Encode(utf8.encode(ssid));
+    final p = base64Encode(utf8.encode(password));
+    _send('wifi_add_b64:$s:$p:$priority');
+  }
+
+  void removeWifi(int id) => _send('wifi_remove:$id');
+  void connectWifi(int id) => _send('wifi_connect:$id');
+  void setWifiPriority(int id, int priority) =>
+      _send('wifi_priority:$id:$priority');
+  void enableWifi(int id, bool enabled) =>
+      _send('wifi_enable:$id:${enabled ? 1 : 0}');
+  void wifiAuto() => _send('wifi_auto');
+
   void clearWifi() => _send('wifi_clear');
   void restart() => _send('restart');
 

@@ -78,7 +78,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
      password; they are stored on the device (NVS), not compiled into the firmware.</p>
   <form id="f">
     <label for="ssid" data-en="Wi-Fi SSID" data-ru="Имя Wi-Fi сети (SSID)">Wi-Fi SSID</label>
-    <input id="ssid" name="ssid" autocomplete="off" required>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="ssid" name="ssid" autocomplete="off" required style="flex:1">
+      <button type="button" id="scan-btn" style="width:auto;margin:0;padding:10px 12px">Scan</button>
+    </div>
+    <div id="scan-list" style="margin-top:8px"></div>
     <label for="password" data-en="Password" data-ru="Пароль">Password</label>
     <input id="password" name="password" type="password" autocomplete="off">
     <label for="mqtt_user" data-en="MQTT user (optional)" data-ru="Пользователь MQTT (необязательно)">MQTT user (optional)</label>
@@ -130,6 +134,37 @@ function applyLang(l) {
   document.getElementById('lang-ru').classList.toggle('active', l === 'ru');
   document.getElementById('lang-en').classList.toggle('active', l === 'en');
   renderStatus();
+}
+
+const scanBtn = document.getElementById('scan-btn');
+if (scanBtn) {
+  scanBtn.addEventListener('click', async () => {
+    const list = document.getElementById('scan-list');
+    list.innerHTML = '';
+    scanBtn.disabled = true;
+    scanBtn.textContent = '...';
+    try {
+      const r = await fetch('/wifi/scan');
+      const j = await r.json();
+      (j.networks || []).forEach((n) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = n.ssid + '  ' + n.rssi + ' dBm';
+        b.style.cssText = 'width:100%;margin:4px 0;padding:8px;text-align:left;' +
+          'background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:6px';
+        b.onclick = () => {
+          document.getElementById('ssid').value = n.ssid;
+          list.innerHTML = '';
+        };
+        list.appendChild(b);
+      });
+      if (!(j.networks || []).length) list.textContent = 'No networks';
+    } catch (err) {
+      list.textContent = 'Scan failed';
+    }
+    scanBtn.disabled = false;
+    scanBtn.textContent = 'Scan';
+  });
 }
 
 document.getElementById('f').addEventListener('submit', async (e) => {
@@ -253,6 +288,24 @@ bool startAndWait() {
 
     server = new AsyncWebServer(HTTP_PORT);
     server->on("/", HTTP_GET, handleRoot);
+    server->on("/wifi/scan", HTTP_GET, [](AsyncWebServerRequest* r) {
+        int16_t found = WiFi.scanNetworks(false, true);
+        JsonDocument doc;
+        JsonArray networks = doc["networks"].to<JsonArray>();
+        for (int i = 0; i < found && i < 32; i++) {
+            String ssid = WiFi.SSID(i);
+            if (ssid.isEmpty()) continue;
+            JsonObject n = networks.add<JsonObject>();
+            n["ssid"] = ssid;
+            n["rssi"] = WiFi.RSSI(i);
+            n["secure"] = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+        }
+        WiFi.scanDelete();
+        String out;
+        serializeJson(doc, out);
+        r->send(200, "application/json", out);
+    });
+
     server->on("/wifi/save", HTTP_POST,
         [](AsyncWebServerRequest* r) {
             // nothing to do; body is captured in the body callback

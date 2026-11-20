@@ -1,6 +1,7 @@
 'use strict';
 
 const http = require('http');
+const crypto = require('crypto');
 const { DeviceRegistry } = require('./registry');
 const { AlertStore } = require('./alerts');
 const { RuleStore } = require('./rules');
@@ -853,6 +854,145 @@ function createServer(options = {}) {
     return true;
   }
 
+  /* ---------- remote Wi-Fi switch (two-phase, opt-in) ---------- */
+
+  const wifiRequests = new Map();
+
+  function wifiKey(deviceId, requestId) {
+    return String(deviceId) + '|' + String(requestId);
+  }
+
+  function cleanupWifiRequests() {
+    const now = Date.now();
+    for (const [key, value] of wifiRequests) {
+      if (value.expiresAt && value.expiresAt < now &&
+          (value.status === 'prepared' || value.status === 'committing')) {
+        value.status = 'expired';
+      }
+      if (value.updatedAt && value.updatedAt < now - 30 * 60 * 1000) {
+        wifiRequests.delete(key);
+      }
+    }
+  }
+
+  async function handleWifiPrepare(req, res, deviceId) {
+    if (!adminOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
+    let body;
+    try {
+      body = await readBody(req);
+    } catch {
+      return sendJson(res, 400, { error: 'invalid_json' });
+    }
+    const networkId = Number(body.network_id ?? body.id);
+    if (!Number.isInteger(networkId) || networkId <= 0 || networkId > 255) {
+      return sendJson(res, 400, { error: 'bad_network_id' });
+    }
+    const requestId = String(body.request_id || crypto.randomUUID());
+    const payload = JSON.stringify({
+      type: 'command',
+      command: 'wifi_prepare',
+      request_id: requestId,
+      id: networkId,
+    });
+    if (!publishCommand(deviceId, payload)) {
+      return sendJson(res, 503, { error: 'mqtt_off' });
+    }
+    cleanupWifiRequests();
+    wifiRequests.set(wifiKey(deviceId, requestId), {
+      deviceId: String(deviceId),
+      requestId,
+      networkId,
+      status: 'prepared',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      expiresAt: Date.now() + 120000,
+    });
+    return sendJson(res, 200, {
+      ok: true,
+      deviceId: String(deviceId),
+      request_id: requestId,
+      status: 'prepared',
+      expires_in: 120,
+    });
+  }
+
+  async function handleWifiCommit(req, res, deviceId) {
+    if (!adminOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
+    let body;
+    try {
+      body = await readBody(req);
+    } catch {
+      return sendJson(res, 400, { error: 'invalid_json' });
+    }
+    const requestId = String(body.request_id || '');
+    if (!requestId) return sendJson(res, 400, { error: 'missing_request_id' });
+    cleanupWifiRequests();
+    const pending = wifiRequests.get(wifiKey(deviceId, requestId));
+    if (!pending) return sendJson(res, 404, { error: 'not_found' });
+    if (pending.status === 'expired') {
+      return sendJson(res, 410, { error: 'expired' });
+    }
+    if (pending.status !== 'prepared') {
+      return sendJson(res, 409, { error: 'bad_state', status: pending.status });
+    }
+    const payload = JSON.stringify({
+      type: 'command',
+      command: 'wifi_commit',
+      request_id: requestId,
+    });
+    if (!publishCommand(deviceId, payload)) {
+      return sendJson(res, 503, { error: 'mqtt_off' });
+    }
+    pending.status = 'committing';
+    pending.updatedAt = Date.now();
+    pending.expiresAt = Date.now() + 90000;
+    return sendJson(res, 200, { ok: true, request_id: requestId, status: 'committing' });
+  }
+
+  function handleWifiResult(req, res, deviceId) {
+    if (!adminOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
+    cleanupWifiRequests();
+    let requestId = null;
+    try {
+      requestId = new URL(req.url, 'http://localhost').searchParams.get('request_id');
+    } catch {
+      requestId = null;
+    }
+    if (requestId) {
+      const item = wifiRequests.get(wifiKey(deviceId, requestId));
+      if (!item) return sendJson(res, 404, { error: 'not_found' });
+      return sendJson(res, 200, item);
+    }
+    const items = [];
+    for (const item of wifiRequests.values()) {
+      if (item.deviceId === String(deviceId)) items.push(item);
+    }
+    return sendJson(res, 200, { requests: items });
+  }
+
+  const wifiListWaiters = new Map();
+
+  function handleWifiList(req, res, deviceId) {
+    if (!adminOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
+    const requestId = crypto.randomUUID();
+    const payload = JSON.stringify({
+      type: 'command',
+      command: 'wifi_list',
+      request_id: requestId,
+    });
+    if (!publishCommand(deviceId, payload)) {
+      return sendJson(res, 503, { error: 'mqtt_off' });
+    }
+    const key = wifiKey(deviceId, requestId);
+    const timer = setTimeout(() => {
+      if (wifiListWaiters.has(key)) {
+        wifiListWaiters.delete(key);
+        sendJson(res, 504, { error: 'device_timeout' });
+      }
+    }, 8000);
+    wifiListWaiters.set(key, { res, timer, requestId });
+  }
+
   async function handleDeviceCommand(req, res, deviceId) {
     const id = String(deviceId);
     if (id === '.' || id === '..' || !/^[A-Za-z0-9_.:-]{1,64}$/.test(id)) {
@@ -885,6 +1025,27 @@ function createServer(options = {}) {
     options.mqtt.on('status', (s) => {
       rulesEngine.onStatus(s);
       broadcastSSE('status', s);
+    });
+    options.mqtt.on('wifi_result', (r) => {
+      if (r.requestId && r.status === 'list') {
+        const waiter = wifiListWaiters.get(wifiKey(r.deviceId, r.requestId));
+        if (waiter) {
+          clearTimeout(waiter.timer);
+          wifiListWaiters.delete(wifiKey(r.deviceId, r.requestId));
+          sendJson(waiter.res, 200, r.data || {});
+        }
+      }
+      if (r.requestId) {
+        const item = wifiRequests.get(wifiKey(r.deviceId, r.requestId));
+        if (item) {
+          item.status = r.status === 'ok' ? 'ok' : (r.status || 'error');
+          item.error = r.error || null;
+          item.ssid = r.ssid || null;
+          item.updatedAt = Date.now();
+          item.expiresAt = Date.now() + 30 * 60 * 1000;
+        }
+      }
+      broadcastSSE('wifi', r);
     });
   }
 
@@ -1030,6 +1191,55 @@ function createServer(options = {}) {
       }
       if (req.method === 'PUT') return handleRuleUpdate(req, res, id);
       if (req.method === 'DELETE') return handleRuleDelete(req, res, id);
+    }
+
+    // /api/v1/devices/:id/wifi/list | prepare | commit | result
+    const wifiListMatch = path.match(new RegExp('^' + API + '/devices/([^/]+)/wifi/list$'));
+    if (wifiListMatch) {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method_not_allowed' });
+      let id;
+      try {
+        id = decodeURIComponent(wifiListMatch[1]);
+      } catch {
+        return sendJson(res, 400, { error: 'bad_device_id' });
+      }
+      return handleWifiList(req, res, id);
+    }
+
+    const wifiPrepareMatch = path.match(new RegExp('^' + API + '/devices/([^/]+)/wifi/prepare$'));
+    if (wifiPrepareMatch) {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method_not_allowed' });
+      let id;
+      try {
+        id = decodeURIComponent(wifiPrepareMatch[1]);
+      } catch {
+        return sendJson(res, 400, { error: 'bad_device_id' });
+      }
+      return handleWifiPrepare(req, res, id);
+    }
+
+    const wifiCommitMatch = path.match(new RegExp('^' + API + '/devices/([^/]+)/wifi/commit$'));
+    if (wifiCommitMatch) {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method_not_allowed' });
+      let id;
+      try {
+        id = decodeURIComponent(wifiCommitMatch[1]);
+      } catch {
+        return sendJson(res, 400, { error: 'bad_device_id' });
+      }
+      return handleWifiCommit(req, res, id);
+    }
+
+    const wifiResultMatch = path.match(new RegExp('^' + API + '/devices/([^/]+)/wifi/result$'));
+    if (wifiResultMatch) {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method_not_allowed' });
+      let id;
+      try {
+        id = decodeURIComponent(wifiResultMatch[1]);
+      } catch {
+        return sendJson(res, 400, { error: 'bad_device_id' });
+      }
+      return handleWifiResult(req, res, id);
     }
 
     // /api/v1/devices/:id/command

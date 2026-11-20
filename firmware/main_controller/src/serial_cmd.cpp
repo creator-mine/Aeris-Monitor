@@ -2,6 +2,8 @@
 #include "config.h"
 #include "ring_logger.h"
 #include "wifi_config.h"
+#include "wifi_profiles.h"
+#include "wifi_manager.h"
 #include "mqtt_config.h"
 #include "device_secrets.h"
 #include "ota_updater.h"
@@ -137,6 +139,123 @@ static void cmdWifiClear() {
     ESP.restart();
 }
 
+static int b64value(char c) {
+    if (c >= 'A' && c <= 'Z') return c - 'A';
+    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+    if (c >= '0' && c <= '9') return c - '0' + 52;
+    if (c == '+') return 62;
+    if (c == '/') return 63;
+    return -1;
+}
+
+static String b64decode(const String& text) {
+    String out;
+    int value = 0;
+    int bits = -8;
+    for (size_t i = 0; i < text.length(); i++) {
+        char c = text[i];
+        if (c == '=') break;
+        int digit = b64value(c);
+        if (digit < 0) continue;
+        value = (value << 6) + digit;
+        bits += 6;
+        if (bits >= 0) {
+            out += (char)((value >> bits) & 0xFF);
+            bits -= 8;
+        }
+    }
+    return out;
+}
+
+static void cmdWifiList() {
+    String json = "{\"type\":\"wifi_list\",\"data\":";
+    json += WifiManager::statusJson();
+    json += "}";
+    respond(json.c_str());
+}
+
+static void cmdWifiScan() {
+    WifiManager::scanNow();
+    String json = "{\"type\":\"wifi_scan\",\"data\":";
+    json += WifiManager::scanJson();
+    json += "}";
+    respond(json.c_str());
+}
+
+static void cmdWifiAddB64(const char* args) {
+    // CMD:wifi_add_b64:<base64(ssid)>:<base64(password)>[:priority]
+    String rest(args);
+    int first = rest.indexOf(':');
+    if (first < 0) {
+        respond("{\"type\":\"error\",\"error\":\"bad_request\"}");
+        return;
+    }
+    String ssid = b64decode(rest.substring(0, first));
+    String tail = rest.substring(first + 1);
+    int second = tail.indexOf(':');
+    String password = second < 0 ? b64decode(tail) : b64decode(tail.substring(0, second));
+    int priority = second < 0 ? 0 : tail.substring(second + 1).toInt();
+
+    uint8_t id = 0;
+    String error;
+    if (!WifiProfiles::add(ssid, password, priority, &id, &error)) {
+        respond((String("{\"type\":\"error\",\"error\":\"") + error + "\"}").c_str());
+        return;
+    }
+    WifiProfiles::setManual(id);
+    String json = "{\"type\":\"ack\",\"command\":\"wifi_add\",\"id\":" +
+                  String((unsigned)id) + "}";
+    respond(json.c_str());
+}
+
+static void cmdWifiRemove(const char* args) {
+    uint8_t id = (uint8_t)atoi(args);
+    if (!WifiProfiles::remove(id)) {
+        respond("{\"type\":\"error\",\"error\":\"not_found\"}");
+        return;
+    }
+    respond("{\"type\":\"ack\",\"command\":\"wifi_remove\"}");
+}
+
+static void cmdWifiEnable(const char* args) {
+    // CMD:wifi_enable:<id>:<0|1>
+    uint8_t id = (uint8_t)atoi(args);
+    const char* colon = strchr(args, ':');
+    int enabled = colon ? atoi(colon + 1) : 1;
+    if (!WifiProfiles::update(id, "", -1, enabled)) {
+        respond("{\"type\":\"error\",\"error\":\"not_found\"}");
+        return;
+    }
+    respond("{\"type\":\"ack\",\"command\":\"wifi_enable\"}");
+}
+
+static void cmdWifiPriority(const char* args) {
+    // CMD:wifi_priority:<id>:<priority>
+    uint8_t id = (uint8_t)atoi(args);
+    const char* colon = strchr(args, ':');
+    int priority = colon ? atoi(colon + 1) : -1;
+    if (!WifiProfiles::update(id, "", priority, -1)) {
+        respond("{\"type\":\"error\",\"error\":\"not_found\"}");
+        return;
+    }
+    respond("{\"type\":\"ack\",\"command\":\"wifi_priority\"}");
+}
+
+static void cmdWifiConnect(const char* args) {
+    uint8_t id = (uint8_t)atoi(args);
+    String error;
+    if (!WifiManager::connectTo(id, &error)) {
+        respond((String("{\"type\":\"error\",\"error\":\"") + error + "\"}").c_str());
+        return;
+    }
+    respond("{\"type\":\"ack\",\"command\":\"wifi_connect\"}");
+}
+
+static void cmdWifiAuto() {
+    WifiManager::setAuto();
+    respond("{\"type\":\"ack\",\"command\":\"wifi_auto\"}");
+}
+
 static void cmdMqttEnable(bool on) {
     MqttConfig::setEnabled(on);
     LOG_INFO("MQTT", "%s by serial command", on ? "enabled" : "disabled");
@@ -220,6 +339,14 @@ static void processCmd(const char* line) {
     else if (strncmp(p, "modules", 7) == 0) { cmdModules(); }
     else if (strncmp(p, "info", 4) == 0) { cmdInfo(); }
     else if (strncmp(p, "led", 3) == 0) { cmdLed(); }
+    else if (strncmp(p, "wifi_list", 9) == 0) { cmdWifiList(); }
+    else if (strncmp(p, "wifi_scan", 9) == 0) { cmdWifiScan(); }
+    else if (strncmp(p, "wifi_add_b64:", 13) == 0) { cmdWifiAddB64(p + 13); }
+    else if (strncmp(p, "wifi_remove:", 12) == 0) { cmdWifiRemove(p + 12); }
+    else if (strncmp(p, "wifi_priority:", 14) == 0) { cmdWifiPriority(p + 14); }
+    else if (strncmp(p, "wifi_enable:", 12) == 0) { cmdWifiEnable(p + 12); }
+    else if (strncmp(p, "wifi_connect:", 13) == 0) { cmdWifiConnect(p + 13); }
+    else if (strncmp(p, "wifi_auto", 9) == 0) { cmdWifiAuto(); }
     else if (strncmp(p, "wifi_set:", 9) == 0) {
         // CMD:wifi_set:ssid:password
         const char* ssid = p + 9;

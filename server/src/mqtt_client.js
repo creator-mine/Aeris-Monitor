@@ -38,6 +38,7 @@ const FLAG_USERNAME = 0x80;
 const FLAG_PASSWORD = 0x40;
 
 const METRIC_RE = /^([^/]+)\/([^/]+)\/sensors\/([^/]+)$/;
+const WIFI_RESULT_RE = /^iot\/([^/]+)\/wifi\/result$/;
 const STATUS_RE = /^([^/]+)\/([^/]+)\/status$/;
 
 const DEFAULT_RECONNECT_MIN_MS = 1000;
@@ -327,6 +328,20 @@ class MqttClient extends EventEmitter {
           payload,
         });
       }
+      return;
+    }
+
+    const wifi = topic.value.match(WIFI_RESULT_RE);
+    if (wifi) {
+      this.emit('wifi_result', {
+        deviceId: wifi[1],
+        requestId: parsed && parsed.request_id ? String(parsed.request_id) : null,
+        status: parsed && parsed.status ? String(parsed.status) : 'unknown',
+        error: parsed && parsed.error ? String(parsed.error) : null,
+        ssid: parsed && parsed.ssid ? String(parsed.ssid) : null,
+        data: parsed && parsed.data && typeof parsed.data === 'object' ? parsed.data : null,
+        topic: topic.value,
+      });
       return;
     }
 

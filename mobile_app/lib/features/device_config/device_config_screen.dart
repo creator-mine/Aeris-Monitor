@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/device_config_provider.dart';
 import '../../core/config/log_mode.dart';
+import '../../core/api/wifi_transport.dart';
+import '../wifi/wifi_screen.dart';
 import '../../core/utils/log_translator.dart';
 import '../../core/utils/version.dart';
 import '../../shared/widgets/app_scaffold.dart';
@@ -501,6 +503,27 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: !provider.isConnected
+                      ? null
+                      : () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => WifiScreen(
+                                title: 'Wi-Fi (USB)',
+                                transport:
+                                    SerialWifiTransport(provider.serial),
+                              ),
+                            ),
+                          );
+                        },
+                  icon: const Icon(Icons.wifi_find, size: 18),
+                  label: const TrText('Список сетей и сканирование'),
+                ),
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: _ssidController,
                 decoration: InputDecoration(

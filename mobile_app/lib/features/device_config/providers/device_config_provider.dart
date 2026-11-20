@@ -49,6 +49,8 @@ class DeviceConfigProvider extends ChangeNotifier {
   /// second or two on a fresh USB connection).
   bool _isConnecting = false;
 
+  SerialService get serial => _serial;
+
   List<String> get ports => _ports;
   String? get selectedPort => _selectedPort;
   bool get isConnected => _serial.isConnected;

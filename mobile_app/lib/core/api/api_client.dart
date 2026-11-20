@@ -199,6 +199,45 @@ class ApiClient {
     await _dio.delete('/rules/$id');
   }
 
+  // Remote Wi-Fi management (device must be online via MQTT).
+  Future<Map<String, dynamic>> getRemoteWifi(String deviceId) async {
+    final response = await _dio.get('/devices/$deviceId/wifi/list');
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> prepareWifi(
+    String deviceId,
+    int networkId,
+  ) async {
+    final response = await _dio.post(
+      '/devices/$deviceId/wifi/prepare',
+      data: {'network_id': networkId},
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> commitWifi(
+    String deviceId,
+    String requestId,
+  ) async {
+    final response = await _dio.post(
+      '/devices/$deviceId/wifi/commit',
+      data: {'request_id': requestId},
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> wifiResult(
+    String deviceId,
+    String requestId,
+  ) async {
+    final response = await _dio.get(
+      '/devices/$deviceId/wifi/result',
+      queryParameters: {'request_id': requestId},
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   // Health
   Future<bool> checkHealth() async {
     try {

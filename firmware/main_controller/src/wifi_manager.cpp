@@ -1,0 +1,504 @@
+#include "wifi_manager.h"
+
+#include <ArduinoJson.h>
+#include <WiFi.h>
+#include <esp_task_wdt.h>
+#include <algorithm>
+#include <vector>
+
+#include "config.h"
+#include "wifi_profiles.h"
+
+namespace {
+
+enum State { STATE_IDLE, STATE_CONNECTING, STATE_CONNECTED, STATE_WAIT };
+
+struct ScanEntry {
+    String ssid;
+    int rssi = -127;
+    bool secure = false;
+    int channel = 0;
+    String bssid;
+};
+
+State g_state = STATE_IDLE;
+uint8_t g_activeId = 0;
+uint8_t g_attemptId = 0;
+uint32_t g_connectStart = 0;
+uint32_t g_nextTry = 0;
+uint32_t g_backoffMs = 5000;
+uint32_t g_lastRssiCheck = 0;
+uint32_t g_weakSince = 0;
+uint32_t g_lastSwitch = 0;
+uint32_t g_failUntil[256] = {0};
+
+std::vector<ScanEntry> g_scan;
+uint32_t g_scanAt = 0;
+
+String g_pendingRequest;
+uint8_t g_pendingId = 0;
+uint32_t g_pendingUntil = 0;
+bool g_remoteCommit = false;
+String g_remoteRequest;
+String g_event;
+
+bool parseBssid(const String& text, uint8_t out[6]) {
+    unsigned int b[6];
+    if (sscanf(text.c_str(), "%02x:%02x:%02x:%02x:%02x:%02x",
+               &b[0], &b[1], &b[2], &b[3], &b[4], &b[5]) != 6) {
+        return false;
+    }
+    for (int i = 0; i < 6; i++) out[i] = (uint8_t)b[i];
+    return true;
+}
+
+void startConnect(const WifiProfile& p) {
+    WiFi.mode(WIFI_STA);
+    uint8_t bssid[6];
+    if (p.channel > 0 && parseBssid(p.bssid, bssid)) {
+        WiFi.begin(p.ssid.c_str(), p.password.c_str(), p.channel, bssid);
+    } else {
+        WiFi.begin(p.ssid.c_str(), p.password.c_str());
+    }
+    g_attemptId = p.id;
+    g_state = STATE_CONNECTING;
+    g_connectStart = millis();
+    Serial.printf("[WiFi] Trying %s (id=%u, pri=%u)\n", p.ssid.c_str(),
+                  (unsigned)p.id, (unsigned)p.priority);
+}
+
+bool tryBlocking(const WifiProfile& p, uint32_t timeoutMs) {
+    startConnect(p);
+    uint32_t start = millis();
+    while (millis() - start < timeoutMs) {
+        if (WiFi.status() == WL_CONNECTED) {
+            g_activeId = p.id;
+            g_state = STATE_CONNECTED;
+            WifiProfiles::markOk(p.id, WiFi.BSSIDstr(), (uint8_t)WiFi.channel());
+            return true;
+        }
+        delay(200);
+        esp_task_wdt_reset();
+    }
+    return false;
+}
+
+std::vector<WifiProfile> enabledSorted() {
+    std::vector<WifiProfile> list = WifiProfiles::list();
+    std::vector<WifiProfile> out;
+    for (const auto& p : list) {
+        if (p.enabled) out.push_back(p);
+    }
+    std::sort(out.begin(), out.end(), [](const WifiProfile& a, const WifiProfile& b) {
+        if (a.priority != b.priority) return a.priority < b.priority;
+        return a.id < b.id;
+    });
+    return out;
+}
+
+void startNext() {
+    uint32_t now = millis();
+    std::vector<WifiProfile> candidates = enabledSorted();
+    if (candidates.empty()) {
+        g_state = STATE_WAIT;
+        g_nextTry = now + 30000;
+        return;
+    }
+
+    uint8_t manual = WifiProfiles::manualId();
+    std::vector<WifiProfile> ordered;
+    if (manual != 0) {
+        for (const auto& p : candidates) {
+            if (p.id == manual) {
+                ordered.push_back(p);
+                break;
+            }
+        }
+    }
+    for (const auto& p : candidates) {
+        if (manual != 0 && p.id == manual) continue;
+        ordered.push_back(p);
+    }
+
+    for (const auto& p : ordered) {
+        if (g_failUntil[p.id] > now) continue;
+        startConnect(p);
+        return;
+    }
+
+    // Everything failed recently: clear the short ban and retry the cycle
+    // after a longer pause instead of hammering the radios.
+    for (const auto& p : ordered) g_failUntil[p.id] = 0;
+    g_state = STATE_WAIT;
+    g_nextTry = now + 30000;
+}
+
+void evaluateWeakSignal(int currentRssi) {
+    WifiProfile current;
+    if (!WifiProfiles::get(g_activeId, current)) return;
+
+    WifiProfile best;
+    int bestRssi = -127;
+    bool found = false;
+    for (const auto& e : g_scan) {
+        if (e.ssid == current.ssid) continue;
+        WifiProfile p;
+        bool matched = false;
+        for (const auto& candidate : WifiProfiles::list()) {
+            if (candidate.enabled && candidate.ssid == e.ssid &&
+                g_failUntil[candidate.id] <= millis()) {
+                p = candidate;
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) continue;
+        if (!found || p.priority < best.priority ||
+            (p.priority == best.priority && e.rssi > bestRssi)) {
+            best = p;
+            bestRssi = e.rssi;
+            found = true;
+        }
+    }
+    if (!found) return;
+
+    bool betterPriority = best.priority < current.priority;
+    bool betterSignal = best.priority == current.priority &&
+                        bestRssi > currentRssi + 10;
+    if (!betterPriority && !betterSignal) return;
+    if (currentRssi > -70) return;
+
+    Serial.printf("[WiFi] Switching %s -> %s (%d dBm)\n",
+                  current.ssid.c_str(), best.ssid.c_str(), bestRssi);
+    g_lastSwitch = millis();
+    WiFi.disconnect(false, false);
+    startConnect(best);
+}
+
+void failCurrent(const char* reason) {
+    uint32_t now = millis();
+    g_failUntil[g_attemptId] = now + 60000;
+    g_state = STATE_WAIT;
+    g_nextTry = now + g_backoffMs;
+    g_backoffMs = std::min<uint32_t>(g_backoffMs * 2, 60000);
+
+    if (g_remoteCommit) {
+        JsonDocument doc;
+        doc["request_id"] = g_remoteRequest;
+        doc["status"] = "error";
+        doc["error"] = reason;
+        String out;
+        serializeJson(doc, out);
+        g_event = out;
+        g_remoteCommit = false;
+        WifiProfiles::setManual(0);
+        g_nextTry = now + 1000;
+    } else if (g_attemptId == WifiProfiles::manualId()) {
+        // Manual choice is unreachable: fall back to auto instead of staying
+        // offline until the user changes it.
+        WifiProfiles::setManual(0);
+    }
+}
+
+}  // namespace
+
+namespace WifiManager {
+
+bool begin() {
+    WifiProfiles::init();
+
+    WiFi.persistent(false);
+    WiFi.mode(WIFI_STA);
+    WiFi.setHostname(DEVICE_ID);
+    WiFi.setAutoReconnect(false);
+
+    std::vector<WifiProfile> profiles = enabledSorted();
+    if (profiles.empty()) {
+        g_state = STATE_WAIT;
+        g_nextTry = millis() + 5000;
+        return false;
+    }
+
+    std::vector<WifiProfile> order;
+    auto pushUnique = [&order](const WifiProfile& p) {
+        for (const auto& existing : order) {
+            if (existing.id == p.id) return;
+        }
+        order.push_back(p);
+    };
+
+    uint8_t manual = WifiProfiles::manualId();
+    uint8_t last = WifiProfiles::lastOkId();
+    if (manual != 0) {
+        for (const auto& p : profiles) {
+            if (p.id == manual) pushUnique(p);
+        }
+    }
+    if (last != 0) {
+        for (const auto& p : profiles) {
+            if (p.id == last) pushUnique(p);
+        }
+    }
+    for (const auto& p : profiles) pushUnique(p);
+
+    size_t attempts = std::min<size_t>(order.size(), 4);
+    for (size_t i = 0; i < attempts; i++) {
+        if (tryBlocking(order[i], 10000)) {
+            g_backoffMs = 5000;
+            Serial.printf("[WiFi] Connected to %s (%s)\n", order[i].ssid.c_str(),
+                          WiFi.localIP().toString().c_str());
+            return true;
+        }
+        g_failUntil[order[i].id] = millis() + 30000;
+    }
+
+    g_state = STATE_WAIT;
+    g_nextTry = millis() + 3000;
+    return false;
+}
+
+void update() {
+    uint32_t now = millis();
+    wl_status_t status = WiFi.status();
+
+    if (status == WL_CONNECTED) {
+        if (g_state != STATE_CONNECTED) {
+            g_state = STATE_CONNECTED;
+            g_activeId = g_attemptId;
+            g_backoffMs = 5000;
+            for (auto& until : g_failUntil) until = 0;
+            WifiProfiles::markOk(g_activeId, WiFi.BSSIDstr(), (uint8_t)WiFi.channel());
+            if (g_remoteCommit) {
+                JsonDocument doc;
+                doc["request_id"] = g_remoteRequest;
+                doc["status"] = "ok";
+                doc["id"] = g_activeId;
+                doc["ssid"] = WiFi.SSID();
+                doc["rssi"] = WiFi.RSSI();
+                String out;
+                serializeJson(doc, out);
+                g_event = out;
+                g_remoteCommit = false;
+            }
+        }
+
+        if (now - g_lastRssiCheck >= 10000) {
+            g_lastRssiCheck = now;
+            int rssi = WiFi.RSSI();
+            if (rssi < -80) {
+                if (g_weakSince == 0) g_weakSince = now;
+            } else {
+                g_weakSince = 0;
+            }
+            if (g_weakSince != 0 && now - g_weakSince > 60000 &&
+                now - g_lastSwitch > 300000) {
+                if (scanNow()) {
+                    evaluateWeakSignal(rssi);
+                    g_weakSince = 0;
+                }
+            }
+        }
+        return;
+    }
+
+    if (g_state == STATE_CONNECTED) {
+        g_state = STATE_WAIT;
+        g_nextTry = now + 1000;
+    }
+
+    if (g_state == STATE_CONNECTING) {
+        if (now - g_connectStart < 12000) return;
+        Serial.printf("[WiFi] Connect timeout (id=%u)\n", (unsigned)g_attemptId);
+        failCurrent("connect_failed");
+        return;
+    }
+
+    if (g_state == STATE_WAIT && (int32_t)(now - g_nextTry) >= 0) {
+        startNext();
+    }
+}
+
+bool connected() {
+    return WiFi.status() == WL_CONNECTED;
+}
+
+String statusJson() {
+    std::vector<WifiProfile> profiles = WifiProfiles::list();
+    uint8_t manual = WifiProfiles::manualId();
+
+    JsonDocument doc;
+    doc["connected"] = connected();
+    doc["id"] = g_activeId;
+    doc["ssid"] = WiFi.SSID();
+    doc["rssi"] = connected() ? WiFi.RSSI() : 0;
+    doc["ip"] = WiFi.localIP().toString();
+    doc["manual"] = manual != 0;
+    doc["manual_id"] = manual;
+    doc["used"] = profiles.size();
+    doc["max"] = WifiProfiles::kMaxProfiles;
+
+    JsonArray arr = doc["profiles"].to<JsonArray>();
+    for (const auto& p : profiles) {
+        JsonObject o = arr.add<JsonObject>();
+        o["id"] = p.id;
+        o["ssid"] = p.ssid;
+        o["priority"] = p.priority;
+        o["enabled"] = p.enabled;
+        o["connected"] = connected() && p.id == g_activeId;
+        if (connected() && p.id == g_activeId) o["rssi"] = WiFi.RSSI();
+    }
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
+String scanJson() {
+    JsonDocument doc;
+    doc["age_ms"] = g_scanAt == 0 ? 0 : (millis() - g_scanAt);
+    JsonArray arr = doc["networks"].to<JsonArray>();
+    for (const auto& e : g_scan) {
+        JsonObject o = arr.add<JsonObject>();
+        o["ssid"] = e.ssid;
+        o["rssi"] = e.rssi;
+        o["secure"] = e.secure;
+        o["channel"] = e.channel;
+        o["bssid"] = e.bssid;
+    }
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
+bool scanNow() {
+    int16_t found = WiFi.scanNetworks(false, true);
+    g_scan.clear();
+    g_scanAt = millis();
+    if (found < 0) {
+        WiFi.scanDelete();
+        return false;
+    }
+
+    for (int i = 0; i < found && g_scan.size() < 32; i++) {
+        String ssid = WiFi.SSID(i);
+        if (ssid.isEmpty()) continue;
+        int rssi = WiFi.RSSI(i);
+        bool merged = false;
+        for (auto& e : g_scan) {
+            if (e.ssid == ssid) {
+                if (rssi > e.rssi) {
+                    e.rssi = rssi;
+                    e.secure = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+                    e.channel = WiFi.channel(i);
+                    e.bssid = WiFi.BSSIDstr(i);
+                }
+                merged = true;
+                break;
+            }
+        }
+        if (merged) continue;
+        ScanEntry e;
+        e.ssid = ssid;
+        e.rssi = rssi;
+        e.secure = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+        e.channel = WiFi.channel(i);
+        e.bssid = WiFi.BSSIDstr(i);
+        g_scan.push_back(e);
+    }
+    WiFi.scanDelete();
+
+    std::sort(g_scan.begin(), g_scan.end(),
+              [](const ScanEntry& a, const ScanEntry& b) { return a.rssi > b.rssi; });
+    Serial.printf("[WiFi] Scan: %u networks\n", (unsigned)g_scan.size());
+    return true;
+}
+
+bool connectTo(uint8_t id, String* error) {
+    WifiProfile p;
+    if (!WifiProfiles::get(id, p)) {
+        if (error) *error = "not_found";
+        return false;
+    }
+    if (!p.enabled) {
+        if (error) *error = "disabled";
+        return false;
+    }
+    WifiProfiles::setManual(id);
+    g_failUntil[id] = 0;
+    if (connected()) WiFi.disconnect(false, false);
+    startConnect(p);
+    return true;
+}
+
+void setAuto() {
+    WifiProfiles::setManual(0);
+}
+
+String handleRemotePrepare(const String& json) {
+    JsonDocument in;
+    if (deserializeJson(in, json)) {
+        return "{\"ok\":false,\"error\":\"bad_json\"}";
+    }
+    String requestId = String((const char*)(in["request_id"] | ""));
+    uint8_t id = (uint8_t)(in["id"] | 0);
+    requestId.trim();
+    if (requestId.isEmpty() || id == 0) {
+        return "{\"ok\":false,\"error\":\"bad_request\"}";
+    }
+    WifiProfile p;
+    if (!WifiProfiles::get(id, p) || !p.enabled) {
+        return "{\"ok\":false,\"error\":\"not_found\"}";
+    }
+
+    g_pendingRequest = requestId;
+    g_pendingId = id;
+    g_pendingUntil = millis() + 120000;
+
+    JsonDocument out;
+    out["ok"] = true;
+    out["status"] = "prepared";
+    out["request_id"] = requestId;
+    out["id"] = id;
+    out["ssid"] = p.ssid;
+    String text;
+    serializeJson(out, text);
+    return text;
+}
+
+String handleRemoteCommit(const String& json) {
+    JsonDocument in;
+    if (deserializeJson(in, json)) {
+        return "{\"ok\":false,\"error\":\"bad_json\"}";
+    }
+    String requestId = String((const char*)(in["request_id"] | ""));
+    requestId.trim();
+    if (requestId.isEmpty() || requestId != g_pendingRequest ||
+        g_pendingId == 0 || (int32_t)(millis() - g_pendingUntil) > 0) {
+        return "{\"ok\":false,\"error\":\"no_pending_request\"}";
+    }
+
+    String error;
+    if (!connectTo(g_pendingId, &error)) {
+        return String("{\"ok\":false,\"error\":\"") + error + "\"}";
+    }
+    g_remoteCommit = true;
+    g_remoteRequest = requestId;
+    g_pendingRequest = "";
+    g_pendingId = 0;
+
+    JsonDocument out;
+    out["ok"] = true;
+    out["status"] = "committing";
+    out["request_id"] = requestId;
+    String text;
+    serializeJson(out, text);
+    return text;
+}
+
+String takeEvent() {
+    String out = g_event;
+    g_event = "";
+    return out;
+}
+
+}  // namespace WifiManager

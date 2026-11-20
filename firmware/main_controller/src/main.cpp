@@ -12,6 +12,8 @@
 #include "lan_discovery.h"
 #include "signaling_client.h"
 #include "wifi_config.h"
+#include "wifi_profiles.h"
+#include "wifi_manager.h"
 #include "provisioning.h"
 #include "mqtt_config.h"
 #include "device_secrets.h"
@@ -78,97 +80,36 @@ void statusLedSync() {
 
 // ===================== WIFI =====================
 
-bool wifiConnectSta(const char* ssid, const char* password) {
-    WiFi.mode(WIFI_STA);
-    WiFi.setHostname(DEVICE_ID);
-    WiFi.begin(ssid, password);
-
-    Serial.print("[WiFi] Connecting to ");
-    Serial.print(ssid);
-    unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED) {
-        if (millis() - start > WIFI_TIMEOUT_MS) {
-            Serial.println(" TIMEOUT");
-            return false;
-        }
-        delay(500);
-        Serial.print(".");
-        // Keep the status LED blinking while this blocking connect runs.
-        StatusLed::update();
-        esp_task_wdt_reset(); // keep feeding even during long reconnect waits
-    }
-    Serial.println();
-    Serial.print("[WiFi] IP: ");
-    Serial.println(WiFi.localIP());
-    LOG_INFO("WiFi", "Connected to %s", ssid);
-    return true;
-}
-
-// Try connecting: first stored NVS credentials, then the static fallback.
-// Returns true on success.
-// clearOnFail should only be true at boot: wiping stored credentials on a
-// transient runtime failure (router reboot, AP power-up delay) would strand
-// the device offline with no way to re-provision over the air.
-bool wifiTryConnect(bool clearOnFail = false) {
-    char ssid[64] = "";
-    char password[64] = "";
-
-    if (WifiConfig::load(ssid, sizeof(ssid), password, sizeof(password))) {
-        Serial.println("[WiFi] Using stored credentials");
-        if (wifiConnectSta(ssid, password)) return true;
-        Serial.println("[WiFi] Stored credentials failed");
-        if (clearOnFail) WifiConfig::clear();
-    }
-
-    if (strlen(WIFI_SSID) > 0) {
-        if (wifiConnectSta(WIFI_SSID, WIFI_PASSWORD)) return true;
-    }
-
-    return false;
-}
-
-// Enters SoftAP provisioning if enabled and no connection can be made.
-// Only called at boot. If the provisioning session ends without a
-// connection (timeout, saved-but-failed, etc.) it reboots so the device
-// stays in a setup loop until usable Wi-Fi credentials are provided.
+// Enters SoftAP provisioning only when the device has no saved networks.
+// Existing profiles are never erased on a transient connection failure.
 void wifiConnect() {
-    if (wifiTryConnect(true)) return;
+    if (WifiManager::begin()) return;
 
+    if (WifiProfiles::count() == 0) {
 #if PROVISION_ENABLED
-    Serial.println("[WiFi] No connection, starting config mode");
-    Provisioning::startAndWait();
-    Serial.println("[WiFi] Provisioning session ended, rebooting");
-    RingLogger::save();
-    delay(300);
-    ESP.restart();
+        Serial.println("[WiFi] No saved networks, starting config mode");
+        Provisioning::startAndWait();
+        Serial.println("[WiFi] Provisioning session ended, rebooting");
+        RingLogger::save();
+        delay(300);
+        ESP.restart();
 #else
-    Serial.println("[WiFi] Provisioning disabled, continuing without Wi-Fi");
+        Serial.println("[WiFi] Provisioning disabled, continuing without Wi-Fi");
 #endif
+    } else {
+        Serial.println("[WiFi] Saved networks unavailable, retrying in background");
+    }
 }
 
 void wifiUpdate() {
-    static bool wasConnected = true;
-    if (WiFi.status() != WL_CONNECTED) {
-        if (wasConnected) {
-            LOG_INFO("WiFi", "Connection lost, reconnecting...");
-            wasConnected = false;
-        }
-        if (millis() - lastReconnect > RECONNECT_INTERVAL_MS) {
-            lastReconnect = millis();
-            wifiTryConnect();
-        }
-    } else {
-        if (!wasConnected) {
-            LOG_INFO("WiFi", "Reconnected");
-            wasConnected = true;
-        }
-    }
+    WifiManager::update();
 }
 
 void wifiReconfigure() {
     Serial.println("[WiFi] Reconfiguration requested, entering config mode");
     RingLogger::save();
-    WifiConfig::clear();
+    // Keep the saved profiles so a cancelled or failed setup does not strand
+    // the device without Wi-Fi.
     bool configured = Provisioning::startAndWait();
     Serial.println(configured ? "[WiFi] New credentials saved, rebooting"
                               : "[WiFi] Reconfiguration cancelled, rebooting");
@@ -235,6 +176,8 @@ void mqttPublishStatus() {
     payload += "\"status\":\"online\",";
     payload += "\"uptime\":" + String(millis() / 1000) + ",";
     payload += "\"free_heap\":" + String(ESP.getFreeHeap()) + ",";
+    payload += "\"wifi_ssid\":\"" + WiFi.SSID() + "\",";
+    payload += "\"wifi_profiles\":" + String((unsigned)WifiProfiles::count()) + ",";
     payload += "\"rssi\":" + String(WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0) + ",";
     float chipTemp = chipTemperatureCelsius();
     if (!std::isnan(chipTemp)) {
@@ -273,6 +216,31 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         msg += (char)payload[i];
     }
     Serial.println("[MQTT] Received: " + msg);
+
+    if (msg.indexOf("wifi_list") >= 0) {
+        JsonDocument doc;
+        String requestId;
+        if (!deserializeJson(doc, msg)) {
+            requestId = String((const char*)(doc["request_id"] | ""));
+        }
+        String payload = "{\"request_id\":\"" + requestId +
+                         "\",\"status\":\"list\",\"data\":" +
+                         WifiManager::statusJson() + "}";
+        mqtt.publish(mqttTopic("wifi/result").c_str(), payload.c_str());
+        return;
+    }
+
+    if (msg.indexOf("wifi_prepare") >= 0) {
+        String response = WifiManager::handleRemotePrepare(msg);
+        mqtt.publish(mqttTopic("wifi/result").c_str(), response.c_str());
+        return;
+    }
+
+    if (msg.indexOf("wifi_commit") >= 0) {
+        String response = WifiManager::handleRemoteCommit(msg);
+        mqtt.publish(mqttTopic("wifi/result").c_str(), response.c_str());
+        return;
+    }
 
     if (msg.indexOf("wifi_set") >= 0) {
         JsonDocument doc;
@@ -840,6 +808,17 @@ void sensorsRead() {
 
 // ===================== SETUP / LOOP =====================
 
+static bool g_webStarted = false;
+
+// The device may boot without Wi-Fi and connect later. Start the HTTP server
+// and LAN discovery as soon as a link is available.
+void startWebIfConnected() {
+    if (g_webStarted || WiFi.status() != WL_CONNECTED) return;
+    WebServer::instance().begin(HTTP_PORT, WEBSOCKET_PORT);
+    LanDiscovery::begin();
+    g_webStarted = true;
+}
+
 void setup() {
     Serial.begin(115200);
 #if defined(ARDUINO_USB_CDC_ON_BOOT) && ARDUINO_USB_CDC_ON_BOOT
@@ -885,12 +864,7 @@ void setup() {
     sdInit();
     sensorsInit();
 
-    if (WiFi.status() == WL_CONNECTED) {  // AsyncTCP/lwIP needs a live network link
-        WebServer::instance().begin(HTTP_PORT, WEBSOCKET_PORT);
-        LanDiscovery::begin();
-    } else {
-        Serial.println("[HTTP] Skipped (no Wi-Fi)");
-    }
+    startWebIfConnected();
     signalingInit();
 
     watchdogInit();
@@ -918,8 +892,15 @@ void loop() {
 
     statusLedSync();
     wifiUpdate();
+    startWebIfConnected();
     LanDiscovery::update();
     mqttUpdate();
+    if (mqttReady()) {
+        String wifiEvent = WifiManager::takeEvent();
+        if (!wifiEvent.isEmpty()) {
+            mqtt.publish(mqttTopic("wifi/result").c_str(), wifiEvent.c_str());
+        }
+    }
     uartUpdate();
     ntpEnsureSynced();
     serialCmdUpdate();

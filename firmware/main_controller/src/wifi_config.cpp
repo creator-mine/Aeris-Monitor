@@ -1,51 +1,63 @@
 #include "wifi_config.h"
-#include "config.h"
-#include <Preferences.h>
 
-namespace {
-const char* NVS_NAMESPACE = "iotcfg";
+#include "wifi_profiles.h"
 
-Preferences prefs;
-}  // namespace
+// Backwards-compatible single-network façade used by older callers
+// (serial/HTTP/MQTT wifi_set, provisioning). New code should use
+// WifiProfiles directly.
 
 namespace WifiConfig {
 
 bool load(char* ssid, size_t ssidSize, char* password, size_t passwordSize) {
-    if (!prefs.begin(NVS_NAMESPACE, false)) return false;
+    std::vector<WifiProfile> profiles = WifiProfiles::list();
+    if (profiles.empty()) return false;
 
-    String s = prefs.getString("ssid", "");
-    String p = prefs.getString("password", "");
-    bool ok = !s.isEmpty() && s.length() < ssidSize;
-    if (ok) {
-        s.toCharArray(ssid, ssidSize);
-        p.toCharArray(password, passwordSize);
+    uint8_t wanted = WifiProfiles::manualId();
+    if (wanted == 0) wanted = WifiProfiles::lastOkId();
+
+    const WifiProfile* chosen = nullptr;
+    for (const auto& p : profiles) {
+        if (p.id == wanted && p.enabled) {
+            chosen = &p;
+            break;
+        }
     }
-    prefs.end();
-    return ok;
+    if (chosen == nullptr) {
+        uint8_t bestPriority = 255;
+        for (const auto& p : profiles) {
+            if (p.enabled && p.priority < bestPriority) {
+                bestPriority = p.priority;
+                chosen = &p;
+            }
+        }
+    }
+    if (chosen == nullptr) return false;
+    if (chosen->ssid.length() >= ssidSize ||
+        chosen->password.length() >= passwordSize) {
+        return false;
+    }
+    chosen->ssid.toCharArray(ssid, ssidSize);
+    chosen->password.toCharArray(password, passwordSize);
+    return true;
 }
 
 bool save(const char* ssid, const char* password) {
     if (ssid == nullptr || password == nullptr || strlen(ssid) == 0) return false;
-    if (!prefs.begin(NVS_NAMESPACE, false)) return false;
-
-    bool ok = prefs.putString("ssid", ssid) && prefs.putString("password", password);
-    prefs.end();
-    return ok;
+    String error;
+    uint8_t id = 0;
+    if (!WifiProfiles::add(String(ssid), String(password), 1, &id, &error)) {
+        return false;
+    }
+    WifiProfiles::setManual(id);
+    return true;
 }
 
 bool hasCredentials() {
-    if (!prefs.begin(NVS_NAMESPACE, false)) return false;
-    String s = prefs.getString("ssid", "");
-    bool ok = !s.isEmpty();
-    prefs.end();
-    return ok;
+    return WifiProfiles::count() > 0;
 }
 
 void clear() {
-    if (prefs.begin(NVS_NAMESPACE, false)) {
-        prefs.clear();
-        prefs.end();
-    }
+    WifiProfiles::clearAll();
 }
 
 }  // namespace WifiConfig

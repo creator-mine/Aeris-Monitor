@@ -5,6 +5,8 @@
 #include "ota_updater.h"
 #include "ring_logger.h"
 #include "wifi_config.h"
+#include "wifi_profiles.h"
+#include "wifi_manager.h"
 #include "sensor_registry.h"
 #include "time_util.h"
 #include "sys_info.h"
@@ -13,6 +15,7 @@
 #include <SD.h>
 #include <ArduinoJson.h>
 #include <cmath>
+#include <vector>
 
 // Set by sdInit() in main.cpp only after the filesystem has actually mounted.
 // SD.cardType() can already report a card while SD.begin() failed (for example
@@ -58,6 +61,8 @@ void WebServer::setupRoutes() {
     _http->on(API_PREFIX "/data", HTTP_GET, handleData);
     _http->on(API_PREFIX "/modules", HTTP_GET, handleModules);
     _http->on(API_PREFIX "/sd/info", HTTP_GET, handleSdInfo);
+    _http->on(API_PREFIX "/wifi", HTTP_GET, handleWifi);
+    _http->on(API_PREFIX "/wifi/scan", HTTP_GET, handleWifiScan);
     _http->on(API_PREFIX "/logs", HTTP_GET, handleLogs);
 
     _http->on(API_PREFIX "/command", HTTP_POST,
@@ -209,6 +214,8 @@ String WebServer::buildStatusJson() {
     }
     json += "\"firmware\":\"" + String(FIRMWARE_VERSION) + "\",";
     json += "\"led\":\"" + String(StatusLed::stateName()) + "\",";
+    json += "\"wifi_ssid\":\"" + WiFi.SSID() + "\",";
+    json += "\"wifi_profiles\":" + String((unsigned)WifiProfiles::count()) + ",";
     json += "\"sd\":" + buildSdInfoJson();
     json += "}";
     return json;
@@ -471,6 +478,15 @@ void WebServer::handleLogs(AsyncWebServerRequest* request) {
     request->send(200, "application/json", RingLogger::toJson(limit));
 }
 
+void WebServer::handleWifi(AsyncWebServerRequest* request) {
+    request->send(200, "application/json", WifiManager::statusJson());
+}
+
+void WebServer::handleWifiScan(AsyncWebServerRequest* request) {
+    WifiManager::scanNow();
+    request->send(200, "application/json", WifiManager::scanJson());
+}
+
 void WebServer::handleCommand(AsyncWebServerRequest* request) {
     String body = lastCommandBody;
     lastCommandBody = "";
@@ -541,6 +557,72 @@ void WebServer::handleCommand(AsyncWebServerRequest* request) {
         } else {
             request->send(400, "application/json", "{\"error\":\"bad_relay_state\"}");
         }
+    } else if (strcmp(command, "wifi_list") == 0) {
+        request->send(200, "application/json", WifiManager::statusJson());
+    } else if (strcmp(command, "wifi_scan") == 0) {
+        WifiManager::scanNow();
+        request->send(200, "application/json", WifiManager::scanJson());
+    } else if (strcmp(command, "wifi_add") == 0) {
+        String ssid = String((const char*)(doc["ssid"] | ""));
+        String password = String((const char*)(doc["password"] | ""));
+        int priority = doc["priority"] | 0;
+        uint8_t id = 0;
+        String error;
+        if (!WifiProfiles::add(ssid, password, priority, &id, &error)) {
+            int code = error == "profiles_full" ? 409 : 400;
+            request->send(code, "application/json",
+                          String("{\"ok\":false,\"error\":\"") + error + "\"}");
+        } else {
+            String json = "{\"ok\":true,\"id\":" + String((unsigned)id) + "}";
+            request->send(200, "application/json", json);
+        }
+    } else if (strcmp(command, "wifi_update") == 0) {
+        uint8_t id = (uint8_t)(doc["id"] | 0);
+        String password = String((const char*)(doc["password"] | ""));
+        int priority = doc["priority"] | -1;
+        int enabled = doc["enabled"].is<bool>()
+                          ? (doc["enabled"].as<bool>() ? 1 : 0)
+                          : -1;
+        if (!WifiProfiles::update(id, password, priority, enabled)) {
+            request->send(404, "application/json", "{\"ok\":false,\"error\":\"not_found\"}");
+        } else {
+            request->send(200, "application/json", "{\"ok\":true}");
+        }
+    } else if (strcmp(command, "wifi_remove") == 0) {
+        uint8_t id = (uint8_t)(doc["id"] | 0);
+        if (!WifiProfiles::remove(id)) {
+            request->send(404, "application/json", "{\"ok\":false,\"error\":\"not_found\"}");
+        } else {
+            request->send(200, "application/json", "{\"ok\":true}");
+        }
+    } else if (strcmp(command, "wifi_reorder") == 0) {
+        std::vector<uint8_t> ids;
+        for (JsonVariant v : doc["ids"].as<JsonArray>()) {
+            uint8_t id = (uint8_t)(v | 0);
+            if (id != 0) ids.push_back(id);
+        }
+        WifiProfiles::reorder(ids);
+        request->send(200, "application/json", "{\"ok\":true}");
+    } else if (strcmp(command, "wifi_connect") == 0) {
+        uint8_t id = (uint8_t)(doc["id"] | 0);
+        String error;
+        if (!WifiManager::connectTo(id, &error)) {
+            request->send(400, "application/json",
+                          String("{\"ok\":false,\"error\":\"") + error + "\"}");
+        } else {
+            request->send(200, "application/json", "{\"ok\":true}");
+        }
+    } else if (strcmp(command, "wifi_auto") == 0) {
+        WifiManager::setAuto();
+        request->send(200, "application/json", "{\"ok\":true}");
+    } else if (strcmp(command, "wifi_prepare") == 0) {
+        String response = WifiManager::handleRemotePrepare(body);
+        request->send(response.indexOf("\"ok\":true") >= 0 ? 200 : 400,
+                      "application/json", response);
+    } else if (strcmp(command, "wifi_commit") == 0) {
+        String response = WifiManager::handleRemoteCommit(body);
+        request->send(response.indexOf("\"ok\":true") >= 0 ? 200 : 400,
+                      "application/json", response);
     } else if (strcmp(command, "wifi_set") == 0) {
         const char* ssid = doc["ssid"];
         const char* password = doc["password"];

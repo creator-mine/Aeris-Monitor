@@ -39,6 +39,28 @@ class DirectDeviceClient {
     return response.data as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getWifiStatus() async {
+    final response = await _dio.get('/api/v1/wifi');
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> scanWifi() async {
+    final response = await _dio.get('/api/v1/wifi/scan');
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>?> sendWifiCommand(
+    String command, [
+    Map<String, dynamic> extra = const {},
+  ]) async {
+    final response = await _dio.post(
+      '/api/v1/command',
+      data: jsonEncode({'command': command, ...extra}),
+      options: Options(headers: {'Content-Type': 'application/json'}),
+    );
+    return response.data as Map<String, dynamic>?;
+  }
+
   /// History from the device's SD card.
   Future<SensorDataSeries> getHistory(
     String sensorType, {
