@@ -84,10 +84,11 @@ services:
       MQTT_DEVICE_USER: "${MQTT_DEVICE_USER:-device}"
       MQTT_DEVICE_PASSWORD: "${MQTT_DEVICE_PASSWORD:-changeme}"
     ports:
-      # Plain MQTT stays on loopback for local diagnostics; devices use 8883 TLS.
+      # Plain MQTT/WebSocket stay on loopback for local diagnostics; devices
+      # use 8883 (TLS) and browsers use 9002 (wss).
       - "127.0.0.1:1883:1883"
       - "8883:8883"
-      - "9001:9001"
+      - "127.0.0.1:9001:9001"
       - "9002:9002"
     volumes:
       - ./runtime/mqtt/data:/mosquitto/data

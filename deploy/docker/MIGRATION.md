@@ -26,7 +26,7 @@ VPS (vibeverse, lumira-server.ru и т.п.) не затрагиваются.
 ## Требования к новой VPS
 
 - Ubuntu 24.04 (или совместимый), root/sudo, ≥ 1 ГБ RAM (рекомендуется 2 ГБ).
-- Свободны порты: `80`, `443`, `1883`, `9001`, `9002`.
+- Свободны порты: `80`, `443`, `8883`, `9002` (порты `1883`/`9001` публикуются только на loopback).
 - DNS: A-запись `spe4naz.online` → **IP новой VPS** (переключить на шаге 4).
 
 ## Шаг 1. Экспорт со старого VPS
@@ -87,7 +87,7 @@ docker compose -f /opt/iot/deploy/docker/docker-compose.yml logs -f server mqtt 
    - `https://spe4naz.online/panel/` (пароль из импортированного env)
    - `https://spe4naz.online/app/` (Flutter-web)
    - `https://spe4naz.online/fw/version.json`
-   - MQTT: приложение подключается к `spe4naz.online:9001` (или `:9002` wss) с прежними логином/паролем.
+   - MQTT: приложение подключается к `spe4naz.online:8883` (TLS) или `:9002` (wss) с прежними логином/паролем.
 3. Убедитесь, что устройство снова онлайн (heartbeat) и команды идут.
 4. Продлите сертификат при необходимости: `docker compose run --rm certbot certbot renew`.
 

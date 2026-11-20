@@ -168,7 +168,7 @@ chmod 0600 "$R/mqtt/secrets/passwd" 2>/dev/null || true
 
 # --- 4. firewall -------------------------------------------------------------
 if command -v ufw >/dev/null 2>&1; then
-    for p in 22 80 443 1883 9001 9002; do ufw allow "$p"/tcp >/dev/null 2>&1 || true; done
+    for p in 22 80 443 8883 9002; do ufw allow "$p"/tcp >/dev/null 2>&1 || true; done
     ufw deny 3100/tcp >/dev/null 2>&1 || true
     yes | ufw enable >/dev/null 2>&1 || true
     log "ufw rules applied"

@@ -13,13 +13,13 @@
 | Сервис | Описание |
 |---|---|
 | `server` | REST API/реестр устройств (`server/src`), данные в `runtime/data` (`devices.json`, `alerts.json`, `rules.json`, `metrics.json`, `stability.json`, `settings.json`, `ingest/`) |
-| `mqtt` | Брокер mosquitto: `1883` (MQTT, устройства) + `9001` (WebSocket, приложение) + `9002` (wss, live-панель браузера). Пароли и ACL генерируются на первом старте из `.env` **или** импортируются из `runtime/mqtt/secrets` |
+| `mqtt` | Брокер mosquitto: `8883` (MQTT over TLS, устройства и приложение) + `9002` (wss, браузер/панель). `1883` (MQTT) и `9001` (WebSocket) доступны только на loopback для локальной диагностики. Пароли и ACL генерируются на первом старте из `.env` **или** импортируются из `runtime/mqtt/secrets` |
 | `web` | nginx: `/api/` → сервер (SSE `/api/v1/stream`), `/fw/` → OTA-прошивки, `/panel/` → админ-панель, `/app/` → веб-версию приложения; содержимое из `runtime/site` |
 | `certbot` | Выпуск и продление сертификата Let's Encrypt для `NGINX_DOMAIN` (профиль `certbot`) |
 
 ## Требования
 
-- Сервер с Docker + compose-плагином (`docker compose version`), порты 80, 443, 1883, 9001 свободны.
+- Сервер с Docker + compose-плагином (`docker compose version`), порты 80, 443, 8883, 9002 свободны; 1883 и 9001 публикуются только на loopback.
 - DNS A-запись: `NGINX_DOMAIN` → IP сервера (нужна для HTTPS; для HTTP-режима достаточно IP/имени в локальной сети).
 
 ## Шаг 1. Настройка
@@ -66,7 +66,7 @@ curl -s http://127.0.0.1/api/v1/health
 |---|---|
 | API URL | `https://<NGINX_DOMAIN>` (или `http://<ip>:80` в HTTP-режиме) |
 | MQTT Брокер | `<NGINX_DOMAIN>` (или IP) |
-| MQTT Порт | `9001` |
+| MQTT Порт | `8883` (TLS) для нативного приложения, `9002` (wss) для веб-версии |
 | MQTT Логин / Пароль | `MQTT_USER` / `MQTT_PASSWORD` (они же для HTTP API) |
 | OTA URL (прошивки) | оставьте пустым — берётся API URL (или укажите отдельный хост) |
 
@@ -77,7 +77,7 @@ curl -s http://127.0.0.1/api/v1/health
 В `firmware/<project>/include/config.h`:
 
 - `SERVER_HOST` = `<NGINX_DOMAIN>` (регистрация и heartbeat через HTTP);
-- MQTT: брокер `<NGINX_DOMAIN>`, порт `1883` (tcp), `mqtt_user`/`mqtt_password` из `.env` (`MQTT_DEVICE_USER`/`MQTT_DEVICE_PASSWORD`).
+- MQTT: брокер `<NGINX_DOMAIN>`, порт `8883` (TLS), `mqtt_user`/`mqtt_password` из `.env` (`MQTT_DEVICE_USER`/`MQTT_DEVICE_PASSWORD`).
 
 Устройство публикует `iot/<id>/sensors/#`, `iot/<id>/status` и слушает `iot/<id>/commands/#`. Прошивка логинит **все** устройства общим пользователем (`mqtt_user`/`mqtt_password` = `MQTT_DEVICE_USER`/`MQTT_DEVICE_PASSWORD`), а id устройства — в топике. Если нужно, чтобы устройства не могли публиковать чужие топики, заведите по пользователю на устройство и замените соответствующие строки в `deploy/docker/mqtt/acl.template` на `user <id>` с точными `iot/<id>/…`.
 
@@ -126,7 +126,7 @@ tar czf /var/backups/iot-$(date +%F).tar.gz runtime .env
 - сертификат выпускает/продлевает хостовый certbot:
   `certbot certonly --webroot -w /var/www/certbot -d <domain>`.
 
-MQTT-порты (`1883/9001/9002`) при этом остаются опубликованными из контейнера.
+Наружу опубликованы только `8883` (MQTT TLS) и `9002` (wss); `1883` и `9001` привязаны к `127.0.0.1` и не видны из интернета.
 
 ## Замечания по безопасности
 
@@ -135,7 +135,7 @@ MQTT-порты (`1883/9001/9002`) при этом остаются опубли
 - Если `MQTT_PASSWORD` или `MQTT_DEVICE_PASSWORD` пусты, соответствующая часть
   API работает без пароля (только для локальной разработки).
 - Порт `3100` наружу не маппится (только внутри сети `iot` через nginx).
-- МQTT-WS на `9001` — plain (без TLS), как и на продовом инстансе. Для критичных сетей поднимайте VPN/TLS.
+- `9001` (plain WebSocket) и `1883` (plain MQTT) привязаны к loopback и наружу не публикуются. Для внешних клиентов используйте `8883`/`9002` с TLS.
 - Let's Encrypt обновляется автоматически (продление каждые 12 ч, reload nginx раз в час). ВАЖНО: NGINX_TLS=1 требует, чтобы `NGINX_DOMAIN` резолвился снаружи на этот сервер (порт 80 доступен наружу).
 
 ## Состав каталога

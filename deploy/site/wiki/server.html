@@ -119,12 +119,12 @@
             <tr>
               <td class="mono">1883</td>
               <td data-ru="Mosquitto" data-en="Mosquitto">Mosquitto</td>
-              <td data-ru="MQTT для микроконтроллеров" data-en="MQTT for microcontrollers">MQTT для микроконтроллеров</td>
+              <td data-ru="MQTT для микроконтроллеров (только loopback; снаружи — 8883/TLS)" data-en="MQTT for microcontrollers (loopback only; use 8883/TLS externally)">MQTT для микроконтроллеров</td>
             </tr>
             <tr>
               <td class="mono">9001</td>
               <td data-ru="Mosquitto" data-en="Mosquitto">Mosquitto</td>
-              <td data-ru="MQTT через веб-сокеты для приложения и браузера" data-en="MQTT over WebSockets for the app and browser">MQTT через веб-сокеты</td>
+              <td data-ru="MQTT через веб-сокеты, только loopback; снаружи — 9002/wss" data-en="MQTT over WebSockets, loopback only; use 9002/wss externally">MQTT через веб-сокеты</td>
             </tr>
             <tr>
               <td class="mono">9002</td>
@@ -222,7 +222,7 @@
         </table>
       </div>
 
-      <p data-ru="Сервер работает в Docker-сети и не публикуется наружу; host nginx — единая точка входа. Снаружи открыты 80/443 (nginx), 8883 (MQTT TLS) и 9001/9002 (WebSocket)." data-en="The server runs on the Docker network and is not published; the host nginx is the single entry point. Externally open: 80/443 (nginx), 8883 (MQTT TLS) and 9001/9002 (WebSocket).">Сервер в Docker-сети, наружу не публикуется.</p>
+      <p data-ru="Сервер работает в Docker-сети и не публикуется наружу; host nginx — единая точка входа. Снаружи открыты 80/443 (nginx), 8883 (MQTT TLS) и 9002 (WebSocket TLS); 1883 и 9001 доступны только на loopback." data-en="The server runs on the Docker network and is not published; the host nginx is the single entry point. Externally open: 80/443 (nginx), 8883 (MQTT TLS) and 9002 (WebSocket TLS); 1883 and 9001 are loopback-only.">Сервер в Docker-сети, наружу не публикуется.</p>
 
       <h2 id="razvertyvanie" data-ru="Развёртывание с нуля" data-en="Deploying from scratch">Развёртывание с нуля</h2>
 
