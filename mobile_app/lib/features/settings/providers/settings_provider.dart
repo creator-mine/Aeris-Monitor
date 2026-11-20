@@ -5,9 +5,14 @@ import '../../../core/config/connection_mode.dart';
 import '../../../core/config/log_mode.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/background/background_prefs.dart';
+import '../../../core/security/secret_store.dart';
 
 class SettingsProvider extends ChangeNotifier {
+  SettingsProvider({SecretStore? secrets})
+      : _secrets = secrets ?? SecureSecretStore();
+
   late SharedPreferences _prefs;
+  final SecretStore _secrets;
 
   static const String _defaultApiUrl = 'https://spe4naz.online';
   static const String _defaultMqttBroker = 'spe4naz.online';
@@ -79,9 +84,10 @@ class SettingsProvider extends ChangeNotifier {
     _otaUrl = _prefs.getString('ota_url')?.trim() ?? '';
 
     final storedMqttBroker = _prefs.getString('mqtt_broker');
-    _mqttBroker = (storedMqttBroker == null || storedMqttBroker == _legacyMqttBroker)
-        ? _defaultMqttBroker
-        : storedMqttBroker;
+    _mqttBroker =
+        (storedMqttBroker == null || storedMqttBroker == _legacyMqttBroker)
+            ? _defaultMqttBroker
+            : storedMqttBroker;
 
     final storedMqttPort = _prefs.getInt('mqtt_port');
     _mqttPort = (storedMqttPort == null ||
@@ -91,7 +97,7 @@ class SettingsProvider extends ChangeNotifier {
         : storedMqttPort;
 
     _mqttUsername = _prefs.getString('mqtt_username') ?? _defaultMqttUsername;
-    _mqttPassword = _prefs.getString('mqtt_password') ?? _defaultMqttPassword;
+    await _loadMqttPassword();
 
     _darkMode = _prefs.getBool('dark_mode') ?? false;
     _language = _prefs.getString('language') ?? 'ru';
@@ -110,8 +116,7 @@ class SettingsProvider extends ChangeNotifier {
       }
     }
     _backgroundOpacity = _prefs.getDouble('background_opacity') ?? 0.3;
-    _backgroundMonitor =
-        _prefs.getBool(backgroundMonitorPrefKey) ?? true;
+    _backgroundMonitor = _prefs.getBool(backgroundMonitorPrefKey) ?? true;
 
     final storedMode = _prefs.getString('connection_mode');
     _connectionMode = ConnectionMode.values.firstWhere(
@@ -119,6 +124,37 @@ class SettingsProvider extends ChangeNotifier {
       orElse: () => ConnectionMode.auto,
     );
     notifyListeners();
+  }
+
+  /// Loads the MQTT password from OS secure storage. Builds before 1.3.6 kept
+  /// it in SharedPreferences in clear text; that value is moved once and the
+  /// plaintext copy is deleted.
+  Future<void> _loadMqttPassword() async {
+    String? stored;
+    try {
+      stored = await _secrets.read(mqttPasswordSecretKey);
+    } catch (e) {
+      debugPrint('Secure storage is unavailable: $e');
+    }
+
+    final legacy = _prefs.getString(mqttPasswordSecretKey);
+    if (stored != null) {
+      _mqttPassword = stored;
+      if (legacy != null) await _prefs.remove(mqttPasswordSecretKey);
+      return;
+    }
+    if (legacy != null) {
+      _mqttPassword = legacy;
+      try {
+        await _secrets.write(mqttPasswordSecretKey, legacy);
+        await _prefs.remove(mqttPasswordSecretKey);
+      } catch (e) {
+        // Keep the legacy value so the password still survives a restart.
+        debugPrint('Could not migrate the MQTT password: $e');
+      }
+      return;
+    }
+    _mqttPassword = _defaultMqttPassword;
   }
 
   /// Normalizes a stored server URL and maps any localhost/legacy value to
@@ -170,7 +206,15 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setMqttPassword(String password) async {
     _mqttPassword = password;
-    await _prefs.setString('mqtt_password', password);
+    try {
+      await _secrets.write(mqttPasswordSecretKey, password);
+      await _prefs.remove(mqttPasswordSecretKey);
+    } catch (e) {
+      // Never lose the credential when the keystore is unavailable: keep the
+      // legacy copy so the next launch still has it.
+      debugPrint('Could not store the MQTT password securely: $e');
+      await _prefs.setString(mqttPasswordSecretKey, password);
+    }
     notifyListeners();
   }
 

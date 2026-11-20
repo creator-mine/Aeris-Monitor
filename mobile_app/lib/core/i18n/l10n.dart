@@ -127,6 +127,12 @@ class L10n {
     if (source.startsWith('Не удалось проверить обновления: ')) {
       return 'Could not check for updates: ${source.substring('Не удалось проверить обновления: '.length)}';
     }
+    if (source == 'Сначала подключитесь к сети — её можно закрепить.') {
+      return 'Connect to a network first — then it can be pinned manually.';
+    }
+    if (source.startsWith('Ручной режим: «')) {
+      return 'Manual mode: ${source.substring('Ручной режим: '.length)}';
+    }
     if (source.startsWith('Экспортировано: ')) {
       return 'Exported: ${source.substring('Экспортировано: '.length)}';
     }
@@ -198,6 +204,8 @@ class L10n {
     "platformio.ini не найден в выбранной папке":
         "platformio.ini was not found in the selected folder",
     "Акцентный цвет": "Accent colour",
+    "Авто": "Auto",
+    "Ручной": "Manual",
     "Версия (x.y.z)": "Version (x.y.z)",
     "Версия сборки": "Build version",
     "Выберите COM-порт и нажмите «Подключиться»":
@@ -421,7 +429,8 @@ class L10n {
     "Проверять обновления": "Check for updates",
     "Автоматически раз в несколько часов через GitHub Releases":
         "Automatically every few hours via GitHub Releases",
-    "Проверить наличие новой версии": "Check whether a new version is available",
+    "Проверить наличие новой версии":
+        "Check whether a new version is available",
     "Проверяю GitHub Releases…": "Checking GitHub Releases…",
     "Доступна версия": "Version available:",
     "Установлена последняя версия": "You have the latest version",

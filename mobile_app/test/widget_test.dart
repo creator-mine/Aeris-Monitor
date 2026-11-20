@@ -8,10 +8,12 @@ import 'package:aeris/core/api/signaling_api.dart';
 import 'package:aeris/features/dashboard/providers/dashboard_provider.dart';
 import 'package:aeris/features/settings/providers/settings_provider.dart';
 
+import 'support/fake_secret_store.dart';
+
 void main() {
   testWidgets('App should render', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
-    final settingsProvider = SettingsProvider();
+    final settingsProvider = SettingsProvider(secrets: FakeSecretStore());
     await settingsProvider.init();
 
     await tester.pumpWidget(

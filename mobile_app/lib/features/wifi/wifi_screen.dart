@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/api/wifi_transport.dart';
 import '../../models/wifi_profile.dart';
 import '../../shared/theme/app_theme.dart';
+import '../../shared/widgets/segmented_toggle.dart';
+import '../../shared/widgets/tr_text.dart';
 
 /// Wi-Fi manager: works over HTTP (LAN) and USB serial.
 class WifiScreen extends StatefulWidget {
@@ -117,9 +119,8 @@ class _WifiScreenState extends State<WifiScreen> {
                           final entry = results[index];
                           final saved = _profileFor(entry.ssid) != null;
                           return ListTile(
-                            leading: Icon(entry.secure
-                                ? Icons.lock_outline
-                                : Icons.wifi),
+                            leading: Icon(
+                                entry.secure ? Icons.lock_outline : Icons.wifi),
                             title: Text(entry.ssid),
                             subtitle: Text(
                                 '${entry.rssi} dBm · канал ${entry.channel}'
@@ -158,8 +159,7 @@ class _WifiScreenState extends State<WifiScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Подключиться?'),
-        content: Text(
-            'Устройство переключится на сеть «${profile.ssid}». '
+        content: Text('Устройство переключится на сеть «${profile.ssid}». '
             'Связь может прерваться на несколько секунд.'),
         actions: [
           TextButton(
@@ -176,6 +176,37 @@ class _WifiScreenState extends State<WifiScreen> {
     if (confirmed != true) return;
     await _run(() => widget.transport.connect(profile.id),
         done: 'Переключаюсь на «${profile.ssid}»');
+  }
+
+  /// Switches between automatic selection (priority/RSSI) and pinning the
+  /// network the device is connected to right now.
+  Future<void> _setMode(bool manual) async {
+    if (!manual) {
+      await _run(widget.transport.setAuto, done: 'Включён автовыбор');
+      return;
+    }
+
+    WifiProfile? connected;
+    for (final profile in _status?.profiles ?? const <WifiProfile>[]) {
+      if (profile.connected) {
+        connected = profile;
+        break;
+      }
+    }
+    if (connected == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Сначала подключитесь к сети — её можно закрепить.'),
+        ),
+      );
+      return;
+    }
+
+    final profile = connected;
+    await _run(
+      () => widget.transport.connect(profile.id),
+      done: 'Ручной режим: «${profile.ssid}»',
+    );
   }
 
   Future<void> _addNetwork({String? prefillSsid}) async {
@@ -329,8 +360,7 @@ class _WifiScreenState extends State<WifiScreen> {
                     children: [
                       _buildCurrent(context, status),
                       const SizedBox(height: 12),
-                      if (widget.transport.canScan ||
-                          widget.transport.canAdd)
+                      if (widget.transport.canScan || widget.transport.canAdd)
                         Row(
                           children: [
                             if (widget.transport.canScan)
@@ -368,8 +398,7 @@ class _WifiScreenState extends State<WifiScreen> {
                           const Expanded(
                             child: Text('Сохранённые сети',
                                 style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold)),
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
                           ),
                           if (status != null)
                             Chip(
@@ -411,6 +440,7 @@ class _WifiScreenState extends State<WifiScreen> {
 
   Widget _buildCurrent(BuildContext context, WifiStatus? status) {
     final connected = status?.connected ?? false;
+    final manual = status?.manual ?? false;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: AppTheme.cardDecoration(
@@ -433,35 +463,26 @@ class _WifiScreenState extends State<WifiScreen> {
                       : 'Нет подключения',
                   style: const TextStyle(
                       fontSize: 16, fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (status?.manual == true)
-                const Chip(
-                  label: Text('Вручную'),
-                  visualDensity: VisualDensity.compact,
-                )
-              else
-                const Chip(
-                  label: Text('Авто'),
-                  visualDensity: VisualDensity.compact,
-                ),
+              const SizedBox(width: 8),
+              SegmentedToggle<bool>(
+                value: manual,
+                enabled: !_busy && widget.transport.canAuto,
+                onChanged: (value) => _setMode(value),
+                options: const [
+                  SegmentedToggleOption(value: false, label: TrText('Авто')),
+                  SegmentedToggleOption(value: true, label: TrText('Ручной')),
+                ],
+              ),
             ],
           ),
           if (connected) ...[
             const SizedBox(height: 4),
             Text('${status?.rssi ?? 0} dBm · ${status?.ip ?? ''}'),
           ],
-          if (status?.manual == true && widget.transport.canAuto)
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _busy
-                    ? null
-                    : () => _run(widget.transport.setAuto,
-                        done: 'Включён автовыбор'),
-                child: const Text('Вернуть автовыбор'),
-              ),
-            ),
         ],
       ),
     );
@@ -498,8 +519,8 @@ class _WifiScreenState extends State<WifiScreen> {
                 break;
               case 'toggle':
                 _run(
-                  () => widget.transport.setEnabled(
-                      profile.id, !profile.enabled),
+                  () =>
+                      widget.transport.setEnabled(profile.id, !profile.enabled),
                   done: profile.enabled ? 'Сеть выключена' : 'Сеть включена',
                 );
                 break;

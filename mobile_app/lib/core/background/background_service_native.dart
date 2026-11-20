@@ -6,8 +6,10 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../security/secret_store.dart';
 import 'background_prefs.dart';
 
 const String _defaultApiUrl = 'https://spe4naz.online';
@@ -39,7 +41,16 @@ class AerisBackgroundTaskHandler extends TaskHandler {
       _apiUrl = stored.trim().replaceAll(RegExp(r'/+$'), '');
       if (_apiUrl.isEmpty) _apiUrl = _defaultApiUrl;
       _username = prefs.getString('mqtt_username') ?? 'app';
-      _password = prefs.getString('mqtt_password') ?? '';
+      // The password lives in the OS keystore since 1.3.6; the pref is only a
+      // legacy fallback for installs that have not migrated yet.
+      _password = prefs.getString(mqttPasswordSecretKey) ?? '';
+      try {
+        final stored =
+            await const FlutterSecureStorage().read(key: mqttPasswordSecretKey);
+        if (stored != null) _password = stored;
+      } catch (_) {
+        // Secure storage is unavailable in this isolate: keep the fallback.
+      }
     } catch (_) {}
 
     _notifications = FlutterLocalNotificationsPlugin();
