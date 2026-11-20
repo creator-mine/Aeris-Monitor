@@ -16,6 +16,7 @@ import '../wifi/wifi_screen.dart';
 import '../../core/api/direct_device_client.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/wifi_transport.dart';
+import '../../core/utils/version.dart';
 import '../settings/providers/settings_provider.dart';
 import 'package:aeris/shared/widgets/tr_text.dart';
 import 'package:aeris/core/i18n/l10n.dart';
@@ -254,7 +255,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onPressed: () async {
                 final device = provider.selectedDevice;
                 final baseUrl = device?.httpBaseUrl;
-                if (device != null && device.isOnline && baseUrl != null) {
+                final hasWifiManager = device?.firmwareVersion == null ||
+                    compareVersions(device?.firmwareVersion, '1.3.7') >= 0;
+                if (device != null &&
+                    device.isOnline &&
+                    baseUrl != null &&
+                    hasWifiManager) {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => WifiScreen(
@@ -267,7 +273,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   return;
                 }
 
-                if (device != null) {
+                if (device != null && hasWifiManager) {
                   final choice = await showModalBottomSheet<String>(
                     context: context,
                     showDragHandle: true,
