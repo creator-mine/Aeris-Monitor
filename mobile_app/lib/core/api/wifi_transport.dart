@@ -46,7 +46,23 @@ class HttpWifiTransport implements WifiTransport {
 
   @override
   Future<List<WifiScanEntry>> scan() async {
-    final data = await _client.scanWifi();
+    Map<String, dynamic>? data;
+    Object? lastError;
+    for (var attempt = 0; attempt < 20; attempt++) {
+      try {
+        data = await _client.scanWifi(refresh: attempt == 0);
+        lastError = null;
+        if (data['scanning'] != true) break;
+      } catch (e) {
+        // A scan may briefly drop the Wi-Fi link. Wait for it to come back
+        // and retry the poll instead of failing the whole operation.
+        lastError = e;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+    }
+    if (data == null) {
+      throw StateError(lastError?.toString() ?? 'wifi_scan_failed');
+    }
     final raw = data['networks'];
     if (raw is! List) return const [];
     return raw

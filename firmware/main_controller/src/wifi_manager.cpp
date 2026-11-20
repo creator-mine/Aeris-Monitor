@@ -1,4 +1,4 @@
-#include "wifi_manager.h"
+﻿#include "wifi_manager.h"
 
 #include <ArduinoJson.h>
 #include <WiFi.h>
@@ -34,6 +34,11 @@ uint32_t g_failUntil[256] = {0};
 
 std::vector<ScanEntry> g_scan;
 uint32_t g_scanAt = 0;
+volatile bool g_scanRequested = false;
+bool g_scanRunning = false;
+uint32_t g_scanStarted = 0;
+bool g_scanForWeak = false;
+bool g_scanJustFinished = false;
 
 String g_pendingRequest;
 uint8_t g_pendingId = 0;
@@ -42,24 +47,12 @@ bool g_remoteCommit = false;
 String g_remoteRequest;
 String g_event;
 
-bool parseBssid(const String& text, uint8_t out[6]) {
-    unsigned int b[6];
-    if (sscanf(text.c_str(), "%02x:%02x:%02x:%02x:%02x:%02x",
-               &b[0], &b[1], &b[2], &b[3], &b[4], &b[5]) != 6) {
-        return false;
-    }
-    for (int i = 0; i < 6; i++) out[i] = (uint8_t)b[i];
-    return true;
-}
-
 void startConnect(const WifiProfile& p) {
     WiFi.mode(WIFI_STA);
-    uint8_t bssid[6];
-    if (p.channel > 0 && parseBssid(p.bssid, bssid)) {
-        WiFi.begin(p.ssid.c_str(), p.password.c_str(), p.channel, bssid);
-    } else {
-        WiFi.begin(p.ssid.c_str(), p.password.c_str());
-    }
+    // Always let the driver pick the BSSID/channel: a cached BSSID becomes
+    // stale after a router reboot, band steering or channel change and then
+    // every retry fails.
+    WiFi.begin(p.ssid.c_str(), p.password.c_str());
     g_attemptId = p.id;
     g_state = STATE_CONNECTING;
     g_connectStart = millis();
@@ -78,7 +71,6 @@ bool tryBlocking(const WifiProfile& p, uint32_t timeoutMs) {
             return true;
         }
         delay(200);
-        esp_task_wdt_reset();
     }
     return false;
 }
@@ -259,6 +251,18 @@ bool begin() {
 
 void update() {
     uint32_t now = millis();
+
+    // The WiFi API must only be used from the loop task; async HTTP handlers
+    // set a flag and poll the result.
+    serviceScan();
+    if (g_scanJustFinished) {
+        g_scanJustFinished = false;
+        if (g_scanForWeak && WiFi.status() == WL_CONNECTED) {
+            evaluateWeakSignal(WiFi.RSSI());
+        }
+        g_scanForWeak = false;
+    }
+
     wl_status_t status = WiFi.status();
 
     if (status == WL_CONNECTED) {
@@ -292,10 +296,9 @@ void update() {
             }
             if (g_weakSince != 0 && now - g_weakSince > 60000 &&
                 now - g_lastSwitch > 300000) {
-                if (scanNow()) {
-                    evaluateWeakSignal(rssi);
-                    g_weakSince = 0;
-                }
+                g_scanForWeak = true;
+                requestScan();
+                g_weakSince = 0;
             }
         }
         return;
@@ -355,6 +358,7 @@ String statusJson() {
 
 String scanJson() {
     JsonDocument doc;
+    doc["scanning"] = g_scanRequested || g_scanRunning;
     doc["age_ms"] = g_scanAt == 0 ? 0 : (millis() - g_scanAt);
     JsonArray arr = doc["networks"].to<JsonArray>();
     for (const auto& e : g_scan) {
@@ -370,15 +374,29 @@ String scanJson() {
     return out;
 }
 
-bool scanNow() {
-    int16_t found = WiFi.scanNetworks(false, true);
-    g_scan.clear();
-    g_scanAt = millis();
-    if (found < 0) {
-        WiFi.scanDelete();
-        return false;
+void serviceScan() {
+    if (!g_scanRunning) {
+        if (!g_scanRequested) return;
+        // Non-blocking scan: WiFi.scanComplete() is polled from loop().
+        WiFi.scanNetworks(true, true);
+        g_scanRunning = true;
+        g_scanStarted = millis();
+        return;
     }
 
+    int16_t found = WiFi.scanComplete();
+    if (found == -1) {  // still running
+        if (millis() - g_scanStarted > 12000) {
+            WiFi.scanDelete();
+            g_scanRunning = false;
+            g_scanRequested = false;
+            g_scanAt = millis();
+        }
+        return;
+    }
+
+    g_scan.clear();
+    g_scanAt = millis();
     for (int i = 0; i < found && g_scan.size() < 32; i++) {
         String ssid = WiFi.SSID(i);
         if (ssid.isEmpty()) continue;
@@ -410,7 +428,21 @@ bool scanNow() {
     std::sort(g_scan.begin(), g_scan.end(),
               [](const ScanEntry& a, const ScanEntry& b) { return a.rssi > b.rssi; });
     Serial.printf("[WiFi] Scan: %u networks\n", (unsigned)g_scan.size());
-    return true;
+
+    g_scanRunning = false;
+    g_scanRequested = false;
+    g_scanJustFinished = true;
+}
+void requestScan() {
+    if (!g_scanRequested) g_scanRequested = true;
+}
+
+bool scanning() {
+    return g_scanRequested || g_scanRunning;
+}
+
+uint32_t scanAgeMs() {
+    return g_scanAt == 0 ? 0xFFFFFFFFu : (millis() - g_scanAt);
 }
 
 bool connectTo(uint8_t id, String* error) {
@@ -502,3 +534,4 @@ String takeEvent() {
 }
 
 }  // namespace WifiManager
+

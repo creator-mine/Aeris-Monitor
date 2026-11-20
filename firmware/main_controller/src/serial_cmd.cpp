@@ -14,6 +14,7 @@
 #include <WiFi.h>
 #include <ArduinoJson.h>
 #include <esp_system.h>
+#include <esp_task_wdt.h>
 #include <cmath>
 
 // Line buffer for incoming Serial data.
@@ -175,7 +176,13 @@ static void cmdWifiList() {
 }
 
 static void cmdWifiScan() {
-    WifiManager::scanNow();
+    WifiManager::requestScan();
+    uint32_t start = millis();
+    while (WifiManager::scanning() && millis() - start < 10000) {
+        WifiManager::serviceScan();
+        delay(20);
+        esp_task_wdt_reset();
+    }
     String json = "{\"type\":\"wifi_scan\",\"data\":";
     json += WifiManager::scanJson();
     json += "}";

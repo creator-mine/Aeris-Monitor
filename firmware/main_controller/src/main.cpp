@@ -867,6 +867,8 @@ void setup() {
     startWebIfConnected();
     signalingInit();
 
+    // Subscribe loop only after the long boot sequence (Wi-Fi attempts, SD,
+    // sensor probing) has finished.
     watchdogInit();
 
     LOG_INFO("Boot", "Firmware %s ready", FIRMWARE_VERSION);

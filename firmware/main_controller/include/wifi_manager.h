@@ -15,7 +15,13 @@ void update();
 bool connected();
 String statusJson();
 String scanJson();
-bool scanNow();
+
+// Asks loop() to run an asynchronous scan. The HTTP handler returns
+// immediately; the app polls scanJson() until "scanning" becomes false.
+void requestScan();
+void serviceScan();
+bool scanning();
+uint32_t scanAgeMs();
 
 // Manual selection. On failure the manager falls back to auto.
 bool connectTo(uint8_t id, String* error);

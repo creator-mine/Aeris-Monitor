@@ -44,8 +44,11 @@ class DirectDeviceClient {
     return response.data as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> scanWifi() async {
-    final response = await _dio.get('/api/v1/wifi/scan');
+  Future<Map<String, dynamic>> scanWifi({bool refresh = false}) async {
+    final response = await _dio.get(
+      '/api/v1/wifi/scan',
+      queryParameters: refresh ? {'refresh': 1} : null,
+    );
     return response.data as Map<String, dynamic>;
   }
 

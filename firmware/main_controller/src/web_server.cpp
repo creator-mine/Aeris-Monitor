@@ -61,8 +61,10 @@ void WebServer::setupRoutes() {
     _http->on(API_PREFIX "/data", HTTP_GET, handleData);
     _http->on(API_PREFIX "/modules", HTTP_GET, handleModules);
     _http->on(API_PREFIX "/sd/info", HTTP_GET, handleSdInfo);
-    _http->on(API_PREFIX "/wifi", HTTP_GET, handleWifi);
+    // Register the more specific route first: ESPAsyncWebServer matches by
+    // URI prefix, so "/wifi" would otherwise swallow "/wifi/scan".
     _http->on(API_PREFIX "/wifi/scan", HTTP_GET, handleWifiScan);
+    _http->on(API_PREFIX "/wifi", HTTP_GET, handleWifi);
     _http->on(API_PREFIX "/logs", HTTP_GET, handleLogs);
 
     _http->on(API_PREFIX "/command", HTTP_POST,
@@ -483,7 +485,14 @@ void WebServer::handleWifi(AsyncWebServerRequest* request) {
 }
 
 void WebServer::handleWifiScan(AsyncWebServerRequest* request) {
-    WifiManager::scanNow();
+    // Start the scan in loop() and answer immediately: a scan can briefly
+    // drop the station link, so holding the HTTP request open until it ends
+    // makes the client lose the connection. The app polls this endpoint.
+    const bool refresh = request->hasParam("refresh");
+    if (!WifiManager::scanning() &&
+        (refresh || WifiManager::scanAgeMs() > 15000)) {
+        WifiManager::requestScan();
+    }
     request->send(200, "application/json", WifiManager::scanJson());
 }
 
@@ -560,7 +569,7 @@ void WebServer::handleCommand(AsyncWebServerRequest* request) {
     } else if (strcmp(command, "wifi_list") == 0) {
         request->send(200, "application/json", WifiManager::statusJson());
     } else if (strcmp(command, "wifi_scan") == 0) {
-        WifiManager::scanNow();
+        WifiManager::requestScan();
         request->send(200, "application/json", WifiManager::scanJson());
     } else if (strcmp(command, "wifi_add") == 0) {
         String ssid = String((const char*)(doc["ssid"] | ""));
