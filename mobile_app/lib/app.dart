@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,8 @@ import 'package:provider/provider.dart';
 import 'core/i18n/l10n.dart';
 import 'shared/theme/app_theme.dart';
 import 'features/settings/providers/settings_provider.dart';
+import 'features/settings/providers/update_provider.dart';
+import 'features/settings/widgets/updates_section.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/dashboard/providers/dashboard_provider.dart';
 import 'features/charts/charts_screen.dart';
@@ -52,6 +55,57 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
+
+  /// Periodic tick for [UpdateProvider.maybeAutoCheck]; the provider itself
+  /// only hits GitHub when its 4-hour interval has passed.
+  Timer? _updateTimer;
+  String? _notifiedUpdateVersion;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoCheckUpdates());
+    _updateTimer = Timer.periodic(
+      const Duration(minutes: 30),
+      (_) => _autoCheckUpdates(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _updateTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Silent check for the app's own updates (GitHub Releases) plus a one-time
+  /// snackbar when a newer build exists.
+  Future<void> _autoCheckUpdates() async {
+    final update = context.read<UpdateProvider?>();
+    if (update == null || !update.initialized) return;
+
+    await update.maybeAutoCheck();
+    if (!mounted) return;
+
+    final release = update.available;
+    if (release == null || _notifiedUpdateVersion == release.version) return;
+    _notifiedUpdateVersion = release.version;
+
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(
+          '${L10n.of(context, 'Доступно обновление')} ${release.version}',
+        ),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: L10n.of(context, 'Открыть'),
+          onPressed: () {
+            if (mounted) showAppUpdateDialog(context, release);
+          },
+        ),
+      ),
+    );
+  }
 
   /// Phones have no USB COM port, so the "Настройка" tab would be dead weight:
   /// it becomes the Wi-Fi provisioning screen instead.

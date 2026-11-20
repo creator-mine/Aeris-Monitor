@@ -18,6 +18,7 @@ import '../alerts/providers/alerts_provider.dart';
 import '../dashboard/providers/dashboard_provider.dart';
 import '../device_config/providers/device_config_provider.dart';
 import '../firmware/providers/firmware_provider.dart';
+import 'widgets/updates_section.dart';
 import 'package:aeris/shared/widgets/tr_text.dart';
 import 'package:aeris/core/i18n/l10n.dart';
 
@@ -212,6 +213,8 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 ),
               ],
+              const SizedBox(height: 24),
+              const UpdatesSection(),
               const SizedBox(height: 24),
               _buildSection(
                 context,

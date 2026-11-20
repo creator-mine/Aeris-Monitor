@@ -118,6 +118,15 @@ class L10n {
     if (source.startsWith('Не удалось открыть документацию: ')) {
       return 'Could not open the documentation: ${source.substring('Не удалось открыть документацию: '.length)}';
     }
+    if (source.startsWith('Нет связи с GitHub: ')) {
+      return 'Cannot reach GitHub: ${source.substring('Нет связи с GitHub: '.length)}';
+    }
+    if (source.startsWith('GitHub API вернул ')) {
+      return 'GitHub API returned ${source.substring('GitHub API вернул '.length)}';
+    }
+    if (source.startsWith('Не удалось проверить обновления: ')) {
+      return 'Could not check for updates: ${source.substring('Не удалось проверить обновления: '.length)}';
+    }
     if (source.startsWith('Экспортировано: ')) {
       return 'Exported: ${source.substring('Экспортировано: '.length)}';
     }
@@ -408,5 +417,27 @@ class L10n {
     "Переключает язык интерфейса и перевод логов.":
         "Switches the interface language and log translation.",
     "Язык логов": "Log language",
+    "Обновления": "Updates",
+    "Проверять обновления": "Check for updates",
+    "Автоматически раз в несколько часов через GitHub Releases":
+        "Automatically every few hours via GitHub Releases",
+    "Проверить наличие новой версии": "Check whether a new version is available",
+    "Проверяю GitHub Releases…": "Checking GitHub Releases…",
+    "Доступна версия": "Version available:",
+    "Установлена последняя версия": "You have the latest version",
+    "Проверено": "Checked",
+    "Установлено": "Installed",
+    "Новое": "New",
+    "Открыть релиз": "Open release",
+    "Позже": "Later",
+    "Открыть": "Open",
+    "Доступно обновление": "Update available:",
+    "Не удалось проверить обновления": "Could not check for updates",
+    "Не удалось открыть ссылку": "Could not open the link",
+    "У репозитория ещё нет релизов": "The repository has no releases yet",
+    "GitHub временно ограничил запросы. Попробуйте позже.":
+        "GitHub is rate-limiting requests. Try again later.",
+    "Не удалось разобрать ответ GitHub": "Could not parse the GitHub response",
+    "В релизе не указана версия": "The release does not specify a version",
   };
 }

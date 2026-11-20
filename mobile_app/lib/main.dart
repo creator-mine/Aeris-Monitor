@@ -18,6 +18,7 @@ import 'features/charts/providers/charts_provider.dart';
 import 'features/devices/providers/devices_provider.dart';
 import 'features/device_config/providers/device_config_provider.dart';
 import 'features/settings/providers/settings_provider.dart';
+import 'features/settings/providers/update_provider.dart';
 import 'features/firmware/providers/firmware_provider.dart';
 import 'features/alerts/providers/alerts_provider.dart';
 import 'features/smart_home/providers/smart_home_provider.dart';
@@ -32,6 +33,9 @@ void main() async {
 
   final settingsProvider = SettingsProvider();
   await settingsProvider.init();
+
+  final updateProvider = UpdateProvider();
+  await updateProvider.init();
 
   final firmwareProvider = FirmwareProvider(
     otaBaseUrl: settingsProvider.effectiveOtaUrl,
@@ -79,6 +83,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: settingsProvider),
+        ChangeNotifierProvider.value(value: updateProvider),
         Provider.value(value: signalingApi),
         Provider.value(value: apiClient),
         Provider.value(value: mqttService),
