@@ -894,8 +894,27 @@ function createServer(options = {}) {
       request_id: requestId,
       id: networkId,
     });
+    const ackPromise = waitForWifiAck(deviceId, requestId);
     if (!publishCommand(deviceId, payload)) {
+      cancelWifiAck(deviceId, requestId);
       return sendJson(res, 503, { error: 'mqtt_off' });
+    }
+    const ack = await ackPromise;
+    if (!ack) {
+      return sendJson(res, 504, { error: 'device_timeout', request_id: requestId });
+    }
+    if (ack.ok === false || ack.status === 'error') {
+      return sendJson(res, 502, {
+        error: ack.error || 'device_error',
+        request_id: requestId,
+      });
+    }
+    if (ack.status !== 'prepared') {
+      return sendJson(res, 409, {
+        error: 'bad_state',
+        status: ack.status,
+        request_id: requestId,
+      });
     }
     cleanupWifiRequests();
     wifiRequests.set(wifiKey(deviceId, requestId), {
@@ -940,12 +959,34 @@ function createServer(options = {}) {
       command: 'wifi_commit',
       request_id: requestId,
     });
-    if (!publishCommand(deviceId, payload)) {
-      return sendJson(res, 503, { error: 'mqtt_off' });
-    }
     pending.status = 'committing';
     pending.updatedAt = Date.now();
     pending.expiresAt = Date.now() + 90000;
+    const ackPromise = waitForWifiAck(deviceId, requestId);
+    if (!publishCommand(deviceId, payload)) {
+      pending.status = 'prepared';
+      cancelWifiAck(deviceId, requestId);
+      return sendJson(res, 503, { error: 'mqtt_off' });
+    }
+    const ack = await ackPromise;
+    if (!ack) {
+      return sendJson(res, 504, { error: 'device_timeout', request_id: requestId });
+    }
+    if (ack.ok === false || ack.status === 'error') {
+      pending.status = 'error';
+      pending.error = ack.error || 'device_error';
+      return sendJson(res, 502, {
+        error: pending.error,
+        request_id: requestId,
+      });
+    }
+    if (ack.status !== 'committing' && ack.status !== 'ok') {
+      return sendJson(res, 409, {
+        error: 'bad_state',
+        status: ack.status,
+        request_id: requestId,
+      });
+    }
     return sendJson(res, 200, { ok: true, request_id: requestId, status: 'committing' });
   }
 
@@ -971,6 +1012,27 @@ function createServer(options = {}) {
   }
 
   const wifiListWaiters = new Map();
+  const wifiAckWaiters = new Map();
+
+  function waitForWifiAck(deviceId, requestId, timeoutMs = 8000) {
+    const key = wifiKey(deviceId, requestId);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        wifiAckWaiters.delete(key);
+        resolve(null);
+      }, timeoutMs);
+      wifiAckWaiters.set(key, { resolve, timer });
+    });
+  }
+
+  function cancelWifiAck(deviceId, requestId) {
+    const key = wifiKey(deviceId, requestId);
+    const waiter = wifiAckWaiters.get(key);
+    if (!waiter) return;
+    clearTimeout(waiter.timer);
+    wifiAckWaiters.delete(key);
+    waiter.resolve(null);
+  }
 
   function handleWifiList(req, res, deviceId) {
     if (!adminOk(req)) return sendJson(res, 401, { error: 'unauthorized' });
@@ -1027,6 +1089,14 @@ function createServer(options = {}) {
       broadcastSSE('status', s);
     });
     options.mqtt.on('wifi_result', (r) => {
+      if (r.requestId) {
+        const ackWaiter = wifiAckWaiters.get(wifiKey(r.deviceId, r.requestId));
+        if (ackWaiter) {
+          clearTimeout(ackWaiter.timer);
+          wifiAckWaiters.delete(wifiKey(r.deviceId, r.requestId));
+          ackWaiter.resolve(r);
+        }
+      }
       if (r.requestId && r.status === 'list') {
         const waiter = wifiListWaiters.get(wifiKey(r.deviceId, r.requestId));
         if (waiter) {

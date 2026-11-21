@@ -1,6 +1,6 @@
 {
   "name": "aeris-signaling-server",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Aeris Monitor - signaling/registry server with self-hosted admin panel (3X-UI style). Stores no sensor telemetry.",
   "main": "src/index.js",
   "scripts": {
