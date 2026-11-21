@@ -23,8 +23,13 @@ void serviceScan();
 bool scanning();
 uint32_t scanAgeMs();
 
-// Manual selection. On failure the manager falls back to auto.
-bool connectTo(uint8_t id, String* error);
+// Manual selection. Validates the profile and queues the switch; loop() then
+// performs WiFi.disconnect()/WiFi.begin(). Calling those from the
+// AsyncWebServer task can panic the single-core C6, so HTTP handlers must
+// never touch the radio directly. `remote` marks a two-phase commit whose
+// final result is published on iot/<id>/wifi/result.
+bool connectTo(uint8_t id, String* error, bool remote = false,
+               const String& requestId = String());
 void setAuto();
 
 // Remote two-phase switch (MQTT). Both return a JSON response string.

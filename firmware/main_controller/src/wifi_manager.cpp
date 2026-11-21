@@ -21,6 +21,9 @@ struct ScanEntry {
     String bssid;
 };
 
+// Weak 2.4 GHz links can need ~30 s to reassociate after a forced disconnect.
+constexpr uint32_t kConnectTimeoutMs = 30000;
+
 State g_state = STATE_IDLE;
 uint8_t g_activeId = 0;
 uint8_t g_attemptId = 0;
@@ -47,7 +50,21 @@ bool g_remoteCommit = false;
 String g_remoteRequest;
 String g_event;
 
+// Deferred manual switch. HTTP handlers only validate + queue; loop() runs the
+// radio calls. The short delay lets the HTTP/MQTT response leave the device
+// before the station link drops.
+bool g_connectQueued = false;
+uint8_t g_queuedId = 0;
+uint32_t g_connectAt = 0;
+portMUX_TYPE g_connectMux = portMUX_INITIALIZER_UNLOCKED;
+
 void startConnect(const WifiProfile& p) {
+    if (g_state == STATE_CONNECTING) {
+        // Abandoning an in-flight attempt: WiFi.begin() fails with
+        // ESP_ERR_WIFI_STATE ("sta is connecting") unless the station is
+        // stopped first. A radio restart also clears the stale channel/BSSID.
+        WiFi.disconnect(true);
+    }
     WiFi.mode(WIFI_STA);
     // Always let the driver pick the BSSID/channel: a cached BSSID becomes
     // stale after a router reboot, band steering or channel change and then
@@ -119,10 +136,11 @@ void startNext() {
     }
 
     // Everything failed recently: clear the short ban and retry the cycle
-    // after a longer pause instead of hammering the radios.
+    // soon instead of hammering the radios or leaving a failed remote commit
+    // without a result for too long.
     for (const auto& p : ordered) g_failUntil[p.id] = 0;
     g_state = STATE_WAIT;
-    g_nextTry = now + 30000;
+    g_nextTry = now + 5000;
 }
 
 void evaluateWeakSignal(int currentRssi) {
@@ -184,7 +202,7 @@ void failCurrent(const char* reason) {
         g_event = out;
         g_remoteCommit = false;
         WifiProfiles::setManual(0);
-        g_nextTry = now + 1000;
+        g_nextTry = now + 3000;
     } else if (g_attemptId == WifiProfiles::manualId()) {
         // Manual choice is unreachable: fall back to auto instead of staying
         // offline until the user changes it.
@@ -252,6 +270,58 @@ bool begin() {
 void update() {
     uint32_t now = millis();
 
+    bool runQueued = false;
+    uint8_t queuedId = 0;
+    portENTER_CRITICAL(&g_connectMux);
+    if (g_connectQueued && (int32_t)(now - g_connectAt) >= 0) {
+        queuedId = g_queuedId;
+        g_queuedId = 0;
+        g_connectQueued = false;
+        runQueued = true;
+    }
+    portEXIT_CRITICAL(&g_connectMux);
+
+    if (runQueued) {
+        WifiProfile p;
+        if (WifiProfiles::get(queuedId, p) && p.enabled) {
+            if (connected() && queuedId == g_activeId) {
+                // Already on this profile: do not tear down a working link
+                // (a weak C6 link can take 20+ s to reassociate).
+                WifiProfiles::setManual(queuedId);
+                g_failUntil[queuedId] = 0;
+                if (g_remoteCommit) {
+                    JsonDocument doc;
+                    doc["request_id"] = g_remoteRequest;
+                    doc["status"] = "ok";
+                    doc["id"] = queuedId;
+                    doc["ssid"] = WiFi.SSID();
+                    doc["rssi"] = WiFi.RSSI();
+                    String out;
+                    serializeJson(doc, out);
+                    g_event = out;
+                    g_remoteCommit = false;
+                }
+            } else {
+                if (connected()) WiFi.disconnect(false, false);
+                startConnect(p);
+            }
+        } else if (g_remoteCommit) {
+            JsonDocument doc;
+            doc["request_id"] = g_remoteRequest;
+            doc["status"] = "error";
+            doc["error"] = "not_found";
+            String out;
+            serializeJson(doc, out);
+            g_event = out;
+            g_remoteCommit = false;
+            WifiProfiles::setManual(0);
+        }
+    }
+    // A queued switch just restarted the state machine with a fresh
+    // g_connectStart. Do not evaluate timeouts in this same iteration: `now`
+    // predates that timestamp and the unsigned subtraction would wrap.
+    if (runQueued) return;
+
     // The WiFi API must only be used from the loop task; async HTTP handlers
     // set a flag and poll the result.
     serviceScan();
@@ -268,7 +338,20 @@ void update() {
     if (status == WL_CONNECTED) {
         if (g_state != STATE_CONNECTED) {
             g_state = STATE_CONNECTED;
-            g_activeId = g_attemptId;
+            // An attempt can associate after its timeout fired. Attribute the
+            // link to the SSID the driver actually joined, not blindly to the
+            // profile we happened to start last.
+            uint8_t joinedId = g_attemptId;
+            const String joinedSsid = WiFi.SSID();
+            if (!joinedSsid.isEmpty()) {
+                for (const auto& p : WifiProfiles::list()) {
+                    if (p.ssid == joinedSsid) {
+                        joinedId = p.id;
+                        break;
+                    }
+                }
+            }
+            g_activeId = joinedId;
             g_backoffMs = 5000;
             for (auto& until : g_failUntil) until = 0;
             WifiProfiles::markOk(g_activeId, WiFi.BSSIDstr(), (uint8_t)WiFi.channel());
@@ -310,8 +393,11 @@ void update() {
     }
 
     if (g_state == STATE_CONNECTING) {
-        if (now - g_connectStart < 12000) return;
+        if (now - g_connectStart < kConnectTimeoutMs) return;
         Serial.printf("[WiFi] Connect timeout (id=%u)\n", (unsigned)g_attemptId);
+        // Leave the driver alone: the next WiFi.begin() supersedes this
+        // attempt, and an attempt that associates a moment later is still
+        // credited to the right profile by the SSID match above.
         failCurrent("connect_failed");
         return;
     }
@@ -445,7 +531,7 @@ uint32_t scanAgeMs() {
     return g_scanAt == 0 ? 0xFFFFFFFFu : (millis() - g_scanAt);
 }
 
-bool connectTo(uint8_t id, String* error) {
+bool connectTo(uint8_t id, String* error, bool remote, const String& requestId) {
     WifiProfile p;
     if (!WifiProfiles::get(id, p)) {
         if (error) *error = "not_found";
@@ -455,10 +541,35 @@ bool connectTo(uint8_t id, String* error) {
         if (error) *error = "disabled";
         return false;
     }
+    if (connected() && id == g_activeId) {
+        // Already on this profile: let loop() answer the remote commit without
+        // tearing down a working link (a weak C6 link can take 20+ s to
+        // reassociate).
+        if (remote) {
+            g_remoteRequest = requestId;
+            g_remoteCommit = true;
+            portENTER_CRITICAL(&g_connectMux);
+            g_queuedId = id;
+            g_connectQueued = true;
+            g_connectAt = millis() + 300;
+            portEXIT_CRITICAL(&g_connectMux);
+            return true;
+        }
+        WifiProfiles::setManual(id);
+        g_failUntil[id] = 0;
+        return true;
+    }
     WifiProfiles::setManual(id);
     g_failUntil[id] = 0;
-    if (connected()) WiFi.disconnect(false, false);
-    startConnect(p);
+    if (remote) {
+        g_remoteRequest = requestId;
+        g_remoteCommit = true;
+    }
+    portENTER_CRITICAL(&g_connectMux);
+    g_queuedId = id;
+    g_connectQueued = true;
+    g_connectAt = millis() + 300;
+    portEXIT_CRITICAL(&g_connectMux);
     return true;
 }
 
@@ -510,11 +621,9 @@ String handleRemoteCommit(const String& json) {
     }
 
     String error;
-    if (!connectTo(g_pendingId, &error)) {
+    if (!connectTo(g_pendingId, &error, true, requestId)) {
         return String("{\"ok\":false,\"error\":\"") + error + "\"}";
     }
-    g_remoteCommit = true;
-    g_remoteRequest = requestId;
     g_pendingRequest = "";
     g_pendingId = 0;
 
