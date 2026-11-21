@@ -226,6 +226,13 @@ pio run -e esp32-c6 -t upload</code></pre>
 
       <p data-ru-html="Удалённое переключение разрешено только для сохранённых и включённых профилей. <code>wifi_prepare</code> запоминает <code>request_id</code> и сеть на 120 секунд, <code>wifi_commit</code> с тем же идентификатором запускает подключение. Результат уходит в топик <code>iot/&lt;id&gt;/wifi/result</code>; если сеть не ответила, контроллер сообщает ошибку и возвращается к автовыбору." data-en-html="Remote switching is allowed only for saved and enabled profiles. <code>wifi_prepare</code> remembers the <code>request_id</code> and network for 120 seconds; <code>wifi_commit</code> with the same id starts the connection. The result is published to <code>iot/&lt;id&gt;/wifi/result</code>; if the network does not answer, the controller reports an error and falls back to automatic selection.">Prepare/commit, 120 секунд, откат при ошибке.</p>
 
+      <div class="callout info">
+        <div class="co-ic">🛠</div>
+        <div class="co-body">
+          <p data-ru-html="В 1.3.9 переключение Wi-Fi из приложения и с сервера выполняется в основном цикле, а не в обработчике HTTP. На однопроцессорном C6 прямой вызов радио из веб-задачи мог привести к перезагрузке. Подключение к уже активной сети теперь завершается сразу, а на слабом сигнале таймаут увеличен до 30 секунд. Брокер должен разрешать устройству публиковать <code>iot/&lt;id&gt;/wifi/result</code>, а приложению и серверу — читать этот топик." data-en-html="In 1.3.9 switching Wi-Fi from the app and the server runs in the main loop instead of the HTTP handler. On the single-core C6 the direct radio call from the web task could reboot the board. Switching to the network that is already active now completes immediately, and the weak-signal timeout is 30 seconds. The broker must allow the device to publish <code>iot/&lt;id&gt;/wifi/result</code> and the app/server to read it.">Переключение вынесено в основной цикл.</p>
+        </div>
+      </div>
+
       <p data-ru-html="С 1.3.8 в MQTT-статусе <code>iot/&lt;id&gt;/status</code> есть блок <code>sd</code> с состоянием карты: <code>status</code>, <code>mounted</code>, <code>card_detected</code>, <code>total_bytes</code>, <code>used_bytes</code>, <code>free_bytes</code> и <code>used_pct</code>. Он формируется тем же кодом, что и <code>GET /api/v1/sd/info</code>, поэтому значения совпадают." data-en-html="Since 1.3.8 the MQTT status <code>iot/&lt;id&gt;/status</code> carries an <code>sd</code> block with the card state: <code>status</code>, <code>mounted</code>, <code>card_detected</code>, <code>total_bytes</code>, <code>used_bytes</code>, <code>free_bytes</code> and <code>used_pct</code>. It is produced by the same code as <code>GET /api/v1/sd/info</code>, so the values match.">С 1.3.8 состояние SD есть в MQTT-статусе.</p>
 
       <h2 id="ota" data-ru="Обновление по воздуху" data-en="Over-the-air updates">Обновление по воздуху</h2>
@@ -318,7 +325,7 @@ pio run -e esp32-c6 -t upload</code></pre>
 
       <pre><code>$ echo -n AERIS_DISCOVER_V1 | nc -u -b 192.168.1.255 8266
 {"id":"esp32c6_001","name":"Main Controller C6","type":"esp32c6",
- "fw":"1.3.8","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
+ "fw":"1.3.9","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
 
       <p data-ru-html="Для опроса найденного устройства одним запросом служит <code>GET /api/v1/data</code>: он отдаёт состояние, текущие показания и список модулей сразу. Это удобнее трёх отдельных запросов и меньше нагружает плату." data-en-html="To poll a discovered device in one request use <code>GET /api/v1/data</code>: it returns the status, current readings and module list at once. That is handier than three separate requests and puts less load on the board.">Один запрос вместо трёх — /api/v1/data.</p>
 
