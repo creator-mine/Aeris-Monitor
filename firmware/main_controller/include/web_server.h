@@ -13,6 +13,10 @@ public:
     void broadcastStatus();
     void update();
 
+    /// SD-card state as a JSON object. Shared by `/api/v1/sd/info`,
+    /// `/api/v1/status` and the MQTT status payload.
+    static String buildSdInfoJson();
+
 private:
     WebServer() = default;
     ~WebServer();
@@ -27,7 +31,6 @@ private:
     void setupWebSocket();
     static String buildStatusJson();
     static String buildSensorsJsonValue();
-    static String buildSdInfoJson();
     static String buildHistoryJson(AsyncWebServerRequest* request);
 
     static void handleSensors(AsyncWebServerRequest* request);

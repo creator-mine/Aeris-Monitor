@@ -188,6 +188,8 @@ void mqttPublishStatus() {
         payload += "\"relay\":" + String(RelayControl::state() ? "true" : "false") + ",";
     }
 
+    payload += "\"sd\":" + WebServer::buildSdInfoJson() + ",";
+
     auto modules = SensorRegistry::instance().activeModules();
     payload += "\"modules\":[";
     for (size_t i = 0; i < modules.size(); i++) {
