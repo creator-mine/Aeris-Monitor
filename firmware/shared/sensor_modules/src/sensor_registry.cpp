@@ -182,6 +182,7 @@ void SensorRegistry::scanBus(uint8_t muxAddress, uint8_t muxChannel) {
 
         Wire.beginTransmission(addr);
         if (Wire.endTransmission() != 0) continue;
+        Serial.printf("[Registry] I2C ACK 0x%02X\n", addr);
 
         for (auto* driver : _drivers) {
             auto addrs = driver->i2cAddresses();

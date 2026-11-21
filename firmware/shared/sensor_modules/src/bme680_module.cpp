@@ -8,11 +8,13 @@ std::vector<uint8_t> BME680Module::i2cAddresses() const {
 }
 
 // BME680 and BMP280 both answer on 0x76/0x77, so an ACK alone is not enough:
-// the chip id decides which driver owns the address.
+// the chip id decides which driver owns the address. BME680 returns 0x61
+// (0x60 is a BME280, which this driver does not handle).
 bool BME680Module::detect(uint8_t address) {
     uint8_t chipId = 0;
     if (!readSensorRegister(address, 0xD0, chipId)) return false;
-    return chipId == 0x60;
+    Serial.printf("[BME680] probe 0x%02X chip id=0x%02X\n", address, chipId);
+    return chipId == 0x61;
 }
 
 bool BME680Module::init(uint8_t address) {

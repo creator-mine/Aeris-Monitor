@@ -97,7 +97,7 @@
 // Over-the-Air firmware updates (pulled over HTTPS from the public site).
 // Each board pulls its own binary + manifest (per-device_type files).
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "1.3.10"
+#define FIRMWARE_VERSION "1.3.11"
 #endif
 #ifndef OTA_FW_HOST
 #define OTA_FW_HOST "spe4naz.online"
