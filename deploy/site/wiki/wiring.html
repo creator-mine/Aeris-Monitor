@@ -245,6 +245,13 @@
         </div>
       </div>
 
+      <div class="callout warn">
+        <div class="co-ic">⚠️</div>
+        <div class="co-body">
+          <p data-ru-html="На ESP32-C6 не занимайте <code>GPIO5</code> под I²C. Это одновременно <code>UART TX</code> (линия связи с модулем датчиков) и strapping-вывод; при попытке поднять шину на 5/6 прошивка зависает и срабатывает watchdog. Штатные выводы контроллера — <code>SDA=GPIO6</code>, <code>SCL=GPIO7</code>. Отдельный Arduino-скетч с <code>Wire.begin(5,6)</code> может работать, потому что не поднимает UART, но с прошивкой контроллера такая распайка несовместима." data-en-html="Do not use <code>GPIO5</code> for I²C on the ESP32-C6. It is both <code>UART TX</code> (the link to the sensor module) and a strapping pin; bringing the bus up on 5/6 hangs the firmware and trips the watchdog. The controller’s standard pins are <code>SDA=GPIO6</code>, <code>SCL=GPIO7</code>. A standalone Arduino sketch with <code>Wire.begin(5,6)</code> may work because it does not start UART, but that wiring is incompatible with the controller firmware.">GPIO5 — это UART TX и strapping; I²C только на 6/7.</p>
+        </div>
+      </div>
+
       <h3 id="bmp280" data-ru="BMP280 — температура и давление" data-en="BMP280 — temperature and pressure">BMP280 — температура и давление</h3>
 
       <div class="table-wrap">
