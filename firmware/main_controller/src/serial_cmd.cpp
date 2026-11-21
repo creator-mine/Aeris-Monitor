@@ -263,6 +263,140 @@ static void cmdWifiAuto() {
     respond("{\"type\":\"ack\",\"command\":\"wifi_auto\"}");
 }
 
+// CMD:i2c_scan[:sda:scl] — rescan the bus on the configured or given pins.
+// Runs in the loop task, so it is safe to call Wire.begin() here.
+static void cmdI2cScan(const char* args) {
+    int sda = I2C_SDA;
+    int scl = I2C_SCL;
+    if (args && *args == ':') args++;
+    if (args && *args) {
+        int a = atoi(args);
+        const char* colon = strchr(args, ':');
+        int b = colon ? atoi(colon + 1) : 0;
+        if (a > 0 && b > 0) {
+            sda = a;
+            scl = b;
+        }
+    }
+    SensorRegistry::instance().scanI2CBus(sda, scl);
+    String json = "{\"type\":\"i2c_scan\",\"sda\":" + String(sda) +
+                  ",\"scl\":" + String(scl) + ",\"modules\":" +
+                  SensorRegistry::instance().modulesToJson() + "}";
+    respond(json.c_str());
+}
+
+// CMD:i2c_w1[:sda:scl] — scan through the second I2C peripheral (LP I2C on C6).
+#if CONFIG_IDF_TARGET_ESP32C6
+static void cmdI2cWire1Scan(const char* args) {
+    int sda = I2C_SDA;
+    int scl = I2C_SCL;
+    if (args && *args == ':') args++;
+    if (args && *args) {
+        int a = atoi(args);
+        const char* colon = strchr(args, ':');
+        int b = colon ? atoi(colon + 1) : 0;
+        if (a > 0 && b > 0) {
+            sda = a;
+            scl = b;
+        }
+    }
+    Wire1.begin(sda, scl);
+    Serial.printf("[I2C-W1] Scan SDA=%d SCL=%d\n", sda, scl);
+    String found = "[";
+    bool first = true;
+    for (uint8_t addr = 1; addr < 127; addr++) {
+        Wire1.beginTransmission(addr);
+        if (Wire1.endTransmission() != 0) continue;
+        Serial.printf("[I2C-W1] ACK 0x%02X\n", addr);
+        if (!first) found += ",";
+        first = false;
+        found += String((unsigned)addr);
+    }
+    found += "]";
+    respond((String("{\"type\":\"i2c_w1\",\"sda\":") + String(sda) +
+             ",\"scl\":" + String(scl) + ",\"addresses\":" + found + "}")
+                .c_str());
+}
+#endif
+
+static void bbDelay() { delayMicroseconds(10); }
+
+static void bbStart(int sda, int scl) {
+    pinMode(sda, OUTPUT_OPEN_DRAIN);
+    pinMode(scl, OUTPUT_OPEN_DRAIN);
+    digitalWrite(sda, HIGH);
+    digitalWrite(scl, HIGH);
+    bbDelay();
+    digitalWrite(sda, LOW);
+    bbDelay();
+    digitalWrite(scl, LOW);
+    bbDelay();
+}
+
+static void bbStop(int sda, int scl) {
+    pinMode(sda, OUTPUT_OPEN_DRAIN);
+    pinMode(scl, OUTPUT_OPEN_DRAIN);
+    digitalWrite(sda, LOW);
+    bbDelay();
+    digitalWrite(scl, HIGH);
+    bbDelay();
+    digitalWrite(sda, HIGH);
+    bbDelay();
+}
+
+static bool bbWriteByte(int sda, int scl, uint8_t value) {
+    pinMode(sda, OUTPUT_OPEN_DRAIN);
+    for (int bit = 7; bit >= 0; bit--) {
+        digitalWrite(sda, (value & (1u << bit)) ? HIGH : LOW);
+        bbDelay();
+        digitalWrite(scl, HIGH);
+        bbDelay();
+        digitalWrite(scl, LOW);
+        bbDelay();
+    }
+    pinMode(sda, INPUT_PULLUP);
+    bbDelay();
+    digitalWrite(scl, HIGH);
+    bbDelay();
+    bool ack = digitalRead(sda) == LOW;
+    digitalWrite(scl, LOW);
+    bbDelay();
+    return ack;
+}
+
+// CMD:i2c_bb[:sda:scl] — probe 0x01..0x7E with a software I2C master.
+static void cmdI2cBbScan(const char* args) {
+    int sda = I2C_SDA;
+    int scl = I2C_SCL;
+    if (args && *args == ':') args++;
+    if (args && *args) {
+        int a = atoi(args);
+        const char* colon = strchr(args, ':');
+        int b = colon ? atoi(colon + 1) : 0;
+        if (a > 0 && b > 0) {
+            sda = a;
+            scl = b;
+        }
+    }
+    Serial.printf("[I2C-BB] Software scan SDA=%d SCL=%d\n", sda, scl);
+    String found = "[";
+    bool first = true;
+    for (uint8_t addr = 1; addr < 127; addr++) {
+        bbStart(sda, scl);
+        bool ack = bbWriteByte(sda, scl, (uint8_t)(addr << 1));
+        bbStop(sda, scl);
+        if (!ack) continue;
+        Serial.printf("[I2C-BB] ACK 0x%02X\n", addr);
+        if (!first) found += ",";
+        first = false;
+        found += String((unsigned)addr);
+    }
+    found += "]";
+    respond((String("{\"type\":\"i2c_bb\",\"sda\":") + String(sda) +
+             ",\"scl\":" + String(scl) + ",\"addresses\":" + found + "}")
+                .c_str());
+}
+
 static void cmdMqttEnable(bool on) {
     MqttConfig::setEnabled(on);
     LOG_INFO("MQTT", "%s by serial command", on ? "enabled" : "disabled");
@@ -354,6 +488,12 @@ static void processCmd(const char* line) {
     else if (strncmp(p, "wifi_enable:", 12) == 0) { cmdWifiEnable(p + 12); }
     else if (strncmp(p, "wifi_connect:", 13) == 0) { cmdWifiConnect(p + 13); }
     else if (strncmp(p, "wifi_auto", 9) == 0) { cmdWifiAuto(); }
+    else if (strncmp(p, "i2c_scan", 8) == 0) { cmdI2cScan(p + 8); }
+    else if (strncmp(p, "rescan", 6) == 0) { cmdI2cScan(p + 6); }
+    else if (strncmp(p, "i2c_bb", 6) == 0) { cmdI2cBbScan(p + 6); }
+#if CONFIG_IDF_TARGET_ESP32C6
+    else if (strncmp(p, "i2c_w1", 6) == 0) { cmdI2cWire1Scan(p + 6); }
+#endif
     else if (strncmp(p, "wifi_set:", 9) == 0) {
         // CMD:wifi_set:ssid:password
         const char* ssid = p + 9;
