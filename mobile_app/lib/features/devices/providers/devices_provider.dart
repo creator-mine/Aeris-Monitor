@@ -5,6 +5,7 @@ import '../../../core/api/mqtt_client.dart';
 import '../../../core/api/direct_device_client.dart';
 import '../../../core/api/lan_discovery.dart';
 import '../../../core/api/lan_devices.dart';
+import '../../../core/config/connection_mode.dart';
 import '../../../core/utils/version.dart';
 import '../../../models/device.dart';
 import '../../../models/firmware_manifest.dart';
@@ -83,12 +84,14 @@ class DevicesProvider extends ChangeNotifier {
 
     try {
       final registry = await _signalingApi.getDevices();
-      final lan = await _discoverLan();
+      final lan =
+          LanPolicy.enabled ? await _discoverLan() : const <DiscoveredDevice>[];
       _devices = mergeLanDevices(registry, lan);
     } catch (e) {
       // The cloud registry may be unreachable while the device is still on
       // the same Wi-Fi: fall back to local discovery.
-      final lan = await _discoverLan();
+      final lan =
+          LanPolicy.enabled ? await _discoverLan() : const <DiscoveredDevice>[];
       _devices = mergeLanDevices(const [], lan);
       if (_devices.isEmpty) _error = e.toString();
     } finally {
@@ -170,7 +173,7 @@ class DevicesProvider extends ChangeNotifier {
       return 'Команда ОТА отправлена через MQTT — устройство скачает прошивку и перезагрузится';
     }
 
-    final baseUrl = device.httpBaseUrl;
+    final baseUrl = LanPolicy.enabled ? device.httpBaseUrl : null;
     if (baseUrl != null) {
       try {
         final client = DirectDeviceClient(baseUrl: baseUrl);
@@ -212,7 +215,7 @@ class DevicesProvider extends ChangeNotifier {
       return 'Команда отката отправлена через MQTT — устройство загрузит предыдущую прошивку и перезагрузится';
     }
 
-    final baseUrl = device.httpBaseUrl;
+    final baseUrl = LanPolicy.enabled ? device.httpBaseUrl : null;
     if (baseUrl != null) {
       try {
         final client = DirectDeviceClient(baseUrl: baseUrl);

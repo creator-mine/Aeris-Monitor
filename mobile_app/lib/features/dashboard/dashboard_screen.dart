@@ -1,6 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'providers/dashboard_provider.dart';
 import 'widgets/device_card.dart';
 import 'widgets/sensor_tile.dart';
@@ -187,6 +186,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildChannelSelector(
+      BuildContext context, DashboardProvider provider) {
+    final mqttActive = provider.activeChannel == ActiveChannel.mqtt ||
+        (provider.activeChannel == ActiveChannel.none &&
+            provider.connectionMode == ConnectionMode.mqtt);
+    final label = mqttActive ? 'MQTT' : 'LAN';
+
+    return PopupMenuButton<ConnectionMode>(
+      tooltip: L10n.of(context, 'Канал подключения: LAN или MQTT'),
+      onSelected: (mode) {
+        provider.setConnectionMode(mode);
+        context.read<SettingsProvider>().setConnectionMode(mode);
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: ConnectionMode.lanDirect,
+          child: Row(
+            children: [
+              Icon(mqttActive ? Icons.lan : Icons.check, size: 18),
+              const SizedBox(width: 8),
+              const TrText('LAN'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: ConnectionMode.mqtt,
+          child: Row(
+            children: [
+              Icon(mqttActive ? Icons.check : Icons.cloud_queue, size: 18),
+              const SizedBox(width: 8),
+              const TrText('MQTT'),
+            ],
+          ),
+        ),
+      ],
+      child: Chip(
+        avatar: Icon(
+          mqttActive ? Icons.cloud_queue : Icons.lan,
+          size: 16,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TrText(label),
+            const Icon(Icons.arrow_drop_down, size: 18),
+          ],
+        ),
+        visualDensity: VisualDensity.compact,
+        labelStyle: Theme.of(context).textTheme.labelSmall,
+      ),
+    );
+  }
+
   Future<void> _renameDevice(
     BuildContext context,
     DashboardProvider provider,
@@ -232,20 +285,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 4),
         Row(
           children: [
-            TrText(
-              'Последнее обновление: ${DateFormat('dd.MM.yyyy HH:mm').format(device.lastSeen)}',
+            Text(
+              '${L10n.of(context, 'Версия прошивки')}: '
+              '${device.firmwareVersion ?? '—'}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey,
                   ),
             ),
             const SizedBox(width: 8),
-            if (provider.activeChannelLabel != null)
-              Chip(
-                label: TrText(provider.activeChannelLabel!),
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                labelStyle: Theme.of(context).textTheme.labelSmall,
-              ),
+            _buildChannelSelector(context, provider),
           ],
         ),
         const SizedBox(height: 16),
@@ -260,6 +308,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (device != null &&
                     device.isOnline &&
                     baseUrl != null &&
+                    LanPolicy.enabled &&
                     hasWifiManager) {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -291,8 +340,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ListTile(
                             leading: const Icon(Icons.wifi),
                             title: const Text('Точка настройки'),
-                            subtitle: const Text(
-                                'Aeris-Setup-XXXX на 5 минут'),
+                            subtitle: const Text('Aeris-Setup-XXXX на 5 минут'),
                             onTap: () => Navigator.pop(context, 'ap'),
                           ),
                         ],

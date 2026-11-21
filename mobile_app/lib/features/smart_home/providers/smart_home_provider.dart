@@ -7,6 +7,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/mqtt_client.dart';
 import '../../../core/api/signaling_api.dart';
 import '../../../core/api/direct_device_client.dart';
+import '../../../core/config/connection_mode.dart';
 import '../../alerts/services/alert_notifier.dart';
 
 /// Smart-home rule engine.
@@ -234,8 +235,16 @@ class SmartHomeProvider extends ChangeNotifier {
   }
 
   Future<void> _sendDeviceCommand(SmartRule rule) async {
+    if (rule.actionPayload.isEmpty) return;
+    if (!LanPolicy.enabled) {
+      _mqtt?.publishCommand(rule.deviceId, {
+        'type': 'command',
+        'command': rule.actionPayload,
+      });
+      return;
+    }
     final baseUrl = _deviceBaseUrls[rule.deviceId];
-    if (baseUrl == null || rule.actionPayload.isEmpty) return;
+    if (baseUrl == null) return;
     final client = DirectDeviceClient(baseUrl: baseUrl);
     try {
       await client.sendCommand(rule.actionPayload);

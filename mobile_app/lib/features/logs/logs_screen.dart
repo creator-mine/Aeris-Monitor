@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/api/device_ws_client.dart';
 import '../../core/api/direct_device_client.dart';
+import '../../core/config/connection_mode.dart';
 import '../../models/device.dart';
 import '../../models/log_entry.dart';
 import '../../core/utils/log_translator.dart';
@@ -46,6 +47,7 @@ class _LogsScreenState extends State<LogsScreen> {
   @override
   void initState() {
     super.initState();
+    if (!LanPolicy.enabled) return;
     final baseUrl = _device.httpBaseUrl;
     if (baseUrl != null) {
       _http = DirectDeviceClient(baseUrl: baseUrl);
@@ -79,7 +81,7 @@ class _LogsScreenState extends State<LogsScreen> {
   }
 
   Future<void> _poll() async {
-    if (_paused) return;
+    if (_paused || !LanPolicy.enabled) return;
     final http = _http;
     if (http == null) return;
     try {
@@ -116,6 +118,22 @@ class _LogsScreenState extends State<LogsScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+    if (!LanPolicy.enabled) {
+      return AppScaffold(
+        title: _device.name,
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: TrText(
+              'LAN отключён: журнал доступен только по локальной сети. '
+              'Выключите «Только MQTT» в настройках.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+        ),
+      );
+    }
     return AppScaffold(
       title: _device.name,
       actions: [

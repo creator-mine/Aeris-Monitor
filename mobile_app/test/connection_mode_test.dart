@@ -31,6 +31,28 @@ void main() {
     expect(settings.connectionMode, ConnectionMode.auto);
   });
 
+  test('MQTT-only mode disables every LAN path', () async {
+    SharedPreferences.setMockInitialValues({});
+    final provider = SettingsProvider(secrets: FakeSecretStore());
+    await provider.init();
+    expect(LanPolicy.enabled, isTrue);
+
+    await provider.setConnectionMode(ConnectionMode.mqtt);
+    expect(LanPolicy.enabled, isFalse);
+
+    await provider.setConnectionMode(ConnectionMode.auto);
+    expect(LanPolicy.enabled, isTrue);
+  });
+
+  test('stored MQTT-only mode restores the LAN policy on startup', () async {
+    SharedPreferences.setMockInitialValues({'connection_mode': 'mqtt'});
+    final provider = SettingsProvider(secrets: FakeSecretStore());
+    await provider.init();
+
+    expect(provider.connectionMode, ConnectionMode.mqtt);
+    expect(LanPolicy.enabled, isFalse);
+  });
+
   test('mqtt credentials persist and fall back to defaults', () async {
     SharedPreferences.setMockInitialValues({});
     final store = FakeSecretStore();

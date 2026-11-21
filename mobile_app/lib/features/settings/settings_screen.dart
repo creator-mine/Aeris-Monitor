@@ -21,6 +21,7 @@ import '../firmware/providers/firmware_provider.dart';
 import 'widgets/updates_section.dart';
 import 'package:aeris/shared/widgets/tr_text.dart';
 import 'package:aeris/core/i18n/l10n.dart';
+import '../../core/config/connection_mode.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -91,6 +92,28 @@ class SettingsScreen extends StatelessWidget {
                     (value) => provider.setMqttPassword(value),
                     icon: Icons.key,
                     obscureText: true,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSwitchTile(
+                    context,
+                    'Только MQTT (отключить LAN)',
+                    provider.connectionMode == ConnectionMode.mqtt,
+                    (value) {
+                      final mode =
+                          value ? ConnectionMode.mqtt : ConnectionMode.auto;
+                      provider.setConnectionMode(mode);
+                      context.read<DashboardProvider>().setConnectionMode(mode);
+                    },
+                    icon: Icons.cloud_queue,
+                  ),
+                  TrText(
+                    'Приложение не ищет устройство в локальной сети и не '
+                    'открывает HTTP/WebSocket к плате — весь обмен идёт '
+                    'через MQTT.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Align(

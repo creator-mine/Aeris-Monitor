@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/api/direct_device_client.dart';
+import '../../../core/config/connection_mode.dart';
 import '../../../models/device.dart';
 import '../../../models/sd_card_info.dart';
 import '../../../shared/widgets/sd_card_status.dart';
@@ -11,6 +12,19 @@ import 'package:aeris/core/i18n/l10n.dart';
 /// diagnostics sheet (uptime, heap, WiFi, firmware, sensor modules),
 /// with quick actions: live logs and OTA.
 Future<void> showDeviceDiagnostics(BuildContext context, Device device) {
+  if (!LanPolicy.enabled) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(
+          L10n.of(
+            context,
+            'Диагностика доступна только по LAN. Выключите «Только MQTT» в настройках.',
+          ),
+        ),
+      ),
+    );
+    return Future<void>.value();
+  }
   final client = DirectDeviceClient(baseUrl: device.httpBaseUrl!);
   return showModalBottomSheet<void>(
     context: context,

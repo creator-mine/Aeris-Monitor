@@ -123,6 +123,7 @@ class SettingsProvider extends ChangeNotifier {
       (m) => m.name == storedMode,
       orElse: () => ConnectionMode.auto,
     );
+    LanPolicy.enabled = _connectionMode != ConnectionMode.mqtt;
     notifyListeners();
   }
 
@@ -284,6 +285,7 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setConnectionMode(ConnectionMode mode) async {
     _connectionMode = mode;
+    LanPolicy.enabled = mode != ConnectionMode.mqtt;
     await _prefs.setString('connection_mode', mode.name);
     notifyListeners();
   }

@@ -206,6 +206,17 @@ class L10n {
     "Акцентный цвет": "Accent colour",
     "Авто": "Auto",
     "Ручной": "Manual",
+    "Версия прошивки": "Firmware version",
+    "Только MQTT (отключить LAN)": "MQTT only (disable LAN)",
+    "Канал подключения: LAN или MQTT": "Connection channel: LAN or MQTT",
+    "Приложение не ищет устройство в локальной сети и не открывает HTTP/WebSocket к плате — весь обмен идёт через MQTT.":
+        "The app does not discover the device on the LAN and does not open HTTP/WebSocket to the board — all traffic goes through MQTT.",
+    "LAN отключён: журнал доступен только по локальной сети. Выключите «Только MQTT» в настройках.":
+        "LAN is off: the log is available only over the local network. Turn off “MQTT only” in settings.",
+    "Режим «Только MQTT»: история с SD-карты недоступна. Включите LAN в настройках.":
+        "“MQTT only” mode: SD-card history is unavailable. Enable LAN in settings.",
+    "Диагностика доступна только по LAN. Выключите «Только MQTT» в настройках.":
+        "Diagnostics are available only over LAN. Turn off “MQTT only” in settings.",
     "Версия (x.y.z)": "Version (x.y.z)",
     "Версия сборки": "Build version",
     "Выберите COM-порт и нажмите «Подключиться»":

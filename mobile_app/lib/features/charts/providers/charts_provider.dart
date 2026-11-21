@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show DateTimeRange;
 import 'package:dio/dio.dart';
 import '../../../core/api/direct_device_client.dart';
+import '../../../core/config/connection_mode.dart';
 import '../../../models/sensor_data.dart';
 import '../../../models/device.dart';
 import '../../../core/config/app_config.dart';
@@ -55,7 +56,7 @@ class ChartsProvider extends ChangeNotifier {
 
     _deviceClient?.dispose();
     _deviceClient = null;
-    final baseUrl = device?.httpBaseUrl;
+    final baseUrl = LanPolicy.enabled ? device?.httpBaseUrl : null;
     if (baseUrl != null) {
       _deviceClient = DirectDeviceClient(baseUrl: baseUrl);
     }
@@ -96,6 +97,14 @@ class ChartsProvider extends ChangeNotifier {
   Future<void> loadData() async {
     final client = _deviceClient;
     if (_selectedDeviceId == null || _selectedSensorType.isEmpty) {
+      return;
+    }
+
+    if (!LanPolicy.enabled) {
+      _isLoading = false;
+      _error = 'Режим «Только MQTT»: история с SD-карты недоступна. '
+          'Включите LAN в настройках.';
+      notifyListeners();
       return;
     }
 
