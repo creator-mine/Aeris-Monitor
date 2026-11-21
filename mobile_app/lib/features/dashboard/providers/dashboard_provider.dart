@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../../core/api/signaling_api.dart';
 import '../../../core/api/direct_device_client.dart';
@@ -39,6 +40,7 @@ class DashboardProvider extends ChangeNotifier {
   final MqttService? _mqtt;
   StreamSubscription<SensorData>? _mqttSensorSub;
   StreamSubscription<bool>? _mqttConnSub;
+  StreamSubscription<String>? _mqttStatusSub;
   DirectDeviceClient? _deviceClient;
 
   ConnectionMode _mode;
@@ -76,6 +78,7 @@ class DashboardProvider extends ChangeNotifier {
       ..onDisconnected = _handleDisconnected;
 
     _mqttSensorSub = mqtt?.sensorDataStream.listen(updateSensorData);
+    _mqttStatusSub = mqtt?.statusStream.listen(_handleMqttStatus);
     _mqttConnected = mqtt?.isConnected ?? false;
     _mqttConnSub = mqtt?.connectionStream.listen(_onMqttConnectionChanged);
   }
@@ -290,6 +293,27 @@ class DashboardProvider extends ChangeNotifier {
     _safeNotify();
   }
 
+  /// `MqttService.statusStream` carries device status JSON (plus a few plain
+  /// connection messages). Firmware 1.3.8+ puts the SD-card block there, so
+  /// the dashboard can show capacity even in MQTT-only mode.
+  void _handleMqttStatus(String payload) {
+    if (_disposed) return;
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map<String, dynamic>) return;
+      final deviceId = decoded['device_id']?.toString();
+      final selectedId = _selectedDevice?.id;
+      if (deviceId != null &&
+          selectedId != null &&
+          deviceId != selectedId) {
+        return;
+      }
+      _handleStatusUpdate(decoded);
+    } catch (_) {
+      // Not a device status payload (for example "connected"/"error: ...").
+    }
+  }
+
   void _handleConnected() {
     if (_disposed) return;
     _isConnected = true;
@@ -408,6 +432,8 @@ class DashboardProvider extends ChangeNotifier {
     _connectionSeq++;
     _mqttSensorSub?.cancel();
     _mqttSensorSub = null;
+    _mqttStatusSub?.cancel();
+    _mqttStatusSub = null;
     _mqttConnSub?.cancel();
     _mqttConnSub = null;
     _mqtt?.unsubscribeFromDevice(_selectedDevice?.id ?? '');
