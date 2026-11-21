@@ -585,12 +585,21 @@ String handleRemotePrepare(const String& json) {
     String requestId = String((const char*)(in["request_id"] | ""));
     uint8_t id = (uint8_t)(in["id"] | 0);
     requestId.trim();
+    auto fail = [&requestId](const char* error) {
+        JsonDocument out;
+        out["ok"] = false;
+        out["error"] = error;
+        if (!requestId.isEmpty()) out["request_id"] = requestId;
+        String text;
+        serializeJson(out, text);
+        return text;
+    };
     if (requestId.isEmpty() || id == 0) {
-        return "{\"ok\":false,\"error\":\"bad_request\"}";
+        return fail("bad_request");
     }
     WifiProfile p;
     if (!WifiProfiles::get(id, p) || !p.enabled) {
-        return "{\"ok\":false,\"error\":\"not_found\"}";
+        return fail("not_found");
     }
 
     g_pendingRequest = requestId;
@@ -615,14 +624,23 @@ String handleRemoteCommit(const String& json) {
     }
     String requestId = String((const char*)(in["request_id"] | ""));
     requestId.trim();
+    auto fail = [&requestId](const String& error) {
+        JsonDocument out;
+        out["ok"] = false;
+        out["error"] = error;
+        if (!requestId.isEmpty()) out["request_id"] = requestId;
+        String text;
+        serializeJson(out, text);
+        return text;
+    };
     if (requestId.isEmpty() || requestId != g_pendingRequest ||
         g_pendingId == 0 || (int32_t)(millis() - g_pendingUntil) > 0) {
-        return "{\"ok\":false,\"error\":\"no_pending_request\"}";
+        return fail("no_pending_request");
     }
 
     String error;
     if (!connectTo(g_pendingId, &error, true, requestId)) {
-        return String("{\"ok\":false,\"error\":\"") + error + "\"}";
+        return fail(error);
     }
     g_pendingRequest = "";
     g_pendingId = 0;

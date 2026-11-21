@@ -899,10 +899,31 @@ void loop() {
     startWebIfConnected();
     LanDiscovery::update();
     mqttUpdate();
-    if (mqttReady()) {
-        String wifiEvent = WifiManager::takeEvent();
-        if (!wifiEvent.isEmpty()) {
-            mqtt.publish(mqttTopic("wifi/result").c_str(), wifiEvent.c_str());
+    // Wi-Fi results are QoS 0 and a reconnect can kill the socket right after
+    // mqttReady() turns true. Keep the event until the publish actually
+    // succeeds and send it twice (1 s apart) so one lost packet does not leave
+    // the server/app waiting forever.
+    static String wifiEventOut;
+    static uint32_t wifiEventAt = 0;
+    static uint8_t wifiEventSends = 0;
+    static uint32_t wifiEventLogAt = 0;
+    if (wifiEventOut.isEmpty()) {
+        wifiEventOut = WifiManager::takeEvent();
+        if (!wifiEventOut.isEmpty()) {
+            wifiEventSends = 0;
+            wifiEventAt = millis() - 1000;
+        }
+    }
+    if (!wifiEventOut.isEmpty() && mqttReady() &&
+        (uint32_t)(millis() - wifiEventAt) >= 1000) {
+        wifiEventAt = millis();
+        if (mqtt.publish(mqttTopic("wifi/result").c_str(),
+                         wifiEventOut.c_str())) {
+            wifiEventSends++;
+            if (wifiEventSends >= 2) wifiEventOut = "";
+        } else if (millis() - wifiEventLogAt > 5000) {
+            wifiEventLogAt = millis();
+            Serial.println("[MQTT] wifi/result send failed, will retry");
         }
     }
     uartUpdate();
