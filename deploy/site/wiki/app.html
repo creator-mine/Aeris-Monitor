@@ -347,6 +347,13 @@
         </div>
       </div>
 
+      <div class="callout info">
+        <div class="co-ic">💾</div>
+        <div class="co-body">
+          <p data-ru-html="В приложении <code>1.3.8</code> состояние SD-карты читается из MQTT-статуса устройства (поле <code>sd</code>, прошивка <code>1.3.8+</code>), поэтому карточка «Карта памяти» работает и в режиме «Только MQTT». Кнопка режима в правом верхнем углу получила подпись текущего режима." data-en-html="App <code>1.3.8</code> reads the SD-card state from the device MQTT status (the <code>sd</code> field, firmware <code>1.3.8+</code>), so the “SD card” card works in “MQTT only” mode too. The top-right mode button now shows the current mode as a caption.">В 1.3.8 состояние карты приходит по MQTT, кнопка режима подписана.</p>
+        </div>
+      </div>
+
 
       <h2 id="avarii" data-ru="Аварии и пороги" data-en="Alerts &amp; thresholds">Аварии и пороги</h2>
 
@@ -468,7 +475,7 @@
           <tbody>
             <tr>
               <td data-ru="Версия приложения" data-en="App version">Версия приложения</td>
-              <td class="mono">1.3.7</td>
+              <td class="mono">1.3.8</td>
               <td data-ru="Показывается в настройках" data-en="Shown in settings">Показывается в настройках</td>
             </tr>
             <tr>
@@ -480,6 +487,11 @@
               <td data-ru="Режим подключения" data-en="Connection mode">Режим подключения</td>
               <td data-ru="Авто / LAN / MQTT" data-en="Auto / LAN / MQTT">Авто / LAN / MQTT</td>
               <td data-ru="Выбирается в настройках и в шапке устройства; «Только MQTT» полностью отключает LAN" data-en="Selected in settings and in the device header; “MQTT only” disables LAN entirely">«Только MQTT» отключает LAN</td>
+            </tr>
+            <tr>
+              <td data-ru="SD-карта по MQTT" data-en="SD card over MQTT">SD-карта по MQTT</td>
+              <td data-ru="с 1.3.8" data-en="since 1.3.8">с 1.3.8</td>
+              <td data-ru="Поле sd в iot/&lt;id&gt;/status; работает без LAN" data-en="The sd field in iot/&lt;id&gt;/status; works without LAN">Поле sd в статусе</td>
             </tr>
             <tr>
               <td data-ru="Брокер MQTT" data-en="MQTT broker">Брокер MQTT</td>

@@ -170,6 +170,14 @@
       </details>
 
       <details class="faq">
+        <summary data-ru="Почему карта памяти не показывается по MQTT" data-en="Why is the SD card not shown over MQTT">Карта памяти по MQTT</summary>
+        <div class="faq-body">
+          <p data-ru="До прошивки 1.3.8 состояние карты передавалось только по HTTP (`/api/v1/sd/info`) и в WebSocket-статусе, поэтому в режиме «Только MQTT» карточка показывала «Нет данных». С 1.3.8 блок `sd` входит в MQTT-статус `iot/<id>/status`, а приложение 1.3.8+ умеет его читать." data-en="Before firmware 1.3.8 the card state was available only over HTTP (`/api/v1/sd/info`) and in the WebSocket status, so the card showed “No data” in MQTT-only mode. Since 1.3.8 the `sd` block is part of the MQTT status `iot/<id>/status`, and app 1.3.8+ reads it.">С 1.3.8 — и по MQTT.</p>
+          <p data-ru="Если карточка пуста и после обновления, проверьте, что прошивка действительно 1.3.8+, а в MQTT-статусе есть поле `sd`. При проблемах с картой смотрите `mounted`, `status` и `used_pct` — они приходят в том же блоке." data-en="If the card is still empty after the update, check that the firmware really is 1.3.8+ and that the MQTT status contains the `sd` field. If the card misbehaves, inspect `mounted`, `status` and `used_pct` from the same block.">Проверьте прошивку и поле sd.</p>
+        </div>
+      </details>
+
+      <details class="faq">
         <summary data-ru="Почему график идёт вразнобой, а не по одной точке в цикл" data-en="Why do the points look unevenly spaced?">Почему точки на графике неравномерны</summary>
         <div class="faq-body">
           <p data-ru="Значение публикуется только при изменении и как минимум раз в минуту. Если датчик стоит на месте, изменений нет и точки отстоят друг от друга на минуту. Для датчиков с медленным изменением это экономит и трафик, и запись на карту." data-en="A value is published only when it changes and at least once a minute. If the sensor is steady there is nothing to report, so consecutive points sit a minute apart. For slow-changing sensors this saves both traffic and card writes.">Публикация только при изменении.</p>
