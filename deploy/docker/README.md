@@ -79,7 +79,7 @@ curl -s http://127.0.0.1/api/v1/health
 - `SERVER_HOST` = `<NGINX_DOMAIN>` (регистрация и heartbeat через HTTP);
 - MQTT: брокер `<NGINX_DOMAIN>`, порт `8883` (TLS), `mqtt_user`/`mqtt_password` из `.env` (`MQTT_DEVICE_USER`/`MQTT_DEVICE_PASSWORD`).
 
-Устройство публикует `iot/<id>/sensors/#`, `iot/<id>/status` и слушает `iot/<id>/commands/#`. Прошивка логинит **все** устройства общим пользователем (`mqtt_user`/`mqtt_password` = `MQTT_DEVICE_USER`/`MQTT_DEVICE_PASSWORD`), а id устройства — в топике. Если нужно, чтобы устройства не могли публиковать чужие топики, заведите по пользователю на устройство и замените соответствующие строки в `deploy/docker/mqtt/acl.template` на `user <id>` с точными `iot/<id>/…`.
+Устройство публикует `iot/<id>/sensors/#`, `iot/<id>/status`, `iot/<id>/wifi/result` и слушает `iot/<id>/commands/#`. Прошивка логинит **все** устройства общим пользователем (`mqtt_user`/`mqtt_password` = `MQTT_DEVICE_USER`/`MQTT_DEVICE_PASSWORD`), а id устройства — в топике. Если нужно, чтобы устройства не могли публиковать чужие топики, заведите по пользователю на устройство и замените соответствующие строки в `deploy/docker/mqtt/acl.template` на `user <id>` с точными `iot/<id>/…`.
 
 ## Шаг 5. OTA-прошивки
 

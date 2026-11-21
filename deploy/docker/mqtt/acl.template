@@ -16,6 +16,7 @@
 user @@APP_USER@@
 topic read iot/+/sensors/#
 topic read iot/+/status
+topic read iot/+/wifi/result
 topic write iot/+/commands
 
 # Shared device user: any device may publish its telemetry (topic carries the
@@ -24,6 +25,7 @@ topic write iot/+/commands
 user @@DEVICE_USER@@
 topic write iot/+/sensors/#
 topic write iot/+/status
+topic write iot/+/wifi/result
 topic read iot/+/commands/#
 
 user web
