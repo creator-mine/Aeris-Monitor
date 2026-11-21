@@ -212,6 +212,14 @@
       </details>
 
       <details class="faq">
+        <summary data-ru="Как полностью отключить LAN и оставить только MQTT" data-en="How do I disable LAN completely and keep MQTT only">Как отключить LAN</summary>
+        <div class="faq-body">
+          <p data-ru="«Настройки» → «Подключение» → включите «Только MQTT (отключить LAN)». Приложение перестаёт рассылать UDP-поиск, открывать HTTP/WebSocket к плате и использовать LAN для графиков, журналов и диагностики; команды и телеметрия идут через брокер. Выключите переключатель, чтобы вернуть режим «Авто»." data-en="“Settings” → “Connection” → enable “MQTT only (disable LAN)”. The app stops sending UDP discovery, opening HTTP/WebSocket to the board and using the LAN for charts, logs and diagnostics; commands and telemetry go through the broker. Turn the switch off to return to Auto.">Настройки → Подключение → «Только MQTT».</p>
+          <p data-ru="В шапке устройства тот же выбор доступен быстрее: нажмите на метку LAN или MQTT и выберите нужный канал. История с SD-карты и живой журнал требуют LAN — в режиме «Только MQTT» они покажут пояснение." data-en="The same choice is available faster in the device header: tap the LAN or MQTT badge and pick the channel. SD-card history and live logs need the LAN — in MQTT-only mode they show an explanation.">Быстрый выбор — в шапке устройства.</p>
+        </div>
+      </details>
+
+      <details class="faq">
         <summary data-ru="Как обновить само приложение" data-en="How do I update the app itself">Как обновить приложение</summary>
         <div class="faq-body">
           <p data-ru="«Настройки» → «Обновления». Переключатель «Проверять обновления» включает автоматическую проверку GitHub Releases раз в несколько часов; строка «Проверить обновления» запускает проверку вручную. Если версия новее, откроется диалог с заметками релиза и кнопкой загрузки: .exe для Windows, .apk для Android." data-en="“Settings” → “Updates”. The “Check for updates” toggle enables automatic GitHub Releases checks every few hours; the “Check for updates” row runs a manual check. If a newer version exists, a dialog opens with release notes and a download button: .exe for Windows, .apk for Android.">Настройки → Обновления.</p>
