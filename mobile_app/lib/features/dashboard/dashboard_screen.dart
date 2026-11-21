@@ -48,37 +48,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
       actions: [
         Consumer<DashboardProvider>(
           builder: (context, provider, child) {
+            final mode = provider.connectionMode;
+            final shortLabel = switch (mode) {
+              ConnectionMode.auto => L10n.of(context, 'Авто'),
+              ConnectionMode.lanDirect => 'LAN',
+              ConnectionMode.mqtt => 'MQTT',
+            };
+            // Keep the app bar compact on phones; show the caption on wider
+            // screens where there is room for it.
+            final showCaption = MediaQuery.sizeOf(context).width >= 430;
+
             return PopupMenuButton<ConnectionMode>(
-              icon: Icon(
-                switch (provider.connectionMode) {
-                  ConnectionMode.auto => Icons.compare_arrows,
-                  ConnectionMode.lanDirect => Icons.lan,
-                  ConnectionMode.mqtt => Icons.cloud_queue,
-                },
+              tooltip: L10n.of(
+                context,
+                'Режим соединения: Авто — LAN с откатом на MQTT, Прямое LAN, Только MQTT',
               ),
-              tooltip: L10n.of(context, 'Режим соединения'),
               onSelected: (mode) {
                 provider.setConnectionMode(mode);
                 context.read<SettingsProvider>().setConnectionMode(mode);
               },
               itemBuilder: (context) => [
-                for (final mode in ConnectionMode.values)
+                for (final item in ConnectionMode.values)
                   PopupMenuItem(
-                    value: mode,
+                    value: item,
                     child: Row(
                       children: [
                         Icon(
-                          mode == provider.connectionMode
-                              ? Icons.check
-                              : Icons.settings_ethernet,
+                          item == mode ? Icons.check : Icons.settings_ethernet,
                           size: 18,
                         ),
                         const SizedBox(width: 8),
-                        TrText(mode.label),
+                        TrText(item.label),
                       ],
                     ),
                   ),
               ],
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      switch (mode) {
+                        ConnectionMode.auto => Icons.compare_arrows,
+                        ConnectionMode.lanDirect => Icons.lan,
+                        ConnectionMode.mqtt => Icons.cloud_queue,
+                      },
+                      size: 20,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      showCaption
+                          ? '${L10n.of(context, 'Режим')}: $shortLabel'
+                          : shortLabel,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: DefaultTextStyle.of(context).style.color,
+                      ),
+                    ),
+                    const Icon(Icons.arrow_drop_down, size: 18),
+                  ],
+                ),
+              ),
             );
           },
         ),

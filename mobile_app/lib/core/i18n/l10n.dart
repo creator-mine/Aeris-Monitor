@@ -369,6 +369,9 @@ class L10n {
     "Путь к прошивке не сохранён": "Firmware path was not saved",
     "Путь скопирован в буфер обмена": "Path copied to clipboard",
     "Режим соединения": "Connection mode",
+    "Режим": "Mode",
+    "Режим соединения: Авто — LAN с откатом на MQTT, Прямое LAN, Только MQTT":
+        "Connection mode: Auto — LAN with MQTT fallback, Direct LAN, MQTT only",
     "Русский": "Russian",
     "Сборка из исходников": "Build from source",
     "Сбросить": "Reset",
