@@ -169,7 +169,7 @@
   "time_synced": true,
   "rssi": -58,
   "chip_temp": 42.3,
-  "firmware": "1.3.6",
+  "firmware": "1.3.7",
   "led": "online",
   "sd": {
     "status": "ok",
@@ -213,7 +213,7 @@
 
       <pre><code>{
   "ok": true,
-  "status": { "device_id": "esp32c6_001", "firmware": "1.3.6", "ip": "192.168.1.50" },
+  "status": { "device_id": "esp32c6_001", "firmware": "1.3.7", "ip": "192.168.1.50" },
   "sensors": { "timestamp": 128374, "modules": { "BME680_0x76": { "temperature": 21.4 } } },
   "modules": [ { "id": "BME680_0x76", "driver": "BME680" } ]
 }</code></pre>
@@ -224,7 +224,7 @@
 
       <pre><code>$ echo -n AERIS_DISCOVER_V1 | nc -u -b 192.168.1.255 8266
 {"id":"esp32c6_001","name":"Main Controller C6","type":"esp32c6",
- "fw":"1.3.6","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
+ "fw":"1.3.7","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
 
       <p data-ru="Приложение 1.2.3 и новее делает это автоматически: при недоступном облачном реестре находит устройство по broadcast и подключается прямо к http://<ip>/api/v1." data-en="App 1.2.3 and newer does this automatically: when the cloud registry is unreachable it finds the device by broadcast and connects straight to http://&lt;ip&gt;/api/v1.">Приложение находит устройство само.</p>
 
@@ -267,6 +267,14 @@
           <p data-ru="Чтение с карты ограничено по времени: просматривается не больше 4096 строк за запрос. На медленной карте это заметно ограничивает глубину выборки, поэтому для больших периодов надёжнее MQTT или экспорт CSV." data-en="Reading is time-bounded: at most 4096 lines are scanned per request. On a slow card that noticeably caps how deep a query can go, so for long periods MQTT or a CSV export is more reliable.">За просмотр не больше 4096 строк.</p>
         </div>
       </div>
+
+      <h3 id="wifi-http" data-ru="Wi-Fi" data-en="Wi-Fi">Wi-Fi</h3>
+
+      <p data-ru-html="Прошивка 1.3.7 отдаёт менеджер сетей по HTTP. <code>GET /api/v1/wifi</code> возвращает текущее подключение и до восьми профилей: <code>id</code>, <code>ssid</code>, <code>priority</code>, <code>enabled</code>, <code>connected</code>, а также <code>manual</code>, <code>rssi</code> и <code>ip</code>. Пароли в ответ не попадают." data-en-html="Firmware 1.3.7 exposes the network manager over HTTP. <code>GET /api/v1/wifi</code> returns the current connection and up to eight profiles: <code>id</code>, <code>ssid</code>, <code>priority</code>, <code>enabled</code>, <code>connected</code>, plus <code>manual</code>, <code>rssi</code> and <code>ip</code>. Passwords never appear in the response.">Статус и профили, без паролей.</p>
+
+      <p data-ru-html="Сканирование асинхронное. Первый запрос <code>GET /api/v1/wifi/scan?refresh=1</code> запускает его и сразу отдаёт <code>scanning: true</code>; дальше повторяйте <code>GET /api/v1/wifi/scan</code>, пока <code>scanning</code> не станет <code>false</code>. В списке только 2,4 ГГц: <code>ssid</code>, <code>rssi</code>, <code>channel</code>, <code>secure</code>." data-en-html="Scanning is asynchronous. The first request <code>GET /api/v1/wifi/scan?refresh=1</code> starts it and returns <code>scanning: true</code> right away; then repeat <code>GET /api/v1/wifi/scan</code> until <code>scanning</code> becomes <code>false</code>. Only 2.4 GHz networks are listed: <code>ssid</code>, <code>rssi</code>, <code>channel</code>, <code>secure</code>.</p>
+
+      <p data-ru-html="Добавление, удаление, приоритет и подключение выполняются командами <code>wifi_add</code>, <code>wifi_update</code>, <code>wifi_remove</code>, <code>wifi_reorder</code>, <code>wifi_connect</code> и <code>wifi_auto</code> через <code>POST /api/v1/command</code>." data-en-html="Adding, removing, prioritising and connecting use the <code>wifi_add</code>, <code>wifi_update</code>, <code>wifi_remove</code>, <code>wifi_reorder</code>, <code>wifi_connect</code> and <code>wifi_auto</code> commands through <code>POST /api/v1/command</code>.">Изменения — командами через /api/v1/command.</p>
 
       <h2 id="komandy" data-ru="Команды устройству" data-en="Device commands">Команды устройству</h2>
 
@@ -342,6 +350,69 @@
               <td>—</td>
               <td data-ru="Очистить сеть и войти в режим настройки, не теряя MQTT-доступ к команде" data-en="Clear the network and enter setup mode without losing MQTT access to the command">Перенастроить сеть</td>
               <td class="mono">MQTT</td>
+            </tr>
+            <tr>
+              <td colspan="4"><b data-ru="Менеджер Wi-Fi (прошивка 1.3.7+)" data-en="Wi-Fi manager (firmware 1.3.7+)">Менеджер Wi-Fi (1.3.7+)</b></td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_list</td>
+              <td>—</td>
+              <td data-ru="Список до восьми профилей, текущая сеть, RSSI и IP" data-en="Up to eight profiles, the current network, RSSI and IP">Профили и текущее подключение</td>
+              <td class="mono">HTTP/WS · MQTT · USB</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_scan</td>
+              <td>—</td>
+              <td data-ru="Запустить асинхронное сканирование и вернуть кэш; дальше опрашивать до scanning=false" data-en="Start an async scan and return the cache; poll until scanning=false">Сканирование с платы</td>
+              <td class="mono">HTTP/WS · MQTT · USB</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_add</td>
+              <td class="mono">ssid<br>password<br>priority</td>
+              <td data-ru="Добавить профиль; при совпадении SSID обновляет пароль и приоритет" data-en="Add a profile; a matching SSID updates the password and priority">Добавить сеть</td>
+              <td class="mono">HTTP/WS · MQTT · USB</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_update</td>
+              <td class="mono">id<br>password<br>priority<br>enabled</td>
+              <td data-ru="Изменить пароль, приоритет или включённость профиля" data-en="Change a profile's password, priority or enabled flag">Изменить профиль</td>
+              <td class="mono">HTTP/WS · MQTT · USB</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_remove</td>
+              <td class="mono">id</td>
+              <td data-ru="Удалить профиль из NVS" data-en="Remove a profile from NVS">Удалить сеть</td>
+              <td class="mono">HTTP/WS · MQTT · USB</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_reorder</td>
+              <td class="mono">ids</td>
+              <td data-ru="Задать порядок приоритетов списком идентификаторов" data-en="Set the priority order from a list of IDs">Порядок приоритетов</td>
+              <td class="mono">HTTP/WS · MQTT · USB</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_connect</td>
+              <td class="mono">id</td>
+              <td data-ru="Подключиться к профилю и закрепить его в ручном режиме" data-en="Connect to a profile and pin it in manual mode">Ручное подключение</td>
+              <td class="mono">HTTP/WS · MQTT · USB</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_auto</td>
+              <td>—</td>
+              <td data-ru="Снять ручной выбор и вернуть автовыбор по приоритету" data-en="Clear the manual choice and restore priority-based auto selection">Вернуть автовыбор</td>
+              <td class="mono">HTTP/WS · MQTT · USB</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_prepare</td>
+              <td class="mono">request_id<br>id</td>
+              <td data-ru="Проверить профиль и запомнить заявку на 120 секунд" data-en="Validate the profile and remember the request for 120 seconds">Подготовить переключение</td>
+              <td class="mono">MQTT · HTTP/WS</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_commit</td>
+              <td class="mono">request_id</td>
+              <td data-ru="Запустить подключение по ранее подготовленной заявке; при ошибке — автооткат" data-en="Start the connection for a prepared request; fall back to auto on failure">Подтвердить переключение</td>
+              <td class="mono">MQTT · HTTP/WS</td>
             </tr>
           </tbody>
         </table>
@@ -493,6 +564,26 @@
               <td data-ru-html="Отправить команду устройству через MQTT-топик <code>iot/&lt;id&gt;/commands</code>" data-en-html="Send a command to the device over the <code>iot/&lt;id&gt;/commands</code> MQTT topic">Команда устройству</td>
             </tr>
             <tr>
+              <td class="mono">GET /devices/:id/wifi/list</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
+              <td data-ru="Список сохранённых сетей и текущее подключение; ответ ждёт плату до 8 секунд" data-en="Saved networks and the current connection; waits up to 8 seconds for the board">Список сетей</td>
+            </tr>
+            <tr>
+              <td class="mono">POST /devices/:id/wifi/prepare</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
+              <td data-ru-html="Тело <code>{&quot;network_id&quot;:2}</code>. Проверяет, что профиль сохранён и включён, и держит заявку 120 секунд" data-en-html="Body <code>{&quot;network_id&quot;:2}</code>. Checks that the profile is saved and enabled and holds the request for 120 seconds">Подготовить переключение</td>
+            </tr>
+            <tr>
+              <td class="mono">POST /devices/:id/wifi/commit</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
+              <td data-ru-html="Тело <code>{&quot;request_id&quot;:&quot;…&quot;}</code>. Запускает подключение; при ошибке плата возвращается к автовыбору" data-en-html="Body <code>{&quot;request_id&quot;:&quot;…&quot;}</code>. Starts the connection; on failure the board falls back to automatic selection">Подтвердить переключение</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /devices/:id/wifi/result</td>
+              <td data-ru="app / панель" data-en="app / panel">app / панель</td>
+              <td data-ru-html="Статус заявки; фильтр <code>?request_id=…</code>, иначе все заявки устройства" data-en-html="Request status; filter <code>?request_id=…</code>, otherwise every request for the device">Статус заявки</td>
+            </tr>
+            <tr>
               <td class="mono">GET /alerts</td>
               <td data-ru="app / панель" data-en="app / panel">app / панель</td>
               <td data-ru-html="Список аварий, фильтр <code>?device_id=…</code>" data-en-html="Alert list, filter <code>?device_id=…</code>">Список аварий</td>
@@ -534,6 +625,13 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">📶</div>
+        <div class="co-body">
+          <p data-ru-html="Удалённый Wi-Fi появился в сервере <code>0.4.2</code>. Заявка живёт 120 секунд, после чего получает статус <code>expired</code>; успешное переключение отмечается как <code>ok</code>, ошибка платы — как <code>error</code> с полем <code>error</code>. Сервер держит историю заявок 30 минут." data-en-html="Remote Wi-Fi arrived in server <code>0.4.2</code>. A request lives for 120 seconds and then becomes <code>expired</code>; a successful switch is marked <code>ok</code>, a board error becomes <code>error</code> with an <code>error</code> field. The server keeps request history for 30 minutes.">Заявка живёт 120 секунд, история — 30 минут.</p>
+        </div>
       </div>
 
       <h3 data-ru="Тело запроса регистрации" data-en="Registration body">Тело запроса регистрации</h3>
@@ -709,6 +807,11 @@ Content-Type: application/json
               <td data-ru="Состояние реле после команды: enabled и state" data-en="Relay state after a command: enabled and state">Состояние реле</td>
             </tr>
             <tr>
+              <td class="mono">iot/&lt;id&gt;/wifi/result</td>
+              <td data-ru="устройство → сервер" data-en="device → server">устройство → сервер</td>
+              <td data-ru-html="Результат удалённого Wi-Fi: <code>request_id</code>, <code>status</code> (<code>ok</code>/<code>error</code>) и <code>ssid</code>/<code>error</code>" data-en-html="Remote Wi-Fi result: <code>request_id</code>, <code>status</code> (<code>ok</code>/<code>error</code>) and <code>ssid</code>/<code>error</code>">Результат переключения</td>
+            </tr>
+            <tr>
               <td class="mono">iot/&lt;id&gt;/commands</td>
               <td data-ru="подписчик → устройство" data-en="subscriber → device">подписчик → устройство</td>
               <td data-ru="Объект с полем command, те же команды, что и в HTTP" data-en="An object with a command field — the same commands as over HTTP">Команда устройству</td>
@@ -761,7 +864,7 @@ Content-Type: application/json
       <pre><code>GET /fw/version-esp32-c6.json
 
 {
-  "version": "1.3.6",
+  "version": "1.3.7",
   "device_type": "esp32-c6",
   "build_date": "2026-11-17T18:54:12Z",
   "sha256": "457d937a…b8845b",
@@ -789,7 +892,7 @@ Content-Type: application/json
 
       <pre><code>{
   "ok": true,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "uptime": 928371.4,
   "devices": { "total": 1, "online": 1, "offline": 0 },
   "alerts": 0,
@@ -815,6 +918,6 @@ Content-Type: application/json
   </div>
 </footer>
 
-<script src="assets/wiki.js?v=20261119-1"></script>
+<script src="assets/wiki.js?v=20261121-1"></script>
 </body>
 </html>

@@ -238,10 +238,10 @@
   };
 
   var META = {
-    fw: '1.3.6',
-    app: '1.3.2',
-    server: '0.4.1',
-    updated: '2026-11-18'
+    fw: '1.3.7',
+    app: '1.3.6',
+    server: '0.4.2',
+    updated: '2026-11-21'
   };
 
   var LANGS = ['ru', 'en'];

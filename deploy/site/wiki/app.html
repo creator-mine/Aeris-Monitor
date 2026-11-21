@@ -94,6 +94,16 @@
           <p data-ru="Перезагрузка, повторное сканирование датчиков, чтение по запросу, реле, включение и выключение MQTT, OTA и смена Wi-Fi." data-en="Reboot, rescan sensors, on-demand read, relay, MQTT on and off, OTA and Wi-Fi changes.">Команды устройству.</p>
         </div>
         <div class="card">
+          <span class="c-ic">📶</span>
+          <h3 data-ru="Wi-Fi-менеджер" data-en="Wi-Fi manager">Wi-Fi-менеджер</h3>
+          <p data-ru="До восьми сохранённых сетей, сканирование с самой платы, приоритеты, переключение по слабому сигналу и режим «Авто / Ручной»." data-en="Up to eight saved networks, scanning from the board itself, priorities, weak-signal switching and an Auto / Manual mode.">До 8 сетей и режим «Авто / Ручной».</p>
+        </div>
+        <div class="card">
+          <span class="c-ic">🔄</span>
+          <h3 data-ru="Обновления" data-en="Updates">Обновления</h3>
+          <p data-ru="Проверка новых версий приложения через GitHub Releases: автоматически раз в несколько часов или вручную, с заметками релиза и кнопкой загрузки." data-en="Checks for new app versions through GitHub Releases: automatically every few hours or manually, with release notes and a download button.">Проверка версий приложения.</p>
+        </div>
+        <div class="card">
           <span class="c-ic">🔌</span>
           <h3 data-ru="Прошивки" data-en="Firmware">Прошивки</h3>
           <p data-ru="Сборка из исходников и заливка по USB с Windows: выбрал папку или готовый .bin — и загрузил." data-en="Building from source and USB flashing on Windows: pick a folder or a ready .bin and upload it.">Сборка и прошивка по USB.</p>
@@ -145,9 +155,46 @@
       <div class="callout info">
         <div class="co-ic">🔐</div>
         <div class="co-body">
-          <p data-ru="Пароль от MQTT-брокера в приложение не вшит: пользователь вводит логин и пароль один раз в настройках, и они хранятся в локальном хранилище устройства. Тот же логин и пароль защищают HTTP API — отдельного токена сервера нет." data-en="The MQTT broker password is not baked into the app: the user enters the login and password once in settings and they stay in the device's local storage. The same login and password protect the HTTP API — there is no separate server token.">Пароли не вшиты в приложение.</p>
+          <p data-ru="Пароль от MQTT-брокера в приложение не вшит: пользователь вводит логин и пароль один раз в настройках. Начиная с 1.3.6 пароль хранится в защищённом хранилище ОС — Android Keystore, Windows DPAPI или WebCrypto в браузере, — а не в открытом виде в SharedPreferences. Тот же логин и пароль защищают HTTP API — отдельного токена сервера нет." data-en="The MQTT broker password is not baked into the app: the user enters the login and password once in settings. Since 1.3.6 the password lives in the OS secure storage — Android Keystore, Windows DPAPI or WebCrypto in the browser — instead of clear text in SharedPreferences. The same login and password protect the HTTP API — there is no separate server token.">Пароли не вшиты в приложение и хранятся в защищённом хранилище ОС.</p>
         </div>
       </div>
+
+      <h2 id="wifi" data-ru="Wi-Fi: до восьми сетей" data-en="Wi-Fi: up to eight networks">Wi-Fi: до восьми сетей</h2>
+
+      <p data-ru="Плата хранит до восьми профилей Wi-Fi в энергонезависимой памяти. В автоматическом режиме она сначала пробует ручной выбор, затем последнюю успешную сеть, затем остальные по приоритету. Если сигнал текущей сети слабее −70 dBm, а другая сохранённая сеть сильнее хотя бы на 10 dBm или имеет более высокий приоритет, контроллер переключается сам." data-en="The board keeps up to eight Wi-Fi profiles in non-volatile memory. In automatic mode it tries the manual choice first, then the last successful network, then the rest by priority. If the current signal drops below −70 dBm and another saved network is at least 10 dBm stronger or has a higher priority, the controller switches by itself.">До восьми профилей, автовыбор по приоритету и сигналу.</p>
+
+      <p data-ru="Сканирует не телефон, а сама плата — поэтому в списке только сети 2,4 ГГц. Добавлять и удалять сети, менять приоритет и подключаться можно по USB, на странице точки настройки Aeris-Setup-XXXX и по HTTP в локальной сети." data-en="Scanning is done by the board, not the phone, so only 2.4 GHz networks appear. Networks can be added, removed and prioritised over USB, on the Aeris-Setup-XXXX setup page and over HTTP on the local network.">Сканирование выполняет ESP, только 2,4 ГГц.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Канал" data-en="Channel">Канал</th>
+              <th data-ru="Что доступно" data-en="What is available">Что доступно</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-ru="USB" data-en="USB">USB</td>
+              <td data-ru="Сканирование, добавление и удаление, приоритет, подключение" data-en="Scan, add and remove, priority, connect">Всё</td>
+            </tr>
+            <tr>
+              <td data-ru="Точка настройки" data-en="Setup access point">Точка настройки</td>
+              <td data-ru="Сканирование, добавление и удаление, приоритет, подключение" data-en="Scan, add and remove, priority, connect">Всё</td>
+            </tr>
+            <tr>
+              <td data-ru="HTTP в LAN" data-en="HTTP on the LAN">HTTP в LAN</td>
+              <td data-ru="Сканирование, добавление и удаление, приоритет, подключение" data-en="Scan, add and remove, priority, connect">Всё</td>
+            </tr>
+            <tr>
+              <td data-ru="Сервер / MQTT" data-en="Server / MQTT">Сервер / MQTT</td>
+              <td data-ru="Только список сохранённых сетей и переключение на одну из них" data-en="Only the saved-network list and switching to one of them">Только переключение</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru="Удалённое переключение двухфазное: prepare проверяет, что профиль существует и включён, commit запускает подключение. Между ними не больше 120 секунд; если сеть не ответила, плата возвращается к автовыбору. В приложении режим показан переключателем «Авто / Ручной»: «Авто» возвращает выбор по приоритету, «Ручной» закрепляет сеть, к которой плата подключена сейчас." data-en="Remote switching is two-phase: prepare verifies that the profile exists and is enabled, commit starts the connection. The window is 120 seconds; if the network does not answer, the board falls back to automatic selection. The app shows the mode with an Auto / Manual toggle: Auto restores priority-based selection, Manual pins the network the board is currently using.">Prepare/commit, откат при ошибке, переключатель «Авто / Ручной».</p>
 
       <h2 id="ekrany" data-ru="Экраны" data-en="Screens">Экраны</h2>
 
@@ -191,6 +238,10 @@
             <tr>
               <td data-ru="Конфигурация" data-en="Device config">Конфигурация</td>
               <td data-ru="Настройки устройства: сеть, имя, MQTT" data-en="Device settings: network, name, MQTT">Настройки устройства</td>
+            </tr>
+            <tr>
+              <td data-ru="Wi-Fi" data-en="Wi-Fi">Wi-Fi</td>
+              <td data-ru="Сохранённые сети, приоритеты, сканирование, режим «Авто / Ручной»" data-en="Saved networks, priorities, scanning and the Auto / Manual mode">Сети и режим выбора</td>
             </tr>
             <tr>
               <td data-ru="Настройки" data-en="Settings">Настройки</td>
@@ -265,6 +316,27 @@
         <div class="co-ic">💾</div>
         <div class="co-body">
           <p data-ru-html="В приложении <code>1.3.2</code> на главной появилась карточка SD-карты, а в «Диагностике» — подробности: тип, занятое и свободное место, процент заполнения. Данные приходят из прошивки <code>1.3.6</code>." data-en-html="App <code>1.3.2</code> adds an SD-card card to the dashboard and full details to Diagnostics: type, used and free space, and the used percentage. The data comes from firmware <code>1.3.6</code>.">В 1.3.2 добавлены сведения о SD-карте.</p>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">📶</div>
+        <div class="co-body">
+          <p data-ru-html="В приложении <code>1.3.4</code> появился полноценный экран Wi-Fi: до восьми сохранённых сетей, приоритеты, сканирование с платы по HTTP, USB и через точку настройки, а также удалённое переключение на сохранённую сеть через сервер. Подключение подтверждается диалогом." data-en-html="App <code>1.3.4</code> adds a full Wi-Fi screen: up to eight saved networks, priorities, scanning from the board over HTTP, USB and the setup access point, plus remote switching to a saved network through the server. Connecting is confirmed with a dialog.">В 1.3.4 добавлен экран Wi-Fi.</p>
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <div class="co-ic">🔄</div>
+        <div class="co-body">
+          <p data-ru-html="В приложении <code>1.3.5</code> в настройках появился раздел «Обновления»: автоматическая проверка GitHub Releases раз в несколько часов, ручная проверка, заметки релиза и кнопка загрузки установщика для Windows или Android." data-en-html="App <code>1.3.5</code> adds an “Updates” section to settings: automatic GitHub Releases checks every few hours, a manual check, release notes and a download button for the Windows or Android installer.">В 1.3.5 добавлена проверка обновлений.</p>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="co-ic">🔐</div>
+        <div class="co-body">
+          <p data-ru-html="В приложении <code>1.3.6</code> появился переключатель «Авто / Ручной» в карточке Wi-Fi, а пароль MQTT переехал в защищённое хранилище ОС — Android Keystore, Windows DPAPI или WebCrypto. Старое значение из SharedPreferences переносится автоматически." data-en-html="App <code>1.3.6</code> adds the Auto / Manual toggle to the Wi-Fi card and moves the MQTT password into OS secure storage — Android Keystore, Windows DPAPI or WebCrypto. The old SharedPreferences value is migrated automatically.">В 1.3.6 добавлен режим «Авто / Ручной» и защищённое хранение пароля.</p>
         </div>
       </div>
 
@@ -389,7 +461,7 @@
           <tbody>
             <tr>
               <td data-ru="Версия приложения" data-en="App version">Версия приложения</td>
-              <td class="mono">1.3.2</td>
+              <td class="mono">1.3.6</td>
               <td data-ru="Показывается в настройках" data-en="Shown in settings">Показывается в настройках</td>
             </tr>
             <tr>
@@ -411,6 +483,16 @@
               <td data-ru="Учётная запись MQTT" data-en="MQTT username">Учётная запись MQTT</td>
               <td class="mono">app</td>
               <td data-ru="Пароль вводится пользователем и используется также для HTTP API" data-en="The password is entered by the user and is also used for the HTTP API">Пароль вводится пользователем</td>
+            </tr>
+            <tr>
+              <td data-ru="Хранение пароля" data-en="Password storage">Хранение пароля</td>
+              <td data-ru="защищённое хранилище ОС" data-en="OS secure storage">защищённое хранилище</td>
+              <td data-ru="Android Keystore, Windows DPAPI, WebCrypto; старый ключ удаляется" data-en="Android Keystore, Windows DPAPI, WebCrypto; the legacy key is removed">Защищённое хранилище ОС</td>
+            </tr>
+            <tr>
+              <td data-ru="Проверка обновлений" data-en="Update check">Проверка обновлений</td>
+              <td data-ru="авто раз в 4 часа" data-en="auto every 4 hours">авто раз в 4 часа</td>
+              <td data-ru="GitHub Releases; переключатель и ручная проверка в настройках" data-en="GitHub Releases; toggle and manual check in settings">В разделе «Обновления»</td>
             </tr>
             <tr>
               <td data-ru="Авторизация HTTP API" data-en="HTTP API auth">Авторизация HTTP API</td>
@@ -468,6 +550,6 @@
   </div>
 </footer>
 
-<script src="assets/wiki.js?v=20261119-1"></script>
+<script src="assets/wiki.js?v=20261121-1"></script>
 </body>
 </html>

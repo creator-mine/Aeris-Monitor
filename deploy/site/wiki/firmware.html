@@ -197,6 +197,35 @@ pio run -e esp32-c6 -t upload</code></pre>
         </div>
       </div>
 
+      <h2 id="wifi" data-ru="Менеджер Wi-Fi" data-en="Wi-Fi manager">Менеджер Wi-Fi</h2>
+
+      <p data-ru="Начиная с 1.3.7 контроллер хранит до восьми профилей сетей в NVS. При обновлении со старой прошивки единственная сохранённая сеть переносится в профиль автоматически. Пароли лежат только в NVS и никогда не попадают в ответы статуса." data-en="Since 1.3.7 the controller keeps up to eight network profiles in NVS. When upgrading from older firmware the single saved network is migrated into a profile automatically. Passwords live only in NVS and never appear in status responses.">До восьми профилей в NVS, пароли не отдаются в статусе.</p>
+
+      <p data-ru="Автовыбор идёт в порядке: ручной выбор, последняя успешная сеть, затем остальные по приоритету. Если текущий сигнал слабее −70 dBm, а другая сохранённая сеть сильнее хотя бы на 10 dBm или имеет более высокий приоритет, контроллер переключается. Ручной режим закрепляет одну сеть и отключает автопереключение до команды auto." data-en="Automatic selection tries the manual choice, the last successful network and then the rest by priority. If the current signal is below −70 dBm and another saved network is at least 10 dBm stronger or has a higher priority, the controller switches. Manual mode pins one network and disables automatic switching until the auto command.">Авто по приоритету и сигналу, ручной режим закрепляет сеть.</p>
+
+      <p data-ru-html="Сканирование асинхронное: запрос только запускает его, а результат забирается отдельным опросом, пока <code>scanning</code> не станет <code>false</code>. Сканирует сама плата, поэтому видны только сети 2,4 ГГц. Список доступен по HTTP (<code>/api/v1/wifi</code>, <code>/api/v1/wifi/scan</code>), по USB (<code>wifi_list</code>, <code>wifi_scan</code>) и на странице точки настройки." data-en-html="Scanning is asynchronous: a request only starts it, and the result is fetched by polling until <code>scanning</code> becomes <code>false</code>. The board scans itself, so only 2.4 GHz networks appear. The list is available over HTTP (<code>/api/v1/wifi</code>, <code>/api/v1/wifi/scan</code>), over USB (<code>wifi_list</code>, <code>wifi_scan</code>) and on the setup page.">Асинхронное сканирование, только 2,4 ГГц.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Команда" data-en="Command">Команда</th>
+              <th data-ru="Действие" data-en="Action">Действие</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">wifi_list</td><td data-ru="Список профилей и текущее подключение" data-en="Profile list and the current connection">Список профилей</td></tr>
+            <tr><td class="mono">wifi_scan</td><td data-ru="Запустить сканирование и вернуть кэш" data-en="Start a scan and return the cache">Сканирование</td></tr>
+            <tr><td class="mono">wifi_add / wifi_update / wifi_remove</td><td data-ru="Добавить, изменить или удалить профиль" data-en="Add, update or remove a profile">Добавить / изменить / удалить</td></tr>
+            <tr><td class="mono">wifi_reorder</td><td data-ru="Задать порядок приоритетов" data-en="Set the priority order">Порядок приоритетов</td></tr>
+            <tr><td class="mono">wifi_connect / wifi_auto</td><td data-ru="Закрепить сеть или вернуть автовыбор" data-en="Pin a network or restore automatic selection">Ручной / авто</td></tr>
+            <tr><td class="mono">wifi_prepare / wifi_commit</td><td data-ru="Двухфазное удалённое переключение" data-en="Two-phase remote switching">Удалённое переключение</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru-html="Удалённое переключение разрешено только для сохранённых и включённых профилей. <code>wifi_prepare</code> запоминает <code>request_id</code> и сеть на 120 секунд, <code>wifi_commit</code> с тем же идентификатором запускает подключение. Результат уходит в топик <code>iot/&lt;id&gt;/wifi/result</code>; если сеть не ответила, контроллер сообщает ошибку и возвращается к автовыбору." data-en-html="Remote switching is allowed only for saved and enabled profiles. <code>wifi_prepare</code> remembers the <code>request_id</code> and network for 120 seconds; <code>wifi_commit</code> with the same id starts the connection. The result is published to <code>iot/&lt;id&gt;/wifi/result</code>; if the network does not answer, the controller reports an error and falls back to automatic selection.">Prepare/commit, 120 секунд, откат при ошибке.</p>
+
       <h2 id="ota" data-ru="Обновление по воздуху" data-en="Over-the-air updates">Обновление по воздуху</h2>
 
       <p data-ru="Контроллер умеет обновлять сам себя по HTTPS с публичного сайта. У каждой платы свой бинарник и свой файл-манифест, поэтому прошивка S3 не попадёт на C3, а C6-контроллер не получит прошивку C6-модуля." data-en="The controller can update itself over HTTPS from the public site. Every board has its own binary and its own manifest, so an S3 image cannot land on a C3, and a C6 controller never receives the C6 module image.">У каждой платы свой бинарник и свой манифест.</p>
@@ -287,7 +316,7 @@ pio run -e esp32-c6 -t upload</code></pre>
 
       <pre><code>$ echo -n AERIS_DISCOVER_V1 | nc -u -b 192.168.1.255 8266
 {"id":"esp32c6_001","name":"Main Controller C6","type":"esp32c6",
- "fw":"1.3.6","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
+ "fw":"1.3.7","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
 
       <p data-ru-html="Для опроса найденного устройства одним запросом служит <code>GET /api/v1/data</code>: он отдаёт состояние, текущие показания и список модулей сразу. Это удобнее трёх отдельных запросов и меньше нагружает плату." data-en-html="To poll a discovered device in one request use <code>GET /api/v1/data</code>: it returns the status, current readings and module list at once. That is handier than three separate requests and puts less load on the board.">Один запрос вместо трёх — /api/v1/data.</p>
 
@@ -345,6 +374,14 @@ pio run -e esp32-c6 -t upload</code></pre>
             <tr>
               <td class="mono">wifi_config.cpp</td>
               <td data-ru="Подключение, смена сети, сброс настроек" data-en="Connect, change network, reset settings">Wi-Fi: подключение и сброс</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_profiles.cpp</td>
+              <td data-ru="До восьми профилей в NVS, приоритеты, ручной выбор и последняя успешная сеть" data-en="Up to eight profiles in NVS, priorities, the manual choice and the last successful network">Профили и приоритеты</td>
+            </tr>
+            <tr>
+              <td class="mono">wifi_manager.cpp</td>
+              <td data-ru="Асинхронное сканирование, автовыбор, переключение по слабому сигналу, prepare/commit" data-en="Async scanning, automatic selection, weak-signal switching, prepare/commit">Выбор и переключение сетей</td>
             </tr>
             <tr>
               <td class="mono">time_util.cpp</td>
@@ -537,6 +574,6 @@ for (каждый байт заголовка и полезной нагрузк
   </div>
 </footer>
 
-<script src="assets/wiki.js?v=20261119-1"></script>
+<script src="assets/wiki.js?v=20261121-1"></script>
 </body>
 </html>

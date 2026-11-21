@@ -78,7 +78,7 @@
         <div class="card">
           <span class="c-ic">📶</span>
           <h3 data-ru="Mosquitto" data-en="Mosquitto">Mosquitto</h3>
-          <p data-ru="Брокер MQTT. Классический порт для микроконтроллера и отдельный веб-сокетный порт для телефонов и браузеров." data-en="The MQTT broker. A classic port for the microcontroller and a separate WebSocket port for phones and browsers.">Брокер MQTT.</p>
+          <p data-ru="Брокер MQTT: 8883 с TLS для устройств и нативного приложения, 9002 (wss) для браузера; 1883 и 9001 доступны только на loopback." data-en="The MQTT broker: 8883 with TLS for devices and the native app, 9002 (wss) for the browser; 1883 and 9001 are loopback-only.">Брокер MQTT с TLS.</p>
         </div>
         <div class="card">
           <span class="c-ic">🌐</span>
@@ -129,7 +129,7 @@
             <tr>
               <td class="mono">9002</td>
               <td data-ru="Mosquitto" data-en="Mosquitto">Mosquitto</td>
-              <td data-ru="Веб-сокеты для публичного показания датчиков на сайте" data-en="WebSockets for the public readings on the site">Для live-данных на сайте</td>
+              <td data-ru="Веб-сокеты с TLS для веб-приложения и live-данных на сайте" data-en="WebSockets with TLS for the web app and the live readings on the site">wss для веб-приложения</td>
             </tr>
           </tbody>
         </table>
@@ -147,6 +147,41 @@
           <p data-ru="Устройство считается офлайн, если подтверждения не было дольше трёх минут. Запись при этом не удаляется, а помечается как офлайн и возвращается в онлайн при следующем подтверждении." data-en="A device is considered offline after three minutes without an acknowledgement. The record is not deleted; it is marked offline and returns online on the next acknowledgement.">Офлайн после трёх минут молчания.</p>
         </div>
       </div>
+
+      <h3 id="remote-wifi" data-ru="Удалённое переключение Wi-Fi" data-en="Remote Wi-Fi switching">Удалённое переключение Wi-Fi</h3>
+
+      <p data-ru-html="С сервера <code>0.4.2</code> приложение может переключать плату между уже сохранёнными сетями. Сервер отправляет в <code>iot/&lt;id&gt;/commands</code> команды <code>wifi_list</code>, <code>wifi_prepare</code> и <code>wifi_commit</code>, а результат получает из <code>iot/&lt;id&gt;/wifi/result</code>. Добавлять и удалять сети, менять приоритет и сканировать эфир удалённо нельзя — это сделано намеренно." data-en-html="Since server <code>0.4.2</code> the app can switch the board between already saved networks. The server sends <code>wifi_list</code>, <code>wifi_prepare</code> and <code>wifi_commit</code> to <code>iot/&lt;id&gt;/commands</code> and receives the result on <code>iot/&lt;id&gt;/wifi/result</code>. Adding or removing networks, changing priorities and scanning the airwaves are not possible remotely — by design.">Только сохранённые сети, только переключение.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Шаг" data-en="Step">Шаг</th>
+              <th data-ru="Что происходит" data-en="What happens">Что происходит</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">GET /devices/:id/wifi/list</td>
+              <td data-ru="Сервер просит плату прислать профили и ждёт ответ до 8 секунд" data-en="The server asks the board for its profiles and waits up to 8 seconds">Список сохранённых сетей</td>
+            </tr>
+            <tr>
+              <td class="mono">POST .../wifi/prepare</td>
+              <td data-ru="Проверка профиля и заявка на 120 секунд; в ответе request_id" data-en="Profile validation and a 120-second request; the response carries request_id">Подготовка</td>
+            </tr>
+            <tr>
+              <td class="mono">POST .../wifi/commit</td>
+              <td data-ru="Подключение по заявке; при ошибке плата откатывается на автовыбор" data-en="Connects using the request; on failure the board falls back to automatic selection">Подтверждение</td>
+            </tr>
+            <tr>
+              <td class="mono">GET .../wifi/result</td>
+              <td data-ru="Статус ok/error/expired и SSID; история заявок хранится 30 минут" data-en="ok/error/expired status and the SSID; request history is kept for 30 minutes">Результат</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p data-ru-html="Заявки привязаны к устройству и <code>request_id</code>, поэтому повторный commit с тем же идентификатором не создаёт вторую попытку. В приложении переключение подтверждается диалогом, а после смены сети плата может на несколько секунд пропасть из MQTT." data-en-html="Requests are bound to a device and a <code>request_id</code>, so a repeated commit with the same id does not create a second attempt. The app confirms the switch with a dialog, and the board may disappear from MQTT for a few seconds while the network changes.">Заявка привязана к устройству и request_id.</p>
 
       <h2 id="mqtt" data-ru="Брокер Mosquitto" data-en="Mosquitto broker">Брокер Mosquitto</h2>
 
@@ -182,6 +217,8 @@
           </tbody>
         </table>
       </div>
+
+      <p data-ru="Наружу открыты только 8883 (MQTT over TLS) и 9002 (wss): брокер использует тот же сертификат Let's Encrypt, а прошивка проверяет его по корневому ISRG Root X1. Порты 1883 и 9001 привязаны к loopback и нужны только для локальной диагностики." data-en="Only 8883 (MQTT over TLS) and 9002 (wss) are exposed: the broker uses the same Let's Encrypt certificate, and the firmware validates it against the ISRG Root X1 root. Ports 1883 and 9001 are bound to loopback and serve local diagnostics only.">Наружу — только 8883/TLS и 9002/wss.</p>
 
       <p data-ru-html="Тема брокера задаётся префиксом и идентификатором устройства: <code>iot</code> и <code>esp32c3_001</code> дают <code>iot/esp32c3_001/sensors/temperature</code>. Полный список топиков — в разделе «Справочник API»." data-en-html="A broker topic is the prefix plus the device ID: <code>iot</code> and <code>esp32c3_001</code> give <code>iot/esp32c3_001/sensors/temperature</code>. The full topic list is in the API reference.">Топик строится из префикса и идентификатора устройства.</p>
 
@@ -438,6 +475,6 @@ sudo /opt/iot/deploy/docker/backup.sh
   </div>
 </footer>
 
-<script src="assets/wiki.js?v=20261119-1"></script>
+<script src="assets/wiki.js?v=20261121-1"></script>
 </body>
 </html>

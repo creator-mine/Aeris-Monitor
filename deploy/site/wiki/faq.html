@@ -139,7 +139,23 @@
       <details class="faq">
         <summary data-ru="Куда вводить пароль от MQTT и API" data-en="Where do the MQTT and API passwords go">Куда вводить пароль</summary>
         <div class="faq-body">
-          <p data-ru="В настройки приложения. В бандле учётных данных нет намеренно: одна и та же сборка работает у всех, а логин и пароль вводятся пользователем и хранятся локально на устройстве. Отдельного токена сервера больше нет — HTTP API использует тот же логин и пароль, что и MQTT." data-en="Into the app settings. Credentials are deliberately absent from the bundle: one and the same build works for everyone, and the login and password are entered by the user and stored locally on the device. There is no separate server token any more — the HTTP API uses the same login and password as MQTT.">Только в настройках приложения.</p>
+          <p data-ru="В настройки приложения. В бандле учётных данных нет намеренно: одна и та же сборка работает у всех, а логин и пароль вводятся пользователем. С версии 1.3.6 пароль хранится в защищённом хранилище ОС — Android Keystore, Windows DPAPI или WebCrypto в браузере, — а старое значение из SharedPreferences переносится и удаляется автоматически. Отдельного токена сервера нет: HTTP API использует тот же логин и пароль, что и MQTT." data-en="Into the app settings. Credentials are deliberately absent from the bundle: one and the same build works for everyone, and the login and password are entered by the user. Since 1.3.6 the password lives in OS secure storage — Android Keystore, Windows DPAPI or WebCrypto in the browser — and the old SharedPreferences value is migrated and removed automatically. There is no separate server token: the HTTP API uses the same login and password as MQTT.">Только в настройках приложения, в защищённом хранилище ОС.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Не вижу свою сеть 5 ГГц при сканировании" data-en="My 5 GHz network does not appear in the scan">Не вижу сеть 5 ГГц</summary>
+        <div class="faq-body">
+          <p data-ru="Сканирует сама плата, а ESP32-C3 и ESP32-C6 работают только в диапазоне 2,4 ГГц. Сеть 5 ГГц они не увидят никогда; используйте SSID 2,4 ГГц или включите на роутере оба диапазона с разными именами." data-en="The board scans itself, and the ESP32-C3 and ESP32-C6 are 2.4 GHz only. They will never see a 5 GHz network; use a 2.4 GHz SSID or enable both bands on the router with different names.">C3/C6 — только 2,4 ГГц.</p>
+          <p data-ru="Если сеть 2,4 ГГц тоже не появляется, подойдите ближе к роутеру: список обновляется по запросу и может быть пустым сразу после включения." data-en="If a 2.4 GHz network is missing too, move closer to the router: the list refreshes on request and may be empty right after boot.">Подойдите ближе и повторите скан.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Как удалённо переключить плату на другую сохранённую сеть" data-en="How do I switch the board to another saved network remotely">Как удалённо переключить Wi-Fi</summary>
+        <div class="faq-body">
+          <p data-ru="В приложении: «Главная» → устройство → «Настроить Wi-Fi» → «Через сервер». Откроется список уже сохранённых сетей; тап по сети и подтверждение в диалоге запускают двухфазное переключение. Сервер должен быть версии 0.4.2 или новее, а плата — 1.3.7 или новее." data-en="In the app: “Home” → device → “Set up Wi-Fi” → “Via server”. The list of saved networks opens; tapping one and confirming in the dialog starts the two-phase switch. The server must be 0.4.2 or newer and the board 1.3.7 or newer.">Через сервер, только сохранённые сети.</p>
+          <p data-ru="Удалённо нельзя добавить новую сеть, удалить старую или изменить приоритет — это делается по USB, через точку настройки Aeris-Setup-XXXX или по HTTP в локальной сети. После переключения плата может на несколько секунд пропасть из MQTT, пока поднимает соединение." data-en="Remotely you cannot add a new network, remove an old one or change priorities — use USB, the Aeris-Setup-XXXX access point or HTTP on the local network. After switching, the board may disappear from MQTT for a few seconds while it reconnects.">Добавление и приоритеты — только локально.</p>
         </div>
       </details>
 
@@ -192,6 +208,14 @@
         <div class="faq-body">
           <p data-ru-html="Прошивка пишется во второй раздел, поэтому текущая остаётся нетронутой до самого конца. Если что-то пошло не так, отправьте команду <code>ota_rollback</code> — устройство проверит предыдущий OTA-слот и перезагрузится на образ из него." data-en-html="The new firmware is written to the second slot, so the running one stays untouched until the very end. If something went wrong, send the <code>ota_rollback</code> command — the device validates the other OTA slot and reboots into that image.">Откат командой ota_rollback.</p>
           <p data-ru="Если и откат недоступен, устройство придётся прошить по USB." data-en="If rollback is unavailable too, the device has to be reflashed over USB.">Крайний случай — прошивка по USB.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary data-ru="Как обновить само приложение" data-en="How do I update the app itself">Как обновить приложение</summary>
+        <div class="faq-body">
+          <p data-ru="«Настройки» → «Обновления». Переключатель «Проверять обновления» включает автоматическую проверку GitHub Releases раз в несколько часов; строка «Проверить обновления» запускает проверку вручную. Если версия новее, откроется диалог с заметками релиза и кнопкой загрузки: .exe для Windows, .apk для Android." data-en="“Settings” → “Updates”. The “Check for updates” toggle enables automatic GitHub Releases checks every few hours; the “Check for updates” row runs a manual check. If a newer version exists, a dialog opens with release notes and a download button: .exe for Windows, .apk for Android.">Настройки → Обновления.</p>
+          <p data-ru="APK подписан тем же сертификатом, что и предыдущие версии, поэтому устанавливается поверх без удаления данных. Релизы и контрольные суммы лежат в репозитории Aeris-App на GitHub." data-en="The APK is signed with the same certificate as previous versions, so it installs over the top without wiping data. Releases and checksums live in the Aeris-App repository on GitHub.">Подпись та же, данные сохраняются.</p>
         </div>
       </details>
 
@@ -270,6 +294,6 @@ pio run -e esp32c3</code></pre>
   </div>
 </footer>
 
-<script src="assets/wiki.js?v=20261119-1"></script>
+<script src="assets/wiki.js?v=20261121-1"></script>
 </body>
 </html>
