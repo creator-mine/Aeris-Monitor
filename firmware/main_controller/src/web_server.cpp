@@ -363,6 +363,15 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
 
     auto parseLine = [&](const String& raw) {
         if (stopAll || count >= 1024) return;
+        // Parsing a full 24 h history is CPU-bound and runs in the async_tcp
+        // task, which has priority over loopTask. Without yielding, the loop
+        // task starves for >20 s and the task watchdog reboots the board,
+        // producing the 0-valued chart dips and dropped HTTP requests.
+        static uint16_t parseOps = 0;
+        if (++parseOps >= 128) {
+            parseOps = 0;
+            delay(1);
+        }
         int c1 = raw.indexOf(',');
         if (c1 < 0) return;
         int c2 = raw.indexOf(',', c1 + 1);
@@ -420,6 +429,7 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
             int n = f.read(buf, want);
             if (n <= 0) break;
             chunksRead++;
+            if ((chunksRead & 0x03) == 0) delay(1);
             pos = startPos;
 
             String chunk((const char*)buf, (unsigned)n);

@@ -1,5 +1,9 @@
 param(
-    [switch]$Publish
+    [switch]$Publish,
+    # Boards to build and (with -Publish) push to the OTA server. C3 is only
+    # listed explicitly when its binary is part of the release: leaving it out
+    # keeps the existing main.bin / version.json untouched.
+    [string[]]$Environments = @("esp32-c3", "esp32-s3", "esp32-c6")
 )
 
 # Builds firmware for public OTA with NO compiled credentials:
@@ -25,7 +29,7 @@ if (-not (Test-Path $pio)) {
     $pio = $cmd.Source
 }
 
-$envs = @("esp32-c3", "esp32-s3", "esp32-c6")
+$envs = $Environments
 $oldFlags = $env:PLATFORMIO_BUILD_FLAGS
 $env:PLATFORMIO_BUILD_FLAGS = (($oldFlags, "-DAERIS_NO_COMPILED_SECRETS") |
     Where-Object { $_ }) -join " "
@@ -63,12 +67,10 @@ foreach ($envName in $envs) {
 
 if ($Publish) {
     Write-Host "=== publishing to /fw ==="
-    & (Join-Path $PSScriptRoot "fw.ps1") -Environment esp32-c3
-    if ($LASTEXITCODE -ne 0) { throw "publish esp32-c3 failed" }
-    & (Join-Path $PSScriptRoot "fw.ps1") -Environment esp32-s3
-    if ($LASTEXITCODE -ne 0) { throw "publish esp32-s3 failed" }
-    & (Join-Path $PSScriptRoot "fw.ps1") -Environment esp32-c6
-    if ($LASTEXITCODE -ne 0) { throw "publish esp32-c6 failed" }
+    foreach ($envName in $envs) {
+        & (Join-Path $PSScriptRoot "fw.ps1") -Environment $envName
+        if ($LASTEXITCODE -ne 0) { throw "publish $envName failed" }
+    }
 }
 
 Write-Host "Done."

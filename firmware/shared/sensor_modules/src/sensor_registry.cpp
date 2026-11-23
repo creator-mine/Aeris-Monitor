@@ -355,9 +355,47 @@ void SensorRegistry::readModule(ActiveModule& rec) {
     }
 }
 
+void SensorRegistry::serviceModules() {
+    lock();
+    for (auto& rec : _active) {
+        if (!rec.online) continue;
+        if (!selectChannel(rec.muxAddress, rec.muxChannel)) continue;
+        rec.driver->service();
+    }
+    unlock();
+}
+
+void SensorRegistry::serviceTask(void* arg) {
+    SensorRegistry* self = static_cast<SensorRegistry*>(arg);
+    for (;;) {
+        self->serviceModules();
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+void SensorRegistry::startServiceTask(uint32_t stackSize, UBaseType_t priority) {
+    if (_serviceTaskRunning) return;
+    // Set the flag before the task exists: poll() must stop servicing first,
+    // otherwise both would step the same BSEC state (the mutex serialises the
+    // bus, not the algorithm).
+    _serviceTaskRunning = true;
+    if (xTaskCreate(&SensorRegistry::serviceTask, "sensor_svc", stackSize, this,
+                    priority, nullptr) != pdPASS) {
+        _serviceTaskRunning = false;
+        Serial.println("[Registry] service task failed, staying on poll()");
+    } else {
+        Serial.println("[Registry] service task started");
+    }
+}
+
 void SensorRegistry::poll() {
+    // With the dedicated task the drivers are serviced there, on their own
+    // schedule, even while the main loop is blocked on TLS or the SD card.
+    if (!_serviceTaskRunning) serviceModules();
+
     lock();
     unsigned long now = millis();
+
     for (auto& rec : _active) {
         if (!rec.online) continue;
         if (!due(now, rec.nextReadAt)) continue;

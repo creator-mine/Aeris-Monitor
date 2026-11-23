@@ -762,9 +762,13 @@ static bool metricShouldPublish(const char* key, float value) {
         if (strcmp(trackedMetrics[i].key, key) != 0) continue;
         bool changed = fabsf(value - trackedMetrics[i].value) > METRIC_EPSILON;
         bool stale = now - trackedMetrics[i].at >= METRIC_HEARTBEAT_MS;
+        // Only a published value refreshes the heartbeat timestamp. Touching it
+        // on every 5 s cycle would keep a constant reading (for example IAQ 50)
+        // from ever being republished, so the topic would go silent.
+        if (!changed && !stale) return false;
         trackedMetrics[i].value = value;
         trackedMetrics[i].at = now;
-        return changed || stale;
+        return true;
     }
 
     if (trackedMetricCount < MAX_TRACKED_METRICS) {
@@ -786,6 +790,10 @@ void sensorsInit() {
                              sizeof(kMuxAddresses) / sizeof(kMuxAddresses[0]));
 
     registry.scanI2CBus(I2C_SDA, I2C_SCL);
+
+    // BSEC must run on its own 3 s schedule; the loop task can be blocked for
+    // seconds by TLS, HTTP and the SD card, so servicing moves to a task.
+    registry.startServiceTask();
 
     Serial.printf("[System] Active modules: %d\n", registry.activeCount());
     LOG_INFO("Boot", "Active modules: %d", registry.activeCount());

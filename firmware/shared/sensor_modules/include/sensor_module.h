@@ -40,6 +40,11 @@ public:
     virtual std::vector<uint8_t> i2cAddresses() const = 0;
     virtual bool detect(uint8_t address) = 0;
     virtual bool init(uint8_t address) = 0;
+    // Optional background work the driver must do between reads (BSEC has to
+    // be serviced every few milliseconds, not once per read interval). Called
+    // from the registry poll for every online module, on the loop task and
+    // under the Wire lock. Must return quickly.
+    virtual void service() {}
     virtual std::vector<Metric> read() = 0;
     virtual std::vector<MetricDef> metrics() const = 0;
     virtual uint32_t readInterval() const = 0;

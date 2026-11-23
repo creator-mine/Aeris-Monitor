@@ -55,6 +55,12 @@ public:
     void poll();
     void forceRead();
 
+    // BSEC has to be serviced on its own 3 s schedule, but the main loop can
+    // block for seconds on TLS/HTTP. Call this once after the first scan to
+    // move service() into a dedicated FreeRTOS task; poll() then stops
+    // servicing drivers itself.
+    void startServiceTask(uint32_t stackSize = 8192, UBaseType_t priority = 2);
+
     size_t activeCount();
     unsigned long compositionRevision();
 
@@ -78,6 +84,8 @@ private:
     bool addActive(SensorModule* prototype, uint8_t addr, uint8_t muxAddress,
                    uint8_t muxChannel);
     void readModule(ActiveModule& rec);
+    void serviceModules();
+    static void serviceTask(void* arg);
     bool recover(ActiveModule& rec);
     ActiveModule* findRecord(SensorModule* driver, uint8_t address,
                              uint8_t muxAddress, uint8_t muxChannel);
@@ -93,6 +101,7 @@ private:
     unsigned long _lastLiveness = 0;
     unsigned long _scanToken = 1;
     unsigned long _revision = 0; // bumped whenever the module set changes
+    bool _serviceTaskRunning = false;
     SemaphoreHandle_t _sem = nullptr;
 };
 
