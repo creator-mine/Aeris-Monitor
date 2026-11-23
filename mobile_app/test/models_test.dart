@@ -143,6 +143,30 @@ void main() {
       expect(d.allMetrics.length, 1);
     });
 
+    test('hides retired gas metrics returned by older devices', () {
+      final d = Device.fromJson({
+        'id': 'old',
+        'name': 'Old',
+        'type': 'esp32',
+        'status': 'online',
+        'lastSeen': 1700000000000,
+        'modules': [
+          {
+            'id': 'm1',
+            'type': 'bme680_module',
+            'name': 'BME',
+            'status': 'online',
+            'metrics': [
+              {'key': 'gas_resistance', 'name': 'Gas', 'unit': 'Ω'},
+              {'key': 'iaq', 'name': 'IAQ', 'unit': ''},
+            ],
+          },
+        ],
+      });
+      expect(d.allMetrics.map((m) => m.key), ['iaq']);
+      expect(d.metricInfo('gas_resistance'), isNull);
+    });
+
     test('parses firmware type_id modules', () {
       final d = Device.fromJson({
         'id': 'fw',
@@ -160,7 +184,16 @@ void main() {
           },
         ],
       });
-      expect(d.modules.first.type, 'module_3');
+      expect(d.modules.first.type, 'scd30_module');
+    });
+
+    test('maps all known firmware type ids and keeps unknown ones', () {
+      expect(Module.moduleTypeName(1), 'bme680_module');
+      expect(Module.moduleTypeName(2), 'bh1750_module');
+      expect(Module.moduleTypeName(3), 'scd30_module');
+      expect(Module.moduleTypeName(4), 'ina219_module');
+      expect(Module.moduleTypeName(5), 'bmp280_module');
+      expect(Module.moduleTypeName(9), 'module_9');
     });
 
     test('copyWith preserves values and prop equality', () {

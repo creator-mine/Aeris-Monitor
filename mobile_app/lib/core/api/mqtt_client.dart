@@ -15,6 +15,11 @@ class MqttService {
   final StreamController<bool> _connectionController =
       StreamController<bool>.broadcast();
 
+  /// Last status frame per device. Without it, switching connection modes or
+  /// devices cleared the dashboard card and it stayed empty until the next
+  /// 30-second heartbeat.
+  final Map<String, _CachedStatus> _statusCache = {};
+
   bool _isConnected = false;
   String? _currentDeviceId;
   bool _subscribeAll = false;
@@ -27,6 +32,19 @@ class MqttService {
   /// status payloads). Emits `true` on connect and `false` on disconnect.
   Stream<bool> get connectionStream => _connectionController.stream;
   bool get isConnected => _isConnected;
+
+  /// Last status frame for [deviceId], if one arrived recently. Used to show
+  /// the SD card / diagnostics immediately when the app switches channels,
+  /// instead of waiting for the next periodic status publish.
+  String? latestStatus(
+    String deviceId, {
+    Duration maxAge = const Duration(minutes: 2),
+  }) {
+    final cached = _statusCache[deviceId];
+    if (cached == null) return null;
+    if (DateTime.now().difference(cached.receivedAt) > maxAge) return null;
+    return cached.payload;
+  }
 
   void _setConnected(bool value) {
     _isConnected = value;
@@ -49,7 +67,8 @@ class MqttService {
         useWebSocket, broker, port, clientId, username, password, secure);
     if (!ok && useWebSocket && fallbackToTcp) {
       _statusController.add('ws_failed_fallback_tls');
-      ok = await _tryConnect(false, broker, 8883, clientId, username, password, true);
+      ok = await _tryConnect(
+          false, broker, 8883, clientId, username, password, true);
     }
     return ok;
   }
@@ -78,12 +97,13 @@ class MqttService {
     );
   }
 
-  Future<bool> _tryConnect(bool linkWebSocket, String? broker, int? port, String? clientId,
-      String? username, String? password, bool secure) async {
+  Future<bool> _tryConnect(bool linkWebSocket, String? broker, int? port,
+      String? clientId, String? username, String? password, bool secure) async {
     try {
       final b = broker ?? AppConfig.mqttBroker;
       final p = port ?? AppConfig.mqttPort;
-      final id = clientId ?? 'flutter_app_${DateTime.now().millisecondsSinceEpoch}';
+      final id =
+          clientId ?? 'flutter_app_${DateTime.now().millisecondsSinceEpoch}';
 
       _client = MqttServerClient.withPort(b, id, p);
       _client!.useWebSocket = linkWebSocket;
@@ -212,6 +232,9 @@ class MqttService {
     final isStatus = topic.endsWith('/status');
 
     if (isStatus) {
+      if (topicDeviceId.isNotEmpty) {
+        _statusCache[topicDeviceId] = _CachedStatus(payload, DateTime.now());
+      }
       _statusController.add(payload);
       return;
     }
@@ -230,7 +253,8 @@ class MqttService {
 
       final sensorData = SensorData.fromJson(json);
       _sensorDataController.add(SensorData(
-        deviceId: topicDeviceId.isNotEmpty ? topicDeviceId : sensorData.deviceId,
+        deviceId:
+            topicDeviceId.isNotEmpty ? topicDeviceId : sensorData.deviceId,
         sensorType: _topicSensorType(topic) ?? sensorData.sensorType,
         timestamp: sensorData.timestamp,
         data: sensorData.data,
@@ -301,10 +325,20 @@ class MqttService {
   }
 
   void dispose() {
+    // Disconnect first: its callback pushes to the status/connection streams,
+    // which must still be open at that point.
+    _client?.disconnect();
     _updatesSub?.cancel();
+    _updatesSub = null;
     _sensorDataController.close();
     _statusController.close();
     _connectionController.close();
-    _client?.disconnect();
   }
+}
+
+class _CachedStatus {
+  final String payload;
+  final DateTime receivedAt;
+
+  const _CachedStatus(this.payload, this.receivedAt);
 }

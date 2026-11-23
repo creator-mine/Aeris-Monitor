@@ -11,36 +11,58 @@ import 'package:aeris/core/i18n/l10n.dart';
 /// Fetches live status + modules from a device over HTTP and shows a
 /// diagnostics sheet (uptime, heap, WiFi, firmware, sensor modules),
 /// with quick actions: live logs and OTA.
-Future<void> showDeviceDiagnostics(BuildContext context, Device device) {
-  if (!LanPolicy.enabled) {
+///
+/// In "Только MQTT" mode there is no HTTP path, so the latest MQTT status
+/// (including the SD-card block) is shown read-only instead.
+Future<void> showDeviceDiagnostics(
+  BuildContext context,
+  Device device, {
+  Map<String, dynamic>? mqttStatus,
+  SdCardInfo? mqttSdCard,
+}) {
+  final lanAvailable = LanPolicy.enabled && device.httpBaseUrl != null;
+  if (!lanAvailable && mqttStatus == null) {
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
       SnackBar(
         content: Text(
           L10n.of(
             context,
-            'Диагностика доступна только по LAN. Выключите «Только MQTT» в настройках.',
+            'Данные диагностики ещё не получены по MQTT. '
+            'Подождите несколько секунд и откройте снова.',
           ),
         ),
       ),
     );
     return Future<void>.value();
   }
-  final client = DirectDeviceClient(baseUrl: device.httpBaseUrl!);
-  return showModalBottomSheet<void>(
+
+  final client =
+      lanAvailable ? DirectDeviceClient(baseUrl: device.httpBaseUrl!) : null;
+  final future = showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     builder: (context) => _DiagnosticsSheet(
       device: device,
       client: client,
+      mqttStatus: mqttStatus,
+      mqttSdCard: mqttSdCard,
     ),
-  ).whenComplete(client.dispose);
+  );
+  return client == null ? future : future.whenComplete(client.dispose);
 }
 
 class _DiagnosticsSheet extends StatefulWidget {
   final Device device;
-  final DirectDeviceClient client;
+  final DirectDeviceClient? client;
+  final Map<String, dynamic>? mqttStatus;
+  final SdCardInfo? mqttSdCard;
 
-  const _DiagnosticsSheet({required this.device, required this.client});
+  const _DiagnosticsSheet({
+    required this.device,
+    this.client,
+    this.mqttStatus,
+    this.mqttSdCard,
+  });
 
   @override
   State<_DiagnosticsSheet> createState() => _DiagnosticsSheetState();
@@ -66,15 +88,29 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
       _loading = true;
       _error = null;
     });
+
+    final client = widget.client;
+    if (client == null) {
+      if (!mounted) return;
+      setState(() {
+        _status = widget.mqttStatus;
+        _sdCard = widget.mqttSdCard ??
+            SdCardInfo.tryFromStatus(widget.mqttStatus ?? const {});
+        _modules = _modulesFromStatus(widget.mqttStatus);
+        _loading = false;
+      });
+      return;
+    }
+
     try {
-      final status = await widget.client.getStatus();
-      SdCardInfo? sdCard;
+      final status = await client.getStatus();
+      SdCardInfo? sdCard = widget.mqttSdCard;
       try {
-        sdCard = SdCardInfo.fromJson(await widget.client.getSdInfo());
+        sdCard = SdCardInfo.fromJson(await client.getSdInfo());
       } catch (_) {}
       List<Map<String, dynamic>> modules = const [];
       try {
-        final response = await widget.client.getModules();
+        final response = await client.getModules();
         modules = response.map((m) => m.toJson()).toList();
       } catch (_) {}
       if (!mounted) return;
@@ -85,12 +121,38 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
         _loading = false;
       });
     } catch (e) {
+      // LAN can be blocked while the broker still works: fall back to the
+      // last MQTT status instead of showing a dead end.
+      if (widget.mqttStatus != null) {
+        if (!mounted) return;
+        setState(() {
+          _status = widget.mqttStatus;
+          _sdCard = widget.mqttSdCard ??
+              SdCardInfo.tryFromStatus(widget.mqttStatus ?? const {});
+          _modules = _modulesFromStatus(widget.mqttStatus);
+          _loading = false;
+        });
+        return;
+      }
       if (!mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;
       });
     }
+  }
+
+  List<Map<String, dynamic>> _modulesFromStatus(Map<String, dynamic>? status) {
+    final names = status?['modules'];
+    if (names is! List) return const [];
+    return names
+        .map((name) => <String, dynamic>{
+              'id': '',
+              'name': '$name',
+              'type': '—',
+              'status': 'online',
+            })
+        .toList();
   }
 
   @override
@@ -117,14 +179,16 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
                 IconButton(
                   tooltip: L10n.of(context, 'Живые логи'),
                   icon: const Icon(Icons.terminal),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (context) => LogsScreen(device: _device),
-                      ),
-                    );
-                  },
+                  onPressed: widget.client == null
+                      ? null
+                      : () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (context) => LogsScreen(device: _device),
+                            ),
+                          );
+                        },
                 ),
                 IconButton(
                   tooltip: L10n.of(context, 'Обновить'),

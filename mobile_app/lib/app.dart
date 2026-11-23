@@ -14,6 +14,7 @@ import 'features/dashboard/providers/dashboard_provider.dart';
 import 'features/charts/charts_screen.dart';
 import 'features/charts/providers/charts_provider.dart';
 import 'features/devices/devices_screen.dart';
+import 'features/devices/providers/devices_provider.dart';
 import 'features/device_config/device_config_screen.dart';
 import 'features/provisioning/provisioning_screen.dart';
 import 'features/settings/settings_screen.dart';
@@ -53,7 +54,8 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
 
   /// Periodic tick for [UpdateProvider.maybeAutoCheck]; the provider itself
@@ -61,19 +63,46 @@ class _MainNavigationState extends State<MainNavigation> {
   Timer? _updateTimer;
   String? _notifiedUpdateVersion;
 
+  /// Presence tick: the registry marks a board offline a few minutes after its
+  /// last heartbeat, but without this the app kept the status it saw on load
+  /// forever (for example an S3 that was unplugged while the app was open).
+  Timer? _presenceTimer;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _autoCheckUpdates());
     _updateTimer = Timer.periodic(
       const Duration(minutes: 30),
       (_) => _autoCheckUpdates(),
     );
+    _presenceTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _refreshPresence(),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshPresence();
+  }
+
+  Future<void> _refreshPresence() async {
+    if (!mounted) return;
+    final dashboard = context.read<DashboardProvider>();
+    final devices = context.read<DevicesProvider>();
+    await Future.wait([
+      dashboard.refreshPresence(),
+      devices.refreshPresence(),
+    ]);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _updateTimer?.cancel();
+    _presenceTimer?.cancel();
     super.dispose();
   }
 
@@ -133,63 +162,79 @@ class _MainNavigationState extends State<MainNavigation> {
             : settings.backgroundImagePath != null &&
                 File(settings.backgroundImagePath!).existsSync();
 
+        final narrow = MediaQuery.sizeOf(context).width < 600;
+        final veryNarrow = MediaQuery.sizeOf(context).width < 400;
+
         Widget scaffold = Scaffold(
           body: _screens[_currentIndex],
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (index) {
-              if (index == 1) {
-                final dashboardProvider = context.read<DashboardProvider>();
-                final selectedDevice = dashboardProvider.selectedDevice;
-                if (selectedDevice != null) {
-                  context.read<ChartsProvider>().setSelectedDevice(
-                        selectedDevice.id,
-                        metrics: selectedDevice.allMetrics,
-                        device: selectedDevice,
-                      );
+          bottomNavigationBar: NavigationBarTheme(
+            data: NavigationBarThemeData(
+              labelTextStyle: WidgetStatePropertyAll(
+                TextStyle(fontSize: veryNarrow ? 10 : 12),
+              ),
+            ),
+            child: NavigationBar(
+              selectedIndex: _currentIndex,
+              // Seven destinations do not fit labels on a phone width: only
+              // the active tab keeps its caption instead of wrapping every
+              // label. A slightly smaller caption also fits "Графики".
+              labelBehavior: narrow
+                  ? NavigationDestinationLabelBehavior.onlyShowSelected
+                  : NavigationDestinationLabelBehavior.alwaysShow,
+              onDestinationSelected: (index) {
+                if (index == 1) {
+                  final dashboardProvider = context.read<DashboardProvider>();
+                  final selectedDevice = dashboardProvider.selectedDevice;
+                  if (selectedDevice != null) {
+                    context.read<ChartsProvider>().setSelectedDevice(
+                          selectedDevice.id,
+                          metrics: selectedDevice.allMetrics,
+                          device: selectedDevice,
+                        );
+                  }
                 }
-              }
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            destinations: [
-              NavigationDestination(
-                icon: const Icon(Icons.dashboard_outlined),
-                selectedIcon: const Icon(Icons.dashboard),
-                label: L10n.of(context, 'Главная'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.show_chart_outlined),
-                selectedIcon: const Icon(Icons.show_chart),
-                label: L10n.of(context, 'Графики'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.devices_other_outlined),
-                selectedIcon: const Icon(Icons.devices_other),
-                label: L10n.of(context, 'Устройства'),
-              ),
-              NavigationDestination(
-                icon: Icon(_isMobile ? Icons.wifi : Icons.tune),
-                selectedIcon: Icon(_isMobile ? Icons.wifi : Icons.tune),
-                label: _isMobile ? 'Wi-Fi' : L10n.of(context, 'Настройка'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.memory_outlined),
-                selectedIcon: const Icon(Icons.memory),
-                label: L10n.of(context, 'Прошивка'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.settings_outlined),
-                selectedIcon: const Icon(Icons.settings),
-                label: L10n.of(context, 'Настройки'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.smart_toy_outlined),
-                selectedIcon: const Icon(Icons.smart_toy),
-                label: L10n.of(context, 'Умный дом'),
-              ),
-            ],
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              destinations: [
+                NavigationDestination(
+                  icon: const Icon(Icons.dashboard_outlined),
+                  selectedIcon: const Icon(Icons.dashboard),
+                  label: L10n.of(context, 'Главная'),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.show_chart_outlined),
+                  selectedIcon: const Icon(Icons.show_chart),
+                  label: L10n.of(context, 'Графики'),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.devices_other_outlined),
+                  selectedIcon: const Icon(Icons.devices_other),
+                  label: L10n.of(context, 'Устройства'),
+                ),
+                NavigationDestination(
+                  icon: Icon(_isMobile ? Icons.wifi : Icons.tune),
+                  selectedIcon: Icon(_isMobile ? Icons.wifi : Icons.tune),
+                  label: _isMobile ? 'Wi-Fi' : L10n.of(context, 'Настройка'),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.memory_outlined),
+                  selectedIcon: const Icon(Icons.memory),
+                  label: L10n.of(context, 'Прошивка'),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.settings_outlined),
+                  selectedIcon: const Icon(Icons.settings),
+                  label: L10n.of(context, 'Настройки'),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.smart_toy_outlined),
+                  selectedIcon: const Icon(Icons.smart_toy),
+                  label: L10n.of(context, 'Умный дом'),
+                ),
+              ],
+            ),
           ),
         );
 

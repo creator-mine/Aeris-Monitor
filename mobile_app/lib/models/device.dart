@@ -165,6 +165,7 @@ class Device extends Equatable {
     final map = <String, MetricInfo>{};
     for (final module in modules) {
       for (final metric in module.metrics) {
+        if (AppConfig.isMetricHidden(metric.key)) continue;
         map[metric.key] = metric;
       }
     }
@@ -172,6 +173,7 @@ class Device extends Equatable {
   }
 
   MetricInfo? metricInfo(String key) {
+    if (AppConfig.isMetricHidden(key)) return null;
     for (final module in modules) {
       for (final metric in module.metrics) {
         if (metric.key == key) return metric;
@@ -181,8 +183,18 @@ class Device extends Equatable {
   }
 
   @override
-  List<Object?> get props =>
-      [id, name, type, status, lastSeen, ip, port, sensors, modules, firmwareVersion];
+  List<Object?> get props => [
+        id,
+        name,
+        type,
+        status,
+        lastSeen,
+        ip,
+        port,
+        sensors,
+        modules,
+        firmwareVersion
+      ];
 }
 
 class Sensor extends Equatable {
@@ -250,7 +262,7 @@ class Module extends Equatable {
       id: (json['id'] as String?) ?? '',
       type: (legacyType is String)
           ? legacyType
-          : (typeId is num ? 'module_$typeId' : ''),
+          : (typeId is num ? moduleTypeName(typeId.toInt()) : ''),
       name: (json['name'] as String?) ?? '',
       status: (json['status'] as String?) ?? 'unknown',
       config: json['config'] as Map<String, dynamic>? ?? {},
@@ -259,6 +271,25 @@ class Module extends Equatable {
               .toList() ??
           [],
     );
+  }
+
+  /// Firmware type ids from `sensor_module.h` — shown in diagnostics instead
+  /// of the raw `module_1`/`module_2` placeholders.
+  static String moduleTypeName(int typeId) {
+    switch (typeId) {
+      case 1:
+        return 'bme680_module';
+      case 2:
+        return 'bh1750_module';
+      case 3:
+        return 'scd30_module';
+      case 4:
+        return 'ina219_module';
+      case 5:
+        return 'bmp280_module';
+      default:
+        return 'module_$typeId';
+    }
   }
 
   Map<String, dynamic> toJson() {

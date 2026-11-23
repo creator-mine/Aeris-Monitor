@@ -48,7 +48,7 @@ void main() {
     expect(provider.availableSensorTypes, contains('temperature'));
     expect(provider.availableSensorTypes, contains('humidity'));
     expect(provider.availableSensorTypes, contains('pressure'));
-    expect(provider.availableSensorTypes, contains('gas_resistance'));
+    expect(provider.availableSensorTypes, isNot(contains('gas_resistance')));
     expect(provider.availableSensorTypes, contains('illuminance'));
     expect(provider.isMetricSupported('illuminance'), isTrue);
     expect(provider.isMetricSupported('temperature'), isFalse);

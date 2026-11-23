@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import '../../../core/api/signaling_api.dart';
 import '../../../core/api/ota_api.dart';
@@ -9,6 +11,7 @@ import '../../../core/config/connection_mode.dart';
 import '../../../core/utils/version.dart';
 import '../../../models/device.dart';
 import '../../../models/firmware_manifest.dart';
+import '../../../models/sd_card_info.dart';
 
 class DevicesProvider extends ChangeNotifier {
   final SignalingApi _signalingApi;
@@ -104,6 +107,55 @@ class DevicesProvider extends ChangeNotifier {
 
   Future<void> refreshDevices() async {
     await Future.wait([loadDevices(), loadManifest()]);
+  }
+
+  bool _isRefreshingPresence = false;
+
+  /// Quietly refreshes only the online/offline status from the registry.
+  /// The full [loadDevices] also rescans the LAN and replaces the whole list,
+  /// which is too heavy for a periodic presence tick and would drop devices
+  /// whenever the cloud registry is momentarily unreachable.
+  Future<void> refreshPresence() async {
+    if (_disposed || _isRefreshingPresence) return;
+    _isRefreshingPresence = true;
+    try {
+      final registry = await _signalingApi.getDevices();
+      if (_disposed) return;
+
+      final freshById = {for (final device in registry) device.id: device};
+      var changed = false;
+
+      for (var i = 0; i < _devices.length; i++) {
+        final fresh = freshById[_devices[i].id];
+        if (fresh == null) continue;
+        final current = _devices[i];
+        if (current.status == fresh.status &&
+            current.lastSeen == fresh.lastSeen) {
+          continue;
+        }
+        _devices[i] = current.copyWith(
+          status: fresh.status,
+          lastSeen: fresh.lastSeen,
+          ip: fresh.ip.isNotEmpty ? fresh.ip : null,
+          port: fresh.port,
+          firmwareVersion: fresh.firmwareVersion,
+        );
+        changed = true;
+      }
+
+      // A device registered after the list was loaded should appear too.
+      for (final fresh in registry) {
+        if (_devices.any((device) => device.id == fresh.id)) continue;
+        _devices.add(fresh);
+        changed = true;
+      }
+
+      if (changed) _safeNotify();
+    } catch (_) {
+      // Keep the last known list; the next tick retries.
+    } finally {
+      _isRefreshingPresence = false;
+    }
   }
 
   /// Fetches the real published firmware manifests from the OTA site
@@ -282,6 +334,29 @@ class DevicesProvider extends ChangeNotifier {
     final index = _devices.indexWhere((d) => d.id == id);
     if (index == -1) return null;
     return _devices[index];
+  }
+
+  /// Last status frame received over MQTT, for diagnostics without LAN.
+  Map<String, dynamic>? latestStatusFor(String deviceId) {
+    final payload = _mqtt?.latestStatus(
+      deviceId,
+      maxAge: const Duration(minutes: 10),
+    );
+    if (payload == null) return null;
+    try {
+      final decoded = jsonDecode(payload);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// SD-card state from the latest MQTT status, used as a fallback when the
+  /// device is reachable only through the broker.
+  SdCardInfo? sdCardFor(String deviceId) {
+    final status = latestStatusFor(deviceId);
+    if (status == null) return null;
+    return SdCardInfo.tryFromStatus(status);
   }
 
   void _safeNotify() {

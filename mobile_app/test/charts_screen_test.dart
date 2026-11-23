@@ -81,7 +81,7 @@ void main() {
     expect(find.text('Температура'), findsOneWidget);
     expect(find.text('Влажность'), findsOneWidget);
     expect(find.text('Давление'), findsOneWidget);
-    expect(find.text('Газ'), findsOneWidget);
+    expect(find.text('Газ'), findsNothing);
     expect(find.text('Освещённость'), findsOneWidget);
 
     await tester.tap(find.text('Температура'));

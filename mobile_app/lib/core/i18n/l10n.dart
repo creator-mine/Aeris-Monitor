@@ -7,10 +7,7 @@ import 'package:flutter/widgets.dart';
 /// by the exact Russian literal, so screens can keep their readable text and
 /// only wrap it with [TrText] or [of].
 class L10n {
-  static const List<Locale> supportedLocales = [
-    Locale('ru'),
-    Locale('en'),
-  ];
+  static const List<Locale> supportedLocales = [Locale('ru'), Locale('en')];
 
   static String translate(String source, [String? languageCode]) {
     final code = (languageCode ?? 'ru').toLowerCase();
@@ -51,6 +48,9 @@ class L10n {
     }
     if (source.startsWith('Прошивка v')) {
       return 'Firmware v${source.substring('Прошивка v'.length)}';
+    }
+    if (source.startsWith('Обновлено: ')) {
+      return 'Updated: ${source.substring('Обновлено: '.length)}';
     }
     if (source.startsWith('История сборок (')) {
       return 'Build history (${source.substring('История сборок ('.length)}';
@@ -139,14 +139,16 @@ class L10n {
     if (source.startsWith('firmware.bin готов (')) {
       return 'firmware.bin ready (${source.substring('firmware.bin готов ('.length)}';
     }
-    final ota =
-        RegExp(r'^Устройство "(.+)" скачает последнюю версию прошивки.*$');
+    final ota = RegExp(
+      r'^Устройство "(.+)" скачает последнюю версию прошивки.*$',
+    );
     final otaMatch = ota.firstMatch(source);
     if (otaMatch != null) {
       return 'Device “${otaMatch.group(1)}” will download the latest firmware and reboot.';
     }
-    final rollback =
-        RegExp(r'^Устройство "(.+)" переключится на предыдущую версию.*$');
+    final rollback = RegExp(
+      r'^Устройство "(.+)" переключится на предыдущую версию.*$',
+    );
     final rollbackMatch = rollback.firstMatch(source);
     if (rollbackMatch != null) {
       return 'Device “${rollbackMatch.group(1)}” will switch to the previous firmware and reboot.';
@@ -159,7 +161,8 @@ class L10n {
     }
 
     final offline = RegExp(
-        r'^Устройство «(.+)» офлайн\. Включите его или выберите онлайн-устройство в списке\.$');
+      r'^Устройство «(.+)» офлайн\. Включите его или выберите онлайн-устройство в списке\.$',
+    );
     final match = offline.firstMatch(source);
     if (match != null) {
       return 'Device “${match.group(1)}” is offline. Power it on or choose an online device from the list.';
@@ -192,8 +195,7 @@ class L10n {
     "1. Вернитесь к домашней сети в настройках Wi-Fi телефона.\n":
         "1. Return to your home Wi-Fi network in the phone's Wi-Fi settings.\n",
     "COM-порт": "COM port",
-    "esptool не найден. Установите PlatformIO и соберите проект хотя бы один раз.":
-        "esptool not found. Install PlatformIO and build the project at least once.",
+    "esptool не найден. Установите PlatformIO и соберите проект хотя бы один раз.": "esptool not found. Install PlatformIO and build the project at least once.",
     "MQTT (необязательно)": "MQTT (optional)",
     "MQTT и API": "MQTT and API",
     "MQTT не подключён — команды недоступны.":
@@ -209,14 +211,10 @@ class L10n {
     "Версия прошивки": "Firmware version",
     "Только MQTT (отключить LAN)": "MQTT only (disable LAN)",
     "Канал подключения: LAN или MQTT": "Connection channel: LAN or MQTT",
-    "Приложение не ищет устройство в локальной сети и не открывает HTTP/WebSocket к плате — весь обмен идёт через MQTT.":
-        "The app does not discover the device on the LAN and does not open HTTP/WebSocket to the board — all traffic goes through MQTT.",
-    "LAN отключён: журнал доступен только по локальной сети. Выключите «Только MQTT» в настройках.":
-        "LAN is off: the log is available only over the local network. Turn off “MQTT only” in settings.",
-    "Режим «Только MQTT»: история с SD-карты недоступна. Включите LAN в настройках.":
-        "“MQTT only” mode: SD-card history is unavailable. Enable LAN in settings.",
-    "Диагностика доступна только по LAN. Выключите «Только MQTT» в настройках.":
-        "Diagnostics are available only over LAN. Turn off “MQTT only” in settings.",
+    "Приложение не ищет устройство в локальной сети и не открывает HTTP/WebSocket к плате — весь обмен идёт через MQTT.": "The app does not discover the device on the LAN and does not open HTTP/WebSocket to the board — all traffic goes through MQTT.",
+    "LAN отключён: журнал доступен только по локальной сети. Выключите «Только MQTT» в настройках.": "LAN is off: the log is available only over the local network. Turn off “MQTT only” in settings.",
+    "Режим «Только MQTT»: история с SD-карты недоступна. Включите LAN в настройках.": "“MQTT only” mode: SD-card history is unavailable. Enable LAN in settings.",
+    "Диагностика доступна только по LAN. Выключите «Только MQTT» в настройках.": "Diagnostics are available only over LAN. Turn off “MQTT only” in settings.",
     "Версия (x.y.z)": "Version (x.y.z)",
     "Версия сборки": "Build version",
     "Выберите COM-порт и нажмите «Подключиться»":
@@ -225,8 +223,7 @@ class L10n {
         "Choose an image for the app background",
     "Выберите порт": "Select a port",
     "Выберите устройство": "Select a device",
-    "Выберите файл или вставьте ссылку — прошивка скачается сама. ":
-        "Choose a file or paste a link — the firmware downloads automatically. ",
+    "Выберите файл или вставьте ссылку — прошивка скачается сама. ": "Choose a file or paste a link — the firmware downloads automatically. ",
     "Выбрать .bin": "Choose .bin",
     "Выбрать изображение": "Choose image",
     "Выбрать папку проекта": "Choose project folder",
@@ -271,8 +268,14 @@ class L10n {
     "Температура": "Temperature",
     "Влажность": "Humidity",
     "Давление": "Pressure",
-    "Газ": "Gas",
     "Освещённость": "Illuminance",
+    "Качество воздуха (IAQ)": "Air quality (IAQ)",
+    "Точность IAQ": "IAQ accuracy",
+    "из 500": "of 500",
+    "Калибровка 0/3": "Calibration 0/3",
+    "Калибровка 1/3": "Calibration 1/3",
+    "Калибровка 2/3": "Calibration 2/3",
+    "Калибровка 3/3": "Calibration 3/3",
     "1ч": "1h",
     "6ч": "6h",
     "24ч": "24h",
@@ -363,6 +366,10 @@ class L10n {
     "Проверяю связь с 192.168.4.1...": "Checking connection to 192.168.4.1...",
     "Произошла ошибка": "An error occurred",
     "Прошивка": "Firmware",
+    "Прошивка: —": "Firmware: —",
+    "Данные ещё не получены": "No data received yet",
+    "Обновлено: ": "Updated: ",
+    "За выбранный период на SD-карте нет точек. Проверьте карту памяти и подключение к устройству.": "No points on the SD card for the selected period. Check the memory card and the device connection.",
     "пусто — не менять": "empty — keep unchanged",
     "Пустые поля оставляют текущие значения устройства":
         "Empty fields keep the device's current values",
@@ -381,8 +388,7 @@ class L10n {
     "Скопировать команду": "Copy command",
     "Скопировать лог": "Copy log",
     "Скопировать путь": "Copy path",
-    "Создайте правило: при превышении порога\nотправить команду или уведомить":
-        "Create a rule: when the threshold is exceeded,\nsend a command or notify",
+    "Создайте правило: при превышении порога\nотправить команду или уведомить": "Create a rule: when the threshold is exceeded,\nsend a command or notify",
     "Сохранить": "Save",
     "Сохранить доступы": "Save credentials",
     "Сравнить": "Compare",
@@ -423,18 +429,12 @@ class L10n {
     "Экспорт прошивки доступен только в настольной версии":
         "Firmware export is only available in the desktop version",
     "Главная": "Home",
-    "На телефоне настройка по USB недоступна. Подключитесь к точке доступа устройства (Aeris-Setup-XXXX) и откройте http://192.168.4.1, либо настройте Wi-Fi с компьютера.":
-        "USB setup is not available on a phone. Connect to the device access point (Aeris-Setup-XXXX) and open http://192.168.4.1, or configure Wi-Fi from a computer.",
-    "Доступы сохраняются в NVS на устройстве и в приложение не передаются. Пустые поля остаются без изменений; пароль вводится заново при каждой смене.":
-        "Credentials are stored in the device NVS and are not sent to the app. Empty fields stay unchanged; the password is re-entered on every change.",
-    "Точка доступа устройства работает около 5 минут и поднимается снова после каждой перезагрузки без сохранённой сети.":
-        "The device's access point stays up for about 5 minutes and returns after every reboot without a saved network.",
-    "Выберите firmware.bin, собранный PlatformIO, или OTA-образ с сервера/GitHub. Полный merged-образ с bootloader не подходит.":
-        "Choose a firmware.bin built by PlatformIO, or an OTA image from the server/GitHub. A full merged image with bootloader is not suitable.",
-    "В облегчённом режиме известные системные события показываются краткими переведёнными фразами.":
-        "In lightweight mode, known system events are shown as short translated phrases.",
-    "Постоянное уведомление нужно Android, чтобы события правил приходили при закрытом приложении. Выключите — уведомление исчезнет, фоновый мониторинг остановится.":
-        "Android needs the persistent notification so rule events arrive while the app is closed. Turn it off and the notification disappears and background monitoring stops.",
+    "На телефоне настройка по USB недоступна. Подключитесь к точке доступа устройства (Aeris-Setup-XXXX) и откройте http://192.168.4.1, либо настройте Wi-Fi с компьютера.": "USB setup is not available on a phone. Connect to the device access point (Aeris-Setup-XXXX) and open http://192.168.4.1, or configure Wi-Fi from a computer.",
+    "Доступы сохраняются в NVS на устройстве и в приложение не передаются. Пустые поля остаются без изменений; пароль вводится заново при каждой смене.": "Credentials are stored in the device NVS and are not sent to the app. Empty fields stay unchanged; the password is re-entered on every change.",
+    "Точка доступа устройства работает около 5 минут и поднимается снова после каждой перезагрузки без сохранённой сети.": "The device's access point stays up for about 5 minutes and returns after every reboot without a saved network.",
+    "Выберите firmware.bin, собранный PlatformIO, или OTA-образ с сервера/GitHub. Полный merged-образ с bootloader не подходит.": "Choose a firmware.bin built by PlatformIO, or an OTA image from the server/GitHub. A full merged image with bootloader is not suitable.",
+    "В облегчённом режиме известные системные события показываются краткими переведёнными фразами.": "In lightweight mode, known system events are shown as short translated phrases.",
+    "Постоянное уведомление нужно Android, чтобы события правил приходили при закрытом приложении. Выключите — уведомление исчезнет, фоновый мониторинг остановится.": "Android needs the persistent notification so rule events arrive while the app is closed. Turn it off and the notification disappears and background monitoring stops.",
     "Язык интерфейса": "Interface language",
     "Переключает язык интерфейса и перевод логов.":
         "Switches the interface language and log translation.",

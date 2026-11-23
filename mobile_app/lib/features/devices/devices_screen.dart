@@ -153,8 +153,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
               children: [
                 TrText(
                   device.firmwareVersion == null
-                      ? 'fw: —'
-                      : 'fw v${device.firmwareVersion}',
+                      ? 'Прошивка: —'
+                      : 'Прошивка v${device.firmwareVersion}',
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                 ),
                 if (provider.isOutdated(device)) ...[
@@ -211,7 +211,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                   ],
                 ),
               ),
-            if (device.isOnline && device.ip.isNotEmpty)
+            if (device.isOnline)
               const PopupMenuItem(
                 value: 'diagnostics',
                 child: Row(
@@ -265,7 +265,12 @@ class _DevicesScreenState extends State<DevicesScreen> {
             } else if (value == 'ota_rollback') {
               _showRollbackDialog(context, device, provider);
             } else if (value == 'diagnostics') {
-              showDeviceDiagnostics(context, device);
+              showDeviceDiagnostics(
+                context,
+                device,
+                mqttStatus: provider.latestStatusFor(device.id),
+                mqttSdCard: provider.sdCardFor(device.id),
+              );
             } else if (value == 'logs') {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(

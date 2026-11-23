@@ -10,7 +10,7 @@ class _FakeSignalingApi extends SignalingApi {
   _FakeSignalingApi(this.devices, {this.failLoads = false, this.removeFails = false});
 
   final List<Device> devices;
-  final bool failLoads;
+  bool failLoads;
   final bool removeFails;
 
   @override
@@ -155,6 +155,37 @@ void main() {
       expect(removed, isFalse);
       expect(provider.devices.length, 1);
       expect(provider.error, isNotNull);
+    });
+
+    test('refreshPresence flips a powered-off device offline', () async {
+      final api = _FakeSignalingApi([_device(id: 's3', status: 'online')]);
+      final provider = DevicesProvider(
+        discoverLan: () async => const <DiscoveredDevice>[],
+        signalingApi: api,
+      );
+
+      await provider.loadDevices();
+      expect(provider.getDeviceById('s3')!.isOnline, isTrue);
+
+      api.devices[0] = _device(id: 's3', status: 'offline');
+      await provider.refreshPresence();
+
+      expect(provider.getDeviceById('s3')!.isOnline, isFalse);
+    });
+
+    test('refreshPresence keeps the old list when the registry is down',
+        () async {
+      final api = _FakeSignalingApi([_device(id: 's3', status: 'online')]);
+      final provider = DevicesProvider(
+        discoverLan: () async => const <DiscoveredDevice>[],
+        signalingApi: api,
+      );
+
+      await provider.loadDevices();
+      api.failLoads = true;
+      await provider.refreshPresence();
+
+      expect(provider.getDeviceById('s3')!.isOnline, isTrue);
     });
   });
 }

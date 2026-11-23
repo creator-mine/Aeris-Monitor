@@ -329,8 +329,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _buildChannelSelector(context, provider),
           ],
         ),
+        const SizedBox(height: 4),
+        TrText(
+          provider.lastUpdate == null
+              ? 'Данные ещё не получены'
+              : 'Обновлено: ${_formatTime(provider.lastUpdate!)}',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey,
+              ),
+        ),
         const SizedBox(height: 16),
-        Row(
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
           children: [
             OutlinedButton.icon(
               onPressed: () async {
@@ -412,7 +423,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: const Icon(Icons.wifi, size: 20),
               label: const TrText('Настроить Wi-Fi'),
             ),
-            const SizedBox(width: 12),
             OutlinedButton.icon(
               onPressed: () {
                 final sent = provider.sendCommand('restart');
@@ -446,12 +456,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  String _formatTime(DateTime value) {
+    final local = value.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
+  }
+
   Widget _buildSensorsGrid(BuildContext context, DashboardProvider provider) {
     final device = provider.selectedDevice!;
-    var metrics = device.allMetrics;
+    // IAQ accuracy is shown as a caption on the IAQ tile, not as a tile of
+    // its own: a bare 0..3 number means nothing without the index next to it.
+    var metrics = device.allMetrics
+        .where((metric) => metric.key != 'iaq_accuracy')
+        .toList();
 
     if (metrics.isEmpty) {
       metrics = AppConfig.defaultSensorNames.keys
+          .where((key) => key != 'iaq_accuracy')
           .map((key) => MetricInfo(
                 key: key,
                 name: AppConfig.defaultSensorNames[key] ?? key,
@@ -460,12 +481,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .toList();
     }
 
+    final iaqAccuracy = provider.getSensorValue('iaq_accuracy');
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 220,
-        mainAxisExtent: 140,
+        mainAxisExtent: 150,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
@@ -473,12 +496,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       itemBuilder: (context, index) {
         final metric = metrics[index];
         final value = provider.getSensorValue(metric.key);
+        final isIaq = metric.key == 'iaq';
 
         return SensorTile(
           name: AppConfig.defaultSensorNames[metric.key] ?? metric.name,
           value: value,
           unit: metric.unit,
           icon: AppConfig.metricIcon(metric.key),
+          decimals: isIaq ? 0 : 1,
+          valueSuffix: isIaq ? L10n.of(context, 'из 500') : null,
+          caption: isIaq && iaqAccuracy != null
+              ? 'Калибровка ${iaqAccuracy.clamp(0, 3).round()}/3'
+              : null,
         );
       },
     );

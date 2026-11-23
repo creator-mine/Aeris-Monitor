@@ -111,6 +111,71 @@ class DashboardProvider extends ChangeNotifier {
   List<Device> get offlineDevices =>
       _devices.where((d) => !d.isOnline).toList();
 
+  bool _isRefreshingPresence = false;
+
+  /// Refreshes only the presence fields (status/lastSeen) from the registry
+  /// without touching the active connection. Runs on a timer so a board that
+  /// was powered off stops looking online: the server flips it to `offline`
+  /// after its stale timeout, but the app used to keep the first snapshot.
+  Future<void> refreshPresence() async {
+    if (_disposed || _isRefreshingPresence) return;
+    _isRefreshingPresence = true;
+    try {
+      final registry = await _signalingApi.getDevices();
+      if (_disposed) return;
+
+      final freshById = {for (final device in registry) device.id: device};
+      var changed = false;
+
+      for (var i = 0; i < _devices.length; i++) {
+        final fresh = freshById[_devices[i].id];
+        if (fresh == null) continue;
+        final current = _devices[i];
+        if (current.status == fresh.status &&
+            current.lastSeen == fresh.lastSeen) {
+          continue;
+        }
+        _devices[i] = current.copyWith(
+          status: fresh.status,
+          lastSeen: fresh.lastSeen,
+          ip: fresh.ip.isNotEmpty ? fresh.ip : null,
+          port: fresh.port,
+          firmwareVersion: fresh.firmwareVersion,
+        );
+        changed = true;
+      }
+
+      for (final fresh in registry) {
+        if (_devices.any((device) => device.id == fresh.id)) continue;
+        _devices.add(fresh);
+        changed = true;
+      }
+
+      final selected = _selectedDevice;
+      if (selected != null) {
+        final fresh = freshById[selected.id];
+        if (fresh != null &&
+            (selected.status != fresh.status ||
+                selected.lastSeen != fresh.lastSeen)) {
+          _selectedDevice = selected.copyWith(
+            status: fresh.status,
+            lastSeen: fresh.lastSeen,
+            ip: fresh.ip.isNotEmpty ? fresh.ip : null,
+            port: fresh.port,
+            firmwareVersion: fresh.firmwareVersion,
+          );
+          changed = true;
+        }
+      }
+
+      if (changed) _safeNotify();
+    } catch (_) {
+      // Registry unavailable: keep the last known presence, retry next tick.
+    } finally {
+      _isRefreshingPresence = false;
+    }
+  }
+
   Future<void> loadDevices() async {
     _isLoading = true;
     _error = null;
@@ -185,7 +250,13 @@ class DashboardProvider extends ChangeNotifier {
 
     _mqtt?.unsubscribeFromDevice(device.id);
     _isConnected = false;
-    _sdCard = null;
+
+    // Keep the known card across LAN<->MQTT switches. A different device was
+    // already cleared in selectDevice(); here we only restore what the last
+    // MQTT status for this device reported, so the card does not fall back to
+    // "Нет данных" until the next 30 s heartbeat.
+    final cachedSd = _sdCardFromCache(device.id);
+    if (cachedSd != null) _sdCard = cachedSd;
 
     final wantsDirect = _mode != ConnectionMode.mqtt;
     if (wantsDirect) {
@@ -303,14 +374,24 @@ class DashboardProvider extends ChangeNotifier {
       if (decoded is! Map<String, dynamic>) return;
       final deviceId = decoded['device_id']?.toString();
       final selectedId = _selectedDevice?.id;
-      if (deviceId != null &&
-          selectedId != null &&
-          deviceId != selectedId) {
+      if (deviceId != null && selectedId != null && deviceId != selectedId) {
         return;
       }
       _handleStatusUpdate(decoded);
     } catch (_) {
       // Not a device status payload (for example "connected"/"error: ...").
+    }
+  }
+
+  SdCardInfo? _sdCardFromCache(String deviceId) {
+    final payload = _mqtt?.latestStatus(deviceId);
+    if (payload == null) return null;
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map<String, dynamic>) return null;
+      return SdCardInfo.tryFromStatus(decoded);
+    } catch (_) {
+      return null;
     }
   }
 

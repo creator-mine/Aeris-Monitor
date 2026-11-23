@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+
 import 'providers/charts_provider.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/loading_indicator.dart';
@@ -11,6 +12,7 @@ import '../devices/providers/devices_provider.dart';
 import '../dashboard/providers/dashboard_provider.dart';
 import '../../models/sensor_data.dart';
 import '../../models/device.dart';
+
 import 'package:aeris/shared/widgets/tr_text.dart';
 import 'package:aeris/core/i18n/l10n.dart';
 
@@ -57,9 +59,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
               _buildDeviceSelector(context, provider),
               _buildSensorTypeSelector(context, provider),
               _buildTimeRangeSelector(context, provider),
-              Expanded(
-                child: _buildChartArea(context, provider),
-              ),
+              Expanded(child: _buildChartArea(context, provider)),
             ],
           );
         },
@@ -163,7 +163,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
   }
 
   Widget _buildSensorTypeSelector(
-      BuildContext context, ChartsProvider provider) {
+    BuildContext context,
+    ChartsProvider provider,
+  ) {
     return Container(
       height: 50,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -196,22 +198,44 @@ class _ChartsScreenState extends State<ChartsScreen> {
   }
 
   Widget _buildTimeRangeSelector(
-      BuildContext context, ChartsProvider provider) {
+    BuildContext context,
+    ChartsProvider provider,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildTimeRangeButton(
-              context, provider, '1ч', const Duration(hours: 1)),
+            context,
+            provider,
+            '1ч',
+            const Duration(hours: 1),
+          ),
           _buildTimeRangeButton(
-              context, provider, '6ч', const Duration(hours: 6)),
+            context,
+            provider,
+            '6ч',
+            const Duration(hours: 6),
+          ),
           _buildTimeRangeButton(
-              context, provider, '24ч', const Duration(hours: 24)),
+            context,
+            provider,
+            '24ч',
+            const Duration(hours: 24),
+          ),
           _buildTimeRangeButton(
-              context, provider, '7д', const Duration(days: 7)),
+            context,
+            provider,
+            '7д',
+            const Duration(days: 7),
+          ),
           _buildTimeRangeButton(
-              context, provider, '30д', const Duration(days: 30)),
+            context,
+            provider,
+            '30д',
+            const Duration(days: 30),
+          ),
         ],
       ),
     );
@@ -228,10 +252,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
 
     return OutlinedButton(
       onPressed: () {
-        provider.setTimeRange(DateTimeRange(
-          start: DateTime.now().subtract(duration),
-          end: DateTime.now(),
-        ));
+        provider.setTimeRange(
+          DateTimeRange(
+            start: DateTime.now().subtract(duration),
+            end: DateTime.now(),
+          ),
+        );
       },
       style: OutlinedButton.styleFrom(
         backgroundColor: isSelected ? AppTheme.primaryColor : null,
@@ -298,9 +324,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           children: [
             _buildCompareLegend(context, provider),
             const SizedBox(height: 16),
-            Expanded(
-              child: _buildCompareChart(context, provider),
-            ),
+            Expanded(child: _buildCompareChart(context, provider)),
           ],
         ),
       );
@@ -309,16 +333,26 @@ class _ChartsScreenState extends State<ChartsScreen> {
     final series = provider.currentSeries;
     if (series == null || series.points.isEmpty) {
       return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.show_chart, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            TrText(
-              'Нет данных для отображения',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-          ],
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.show_chart, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              TrText(
+                'Нет данных для отображения',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+              SizedBox(height: 8),
+              TrText(
+                'За выбранный период на SD-карте нет точек. '
+                'Проверьте карту памяти и подключение к устройству.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -330,16 +364,17 @@ class _ChartsScreenState extends State<ChartsScreen> {
         children: [
           _buildStatsRow(context, provider, series),
           const SizedBox(height: 16),
-          Expanded(
-            child: _buildLineChart(context, provider, series),
-          ),
+          Expanded(child: _buildLineChart(context, provider, series)),
         ],
       ),
     );
   }
 
   Widget _buildStatsRow(
-      BuildContext context, ChartsProvider provider, SensorDataSeries series) {
+    BuildContext context,
+    ChartsProvider provider,
+    SensorDataSeries series,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
@@ -366,7 +401,11 @@ class _ChartsScreenState extends State<ChartsScreen> {
   }
 
   Widget _buildStatCard(
-      BuildContext context, String label, String value, Color color) {
+    BuildContext context,
+    String label,
+    String value,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -377,17 +416,18 @@ class _ChartsScreenState extends State<ChartsScreen> {
         children: [
           TrText(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey,
-                ),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: Colors.grey),
           ),
           const SizedBox(height: 4),
           TrText(
             value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold, color: color),
           ),
         ],
       ),
@@ -395,7 +435,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
   }
 
   Widget _buildLineChart(
-      BuildContext context, ChartsProvider provider, SensorDataSeries series) {
+    BuildContext context,
+    ChartsProvider provider,
+    SensorDataSeries series,
+  ) {
     final range = series.maxValue - series.minValue;
     final safeRange = range == 0 ? 1.0 : range;
     final pointCount = series.points.length;
@@ -596,10 +639,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
         ),
         titlesData: FlTitlesData(
           show: true,
-          rightTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -626,8 +671,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
               showTitles: true,
               reservedSize: 50,
               interval: safeRange / 5,
-              getTitlesWidget: (value, meta) => TrText(value.toStringAsFixed(1),
-                  style: const TextStyle(fontSize: 10)),
+              getTitlesWidget: (value, meta) => TrText(
+                value.toStringAsFixed(1),
+                style: const TextStyle(fontSize: 10),
+              ),
             ),
           ),
         ),
@@ -652,8 +699,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   .points
                   .asMap()
                   .entries
-                  .map((entry) =>
-                      FlSpot(entry.key.toDouble(), entry.value.value))
+                  .map(
+                    (entry) => FlSpot(entry.key.toDouble(), entry.value.value),
+                  )
                   .toList(),
               isCurved: true,
               color: _comparePalette[i % _comparePalette.length],
@@ -667,7 +715,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
   }
 
   SensorDataSeries? _longestSeries(
-      List<MapEntry<String, SensorDataSeries>> entries) {
+    List<MapEntry<String, SensorDataSeries>> entries,
+  ) {
     SensorDataSeries? longest;
     for (final entry in entries) {
       if (longest == null ||
@@ -752,20 +801,19 @@ class _ChartsScreenState extends State<ChartsScreen> {
     try {
       final path = await exportCsv(fileName, buffer.toString());
       if (path != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: TrText('График сохранён: $path')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: TrText('График сохранён: $path')));
       } else if (path == null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: TrText('Экспорт доступен только в настольной версии')),
+            content: TrText('Экспорт доступен только в настольной версии'),
+          ),
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: TrText('Ошибка экспорта: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: TrText('Ошибка экспорта: $e')));
       }
     }
   }
@@ -811,8 +859,10 @@ class _CompareDevicesDialogState extends State<_CompareDevicesDialog> {
       content: SizedBox(
         width: 360,
         child: widget.devices.isEmpty
-            ? const TrText('Нет устройств в реестре',
-                style: TextStyle(color: Colors.grey))
+            ? const TrText(
+                'Нет устройств в реестре',
+                style: TextStyle(color: Colors.grey),
+              )
             : ListView.builder(
                 shrinkWrap: true,
                 itemCount: widget.devices.length,
@@ -821,8 +871,10 @@ class _CompareDevicesDialogState extends State<_CompareDevicesDialog> {
                   return CheckboxListTile(
                     value: _checked[device.id] ?? false,
                     title: TrText(device.name),
-                    subtitle:
-                        TrText(device.id, style: const TextStyle(fontSize: 12)),
+                    subtitle: TrText(
+                      device.id,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                     controlAffinity: ListTileControlAffinity.leading,
                     onChanged: (value) {
                       setState(() => _checked[device.id] = value ?? false);

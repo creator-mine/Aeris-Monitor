@@ -33,10 +33,12 @@ IconData ruleActionIcon(RuleAction action) => switch (action) {
     };
 
 String describeRule(SmartRule rule,
-    {required String Function(String) deviceName}) {
+    {required String Function(String) deviceName,
+    required String Function(String) sensorName}) {
+  final sensor = sensorName(rule.sensorType);
   final trigger = switch (rule.trigger) {
-    RuleTrigger.thresholdAbove => '${rule.sensorType} > ${rule.threshold}',
-    RuleTrigger.thresholdBelow => '${rule.sensorType} < ${rule.threshold}',
+    RuleTrigger.thresholdAbove => '$sensor > ${rule.threshold}',
+    RuleTrigger.thresholdBelow => '$sensor < ${rule.threshold}',
     RuleTrigger.online => 'появление в сети',
     RuleTrigger.offline => 'пропадание из сети',
     RuleTrigger.noData => 'нет данных с устройства',
@@ -176,7 +178,12 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: TrText(
-            describeRule(rule, deviceName: provider.deviceName),
+            describeRule(
+              rule,
+              deviceName: provider.deviceName,
+              sensorName: (key) =>
+                  L10n.of(context, AppConfig.defaultSensorNames[key] ?? key),
+            ),
             style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
           ),
         ),
@@ -273,7 +280,8 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
     );
     _deviceId = rule?.deviceId;
     _trigger = rule?.trigger ?? RuleTrigger.thresholdAbove;
-    _sensorType = rule?.sensorType ?? '';
+    final ruleSensor = rule?.sensorType ?? '';
+    _sensorType = AppConfig.isMetricHidden(ruleSensor) ? '' : ruleSensor;
     _action = rule?.action ?? RuleAction.notify;
   }
 
@@ -289,10 +297,12 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
     final index = widget.devices.indexWhere((d) => d.id == _deviceId);
     if (index != -1) {
       for (final metric in widget.devices[index].allMetrics) {
+        if (AppConfig.isMetricHidden(metric.key)) continue;
         result.add(metric.key);
       }
     }
-    result.addAll(AppConfig.defaultSensorNames.keys);
+    result.addAll(AppConfig.defaultSensorNames.keys
+        .where((key) => !AppConfig.isMetricHidden(key)));
     return result.toList()..sort();
   }
 
@@ -300,6 +310,15 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
     final ids = widget.devices.map((d) => d.id).toSet();
     if (_deviceId != null) ids.add(_deviceId!);
     return ids.toList()..sort();
+  }
+
+  String _deviceLabel(String id) {
+    for (final device in widget.devices) {
+      if (device.id == id) {
+        return device.name.isNotEmpty ? device.name : id;
+      }
+    }
+    return id;
   }
 
   @override
@@ -336,7 +355,10 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
                 decoration:
                     InputDecoration(labelText: L10n.of(context, 'Устройство')),
                 items: _deviceOptions
-                    .map((id) => DropdownMenuItem(value: id, child: TrText(id)))
+                    .map((id) => DropdownMenuItem(
+                          value: id,
+                          child: Text(_deviceLabel(id)),
+                        ))
                     .toList(),
                 onChanged: (value) {
                   setState(() {
@@ -379,8 +401,11 @@ class _RuleEditorDialogState extends State<RuleEditorDialog> {
                   decoration:
                       InputDecoration(labelText: L10n.of(context, 'Датчик')),
                   items: _sensorOptions
-                      .map((key) =>
-                          DropdownMenuItem(value: key, child: TrText(key)))
+                      .map((key) => DropdownMenuItem(
+                            value: key,
+                            child: TrText(
+                                AppConfig.defaultSensorNames[key] ?? key),
+                          ))
                       .toList(),
                   onChanged: (value) {
                     if (value != null) setState(() => _sensorType = value);

@@ -141,9 +141,9 @@ class ChartsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final series = await client.getHistory(
+      final series = await _fetchHistory(
+        client,
         sensorType,
-        unit: getSensorUnit(sensorType),
         since: _timeRange.start,
         limit: _calculateLimit(),
       );
@@ -153,12 +153,10 @@ class ChartsProvider extends ChangeNotifier {
       _dataSeries[sensorType] = series;
     } on DioException catch (e) {
       if (_disposed || seq != _loadSeq) return;
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.connectionError ||
-          e.type == DioExceptionType.receiveTimeout) {
+      if (_isConnectionError(e)) {
         final address = selected?.httpBaseUrl ?? 'устройству';
-        _error =
-            'Не удалось подключиться к $address. Проверьте, что устройство включено и находится в той же сети Wi-Fi.';
+        _error = 'Устройство не ответило на запрос истории ($address). '
+            'Данные с SD-карты временно недоступны — повторите попытку.';
       } else {
         _error = e.message ?? e.toString();
       }
@@ -173,6 +171,39 @@ class ChartsProvider extends ChangeNotifier {
     }
   }
 
+  static bool _isConnectionError(DioException e) =>
+      e.type == DioExceptionType.connectionTimeout ||
+      e.type == DioExceptionType.connectionError ||
+      e.type == DioExceptionType.receiveTimeout;
+
+  /// The ESP32 occasionally drops the first HTTP connection while it is busy
+  /// with a previous SD scan. One quiet retry turns that into a successful
+  /// chart instead of an immediate "connection error" screen.
+  Future<SensorDataSeries> _fetchHistory(
+    DirectDeviceClient client,
+    String sensorType, {
+    required DateTime since,
+    required int limit,
+  }) async {
+    try {
+      return await client.getHistory(
+        sensorType,
+        unit: getSensorUnit(sensorType),
+        since: since,
+        limit: limit,
+      );
+    } on DioException catch (e) {
+      if (!_isConnectionError(e)) rethrow;
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      return client.getHistory(
+        sensorType,
+        unit: getSensorUnit(sensorType),
+        since: since,
+        limit: limit,
+      );
+    }
+  }
+
   int _calculateLimit([DateTimeRange? range]) {
     final r = range ?? _timeRange;
     final hours = r.end.difference(r.start).inHours;
@@ -181,14 +212,21 @@ class ChartsProvider extends ChangeNotifier {
     return 1000;
   }
 
+  /// Keys that exist as metrics but make no sense as a time series: the IAQ
+  /// calibration level (0..3) belongs on the dashboard tile, not in a chart.
+  static const Set<String> _nonChartKeys = {'iaq_accuracy'};
+
   List<String> get availableSensorTypes {
     final keys = <String>[];
     // Always offer the full known set so the screen explains what the board
     // does not have instead of silently hiding parameters from other devices.
     for (final key in AppConfig.defaultSensorUnits.keys) {
+      if (_nonChartKeys.contains(key)) continue;
       keys.add(key);
     }
     for (final metric in _deviceMetrics) {
+      if (_nonChartKeys.contains(metric.key)) continue;
+      if (AppConfig.isMetricHidden(metric.key)) continue;
       if (!keys.contains(metric.key)) keys.add(metric.key);
     }
     return keys;
@@ -198,6 +236,7 @@ class ChartsProvider extends ChangeNotifier {
   /// list has not arrived yet the device is treated as capable so the history
   /// request can still be attempted instead of showing a false "not connected".
   bool isMetricSupported(String sensorType) {
+    if (AppConfig.isMetricHidden(sensorType)) return false;
     if (_deviceMetrics.isEmpty) return true;
     return _deviceMetrics.any((metric) => metric.key == sensorType);
   }
