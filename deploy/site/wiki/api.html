@@ -148,7 +148,8 @@
       "temperature": 21.40,
       "humidity": 44.20,
       "pressure": 1013.10,
-      "gas_resistance": 41200.00
+      "iaq": 42.00,
+      "iaq_accuracy": 2.00
     }
   }
 }</code></pre>
@@ -169,7 +170,7 @@
   "time_synced": true,
   "rssi": -58,
   "chip_temp": 42.3,
-  "firmware": "1.3.11",
+  "firmware": "1.4.0",
   "led": "online",
   "sd": {
     "status": "ok",
@@ -213,7 +214,7 @@
 
       <pre><code>{
   "ok": true,
-  "status": { "device_id": "esp32c6_001", "firmware": "1.3.11", "ip": "192.168.1.50" },
+  "status": { "device_id": "esp32c6_001", "firmware": "1.4.0", "ip": "192.168.1.50" },
   "sensors": { "timestamp": 128374, "modules": { "BME680_0x76": { "temperature": 21.4 } } },
   "modules": [ { "id": "BME680_0x76", "driver": "BME680" } ]
 }</code></pre>
@@ -224,7 +225,7 @@
 
       <pre><code>$ echo -n AERIS_DISCOVER_V1 | nc -u -b 192.168.1.255 8266
 {"id":"esp32c6_001","name":"Main Controller C6","type":"esp32c6",
- "fw":"1.3.11","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
+ "fw":"1.4.0","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
 
       <p data-ru="Приложение 1.2.3 и новее делает это автоматически: при недоступном облачном реестре находит устройство по broadcast и подключается прямо к http://<ip>/api/v1." data-en="App 1.2.3 and newer does this automatically: when the cloud registry is unreachable it finds the device by broadcast and connects straight to http://&lt;ip&gt;/api/v1.">Приложение находит устройство само.</p>
 
@@ -882,7 +883,7 @@ Content-Type: application/json
       <pre><code>GET /fw/version-esp32-c6.json
 
 {
-  "version": "1.3.11",
+  "version": "1.4.0",
   "device_type": "esp32-c6",
   "build_date": "2026-11-17T18:54:12Z",
   "sha256": "457d937a…b8845b",

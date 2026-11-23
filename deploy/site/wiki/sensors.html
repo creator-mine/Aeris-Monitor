@@ -116,13 +116,14 @@
               <td data-ru="BME680" data-en="BME680">BME680</td>
               <td class="mono">0x76, 0x77</td>
               <td class="mono">3,3 В</td>
-              <td class="mono">5000 мс</td>
+              <td class="mono">3000 мс</td>
               <td>
                 <div class="mono" style="font-size:12.5px;line-height:1.7">
                   temperature · C<br>
                   humidity · %<br>
                   pressure · hPa<br>
-                  gas_resistance · Ohm
+                  iaq<br>
+                  iaq_accuracy · 0–3
                 </div>
               </td>
             </tr>
@@ -258,6 +259,42 @@
           <p data-ru="Значения NAN и INF в публикацию не попадают, отрицательные значения отбрасываются там, где они физически невозможны — например, освещённость не может быть минусовой. Это защищает от мусорных графиков и аварий на ровном месте." data-en="NAN and INF values are never published, and physically impossible negative readings are dropped — illuminance cannot be below zero, for instance. That keeps junk out of the charts and prevents alerts that mean nothing.">Значения NAN и INF в публикацию не попадают.</p>
         </div>
       </div>
+
+      <h3 id="iaq" data-ru="IAQ у BME680 (BSEC2)" data-en="IAQ from the BME680 (BSEC2)">IAQ у BME680 (BSEC2)</h3>
+
+      <p data-ru-html="С прошивки <code>1.4.0</code> драйвер BME680 работает через алгоритм Bosch BSEC2: библиотека сама управляет газовым нагревателем и вместо сырого сопротивления отдаёт индекс качества воздуха. Сырое <code>gas_resistance</code> больше не публикуется — это внутренний вход алгоритма, а не показатель качества воздуха." data-en-html="Since firmware <code>1.4.0</code> the BME680 driver runs on Bosch's BSEC2 algorithm: the library drives the gas heater itself and returns an air-quality index instead of raw resistance. The raw <code>gas_resistance</code> is no longer published — it is an internal input of the algorithm, not an air-quality figure.">С 1.4.0 BME680 считает IAQ через BSEC2.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Ключ" data-en="Key">Ключ</th>
+              <th data-ru="Диапазон" data-en="Range">Диапазон</th>
+              <th data-ru="Смысл" data-en="Meaning">Смысл</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">iaq</td>
+              <td class="mono">0–500</td>
+              <td data-ru="0 — чистый воздух, 500 — сильное загрязнение" data-en="0 is clean air, 500 is heavily polluted">0 — чисто, 500 — грязно</td>
+            </tr>
+            <tr>
+              <td class="mono">iaq_accuracy</td>
+              <td class="mono">0–3</td>
+              <td data-ru="0 — идёт прогрев, 3 — алгоритм откалиброван" data-en="0 means warming up, 3 means the algorithm is calibrated">0 — прогрев, 3 — откалиброван</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ul>
+        <li data-ru-html="IAQ относителен: алгоритм подстраивается под типичный фон помещения, поэтому 50 — это «хорошо для этого места», а не абсолютная концентрация. Значение <code>iaq_accuracy</code> ниже 2 означает, что цифре ещё нельзя доверять." data-en-html="IAQ is relative: the algorithm adapts to the typical background of the room, so 50 means “good for this place”, not an absolute concentration. An <code>iaq_accuracy</code> below 2 means the number is not trustworthy yet.">IAQ относителен, смотрите на точность.</li>
+        <li data-ru-html="Калибровка занимает до четырёх суток непрерывной работы, но состояние сохраняется в NVS и переживает перезагрузку. Если стереть NVS или сменить профиль BSEC, калибровка начнётся заново." data-en-html="Calibration takes up to four days of continuous operation, but the state is stored in NVS and survives a reboot. Erasing NVS or changing the BSEC profile restarts calibration.">Калибровка до 4 суток, состояние переживает перезагрузку.</li>
+        <li data-ru-html="Профиль — 3,3 В, замер раз в 3 с (<code>bme680_iaq_33v_3s_4d</code>). Газовый нагреватель добавляет в среднем 10–15 мА." data-en-html="The profile is 3.3 V, one measurement every 3 s (<code>bme680_iaq_33v_3s_4d</code>). The gas heater adds roughly 10–15 mA on average.">Профиль 3,3 В / 3 с, +10–15 мА.</li>
+        <li data-ru-html="BSEC2 — проприетарная библиотека Bosch с готовым бинарником алгоритма. Официально поддерживаются ESP32, S2, S3 и C3; на ESP32-C6 используется сборка для C3 (так делает скрипт самой библиотеки)." data-en-html="BSEC2 is Bosch's proprietary library shipped as a prebuilt algorithm binary. ESP32, S2, S3 and C3 are officially supported; the ESP32-C6 uses the C3 build, which is what the library's own script selects.">BSEC2 проприетарный; на C6 работает C3-сборка.</li>
+        <li data-ru-html="Это не газоанализатор CO₂: eCO₂ и bVOC алгоритм тоже умеет считать, но в Aeris они не публикуются." data-en-html="This is not a CO₂ analyser: the algorithm can also estimate eCO₂ and bVOC, but Aeris does not publish them.">Это не CO₂-датчик.</li>
+      </ul>
 
       <h2 id="otkazoustoychivost" data-ru="Отказоустойчивость драйверов" data-en="Driver resilience">Отказоустойчивость драйверов</h2>
 

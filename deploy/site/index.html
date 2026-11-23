@@ -174,6 +174,7 @@
     .live-val { font-size: 28px; font-weight: 800; margin-top: 8px; letter-spacing: -0.5px; }
     .live-val .u { font-size: 15px; font-weight: 600; color: var(--muted); margin-left: 4px; }
     .live-name { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.live-note { font-size: 11px; color: var(--muted); margin-top: 2px; opacity: 0.9; }
     .live-tick { font-size: 12px; color: var(--muted); margin-top: 6px; font-family: 'JetBrains Mono', monospace; opacity: 0.8; }
 
     /* hero diagram */
@@ -1283,12 +1284,24 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
       humidity: { ic: '💧', ru: 'Влажность', en: 'Humidity' },
       pressure: { ic: '🎈', ru: 'Давление', en: 'Pressure' },
       gas_resistance: { ic: '🌫️', ru: 'Качество воздуха', en: 'Air quality' },
+      iaq: { ic: '🍃', ru: 'Качество воздуха (IAQ)', en: 'Air quality (IAQ)' },
+      iaq_accuracy: { ic: '✅', ru: 'Точность IAQ', en: 'IAQ accuracy' },
       illuminance: { ic: '🔆', ru: 'Освещённость', en: 'Illuminance' }
     };
     const LIVE_STALE_MS = 120000;
+    // IAQ accuracy (0..3) is not a card of its own: it is shown under the IAQ
+    // value, because the index is meaningless until the algorithm calibrates.
+    const iaqAccuracy = {};
 
     function liveMeta(key) {
       return METRIC_META[key] || { ic: '📟', ru: key, en: key };
+    }
+
+    function accuracyNote(value) {
+      let level = Math.round(Number(value) || 0);
+      if (level < 0) level = 0;
+      if (level > 3) level = 3;
+      return lang === 'en' ? 'calibration ' + level + '/3' : 'калибровка ' + level + '/3';
     }
 
     function liveCardId(deviceId, key) {
@@ -1296,6 +1309,14 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
     }
 
     function renderLive(deviceId, key, value, unit, ts) {
+      // Accuracy drives the note under the IAQ value instead of a card.
+      if (key === 'iaq_accuracy') {
+        iaqAccuracy[deviceId] = value;
+        const iaqCard = document.getElementById('card-' + liveCardId(deviceId, 'iaq'));
+        if (iaqCard) iaqCard.querySelector('.live-note').textContent = accuracyNote(value);
+        return;
+      }
+
       const grid = document.getElementById('liveGrid');
       const id = liveCardId(deviceId, key);
       const meta = liveMeta(key);
@@ -1310,14 +1331,19 @@ pio run -t upload --upload-port COM6      # прошивка на плату</co
           '<div class="live-top"><span class="live-dev"></span><span class="live-ic"></span></div>' +
           '<div class="live-val"><span class="v"></span><span class="u"></span></div>' +
           '<div class="live-name"></div>' +
+          '<div class="live-note"></div>' +
           '<div class="live-tick"></div>';
         grid.appendChild(card);
       }
       card.querySelector('.live-dev').textContent = deviceId;
       card.querySelector('.live-ic').textContent = meta.ic;
-      card.querySelector('.v').textContent = (Math.round(value * 100) / 100).toString().replace('.', ',');
-      card.querySelector('.u').textContent = unit;
+      const shown = key === 'iaq' ? Math.round(value).toString() : (Math.round(value * 100) / 100).toString().replace('.', ',');
+      card.querySelector('.v').textContent = shown;
+      card.querySelector('.u').textContent =
+        key === 'iaq' ? (lang === 'en' ? 'of 500' : 'из 500') : unit;
       card.querySelector('.live-name').textContent = meta[lang];
+      card.querySelector('.live-note').textContent =
+        key === 'iaq' && iaqAccuracy[deviceId] !== undefined ? accuracyNote(iaqAccuracy[deviceId]) : '';
       card.setAttribute('data-live-ts', String(ts));
       card.classList.remove('stale');
       updateLiveTick(card, ts);

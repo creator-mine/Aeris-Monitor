@@ -232,14 +232,15 @@ ACK, если адрес делится с другим драйвером: BME6
 **Пример (BME680):**
 
 ```
-AA 55 01 01 00 29   -- заголовок: модуль #1, команда REGISTER, длина 41
+AA 55 01 01 00 43   -- заголовок: модуль #1, команда REGISTER, длина 67
 01                  -- type_id = 0x01 (BME680)
 06 42 4D 45 36 38 30 -- name = "BME680" (6 байт)
-04                  -- 4 метрики
-0B 74 65 6D 70 65 72 61 74 75 72 65 02 43 30   -- temperature, °C
-09 68 75 6D 69 64 69 74 79         01 25        -- humidity, %
-0A 70 72 65 73 73 75 72 65         03 68 50 61  -- pressure, hPa
-0E 67 61 73 5F 72 65 73 69 73 74 61 6E 63 65 04 4F 68 6D -- gas_resistance, Ohm
+05                  -- 5 метрик
+0B 74 65 6D 70 65 72 61 74 75 72 65 01 43         -- temperature, C
+08 68 75 6D 69 64 69 74 79          01 25         -- humidity, %
+08 70 72 65 73 73 75 72 65          03 68 50 61   -- pressure, hPa
+03 69 61 71                        00            -- iaq, без единиц
+0C 69 61 71 5F 61 63 63 75 72 61 63 79 00         -- iaq_accuracy, без единиц
 XX XX               -- CRC-16
 ```
 
@@ -308,10 +309,11 @@ GET /api/v1/modules
         "name": "BME680",
         "status": "online",
         "metrics": [
-            { "key": "temperature", "name": "Температура", "unit": "°C" },
+            { "key": "temperature", "name": "Температура", "unit": "C" },
             { "key": "humidity",    "name": "Влажность",   "unit": "%" },
             { "key": "pressure",    "name": "Давление",    "unit": "hPa" },
-            { "key": "gas_resistance", "name": "Газ",      "unit": "Ohm" }
+            { "key": "iaq",         "name": "Качество воздуха (IAQ)", "unit": "" },
+            { "key": "iaq_accuracy","name": "Точность IAQ", "unit": "" }
         ]
     },
     {
@@ -333,7 +335,8 @@ GET /api/v1/sensors
             "temperature": 25.4,
             "humidity": 55.2,
             "pressure": 1013.2,
-            "gas_resistance": 85000
+            "iaq": 42.0,
+            "iaq_accuracy": 2.0
         },
         "bh1750_0x23": {
             "illuminance": 320.0
@@ -383,7 +386,7 @@ for (final module in modules) {
 
 | type_id | Драйвер | Адреса | Метрики | readInterval |
 |---|---|---|---|---|
-| 0x01 | BME680 | 0x76, 0x77 | `temperature`, `humidity`, `pressure`, `gas_resistance` | 5000 мс |
+| 0x01 | BME680 | 0x76, 0x77 | `temperature`, `humidity`, `pressure`, `iaq`, `iaq_accuracy` | 3000 мс |
 | 0x02 | BH1750 | 0x23, 0x5C | `illuminance` | 5000 мс |
 | 0x03 | SCD30 | 0x61 | `scd30_co2`, `scd30_temperature`, `scd30_humidity` | 2000 мс |
 | 0x04 | INA219 | 0x40 | `ina219_voltage`, `ina219_current`, `ina219_power` | 5000 мс |
