@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
 import 'app.dart';
 import 'core/background/background_service.dart';
 import 'core/notifications/notification_service.dart';
@@ -59,11 +60,9 @@ void main() async {
   mqttService.connect(
     broker: settingsProvider.mqttBroker,
     port: mqttPort,
-    useWebSocket: kIsWeb ||
-        mqttPort == 9001 ||
-        mqttPort == AppConfig.mqttWssPort,
-    secure: mqttPort == AppConfig.mqttPort ||
-        mqttPort == AppConfig.mqttWssPort,
+    useWebSocket:
+        kIsWeb || mqttPort == 9001 || mqttPort == AppConfig.mqttWssPort,
+    secure: mqttPort == AppConfig.mqttPort || mqttPort == AppConfig.mqttWssPort,
     username: settingsProvider.mqttUsername,
     password: settingsProvider.mqttPassword,
   );
@@ -89,7 +88,7 @@ void main() async {
         Provider.value(value: mqttService),
         ChangeNotifierProvider.value(value: dashboardProvider),
         ChangeNotifierProvider(
-          create: (_) => ChartsProvider(),
+          create: (_) => ChartsProvider(mqtt: mqttService),
         ),
         ChangeNotifierProvider(
           create: (_) => DevicesProvider(

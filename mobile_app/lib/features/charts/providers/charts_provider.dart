@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show DateTimeRange;
 import 'package:dio/dio.dart';
+
 import '../../../core/api/direct_device_client.dart';
+import '../../../core/api/mqtt_client.dart';
 import '../../../core/config/connection_mode.dart';
 import '../../../models/sensor_data.dart';
 import '../../../models/device.dart';
@@ -9,6 +13,7 @@ import '../../../core/config/app_config.dart';
 
 class ChartsProvider extends ChangeNotifier {
   DirectDeviceClient? _deviceClient;
+  final MqttService? _mqtt;
   Device? _selectedDevice;
 
   final Map<String, SensorDataSeries> _dataSeries = {};
@@ -30,6 +35,8 @@ class ChartsProvider extends ChangeNotifier {
   String? _comparisonError;
   bool _disposed = false;
 
+  ChartsProvider({MqttService? mqtt}) : _mqtt = mqtt;
+
   Map<String, SensorDataSeries> get dataSeries => _dataSeries;
   String? get selectedDeviceId => _selectedDeviceId;
   String get selectedSensorType => _selectedSensorType;
@@ -44,8 +51,11 @@ class ChartsProvider extends ChangeNotifier {
 
   SensorDataSeries? get currentSeries => _dataSeries[_selectedSensorType];
 
-  void setSelectedDevice(String deviceId,
-      {List<MetricInfo> metrics = const [], Device? device}) {
+  void setSelectedDevice(
+    String deviceId, {
+    List<MetricInfo> metrics = const [],
+    Device? device,
+  }) {
     _selectedDeviceId = deviceId;
     _selectedDevice = device;
     _deviceMetrics = metrics;
@@ -96,15 +106,8 @@ class ChartsProvider extends ChangeNotifier {
 
   Future<void> loadData() async {
     final client = _deviceClient;
+    final mqtt = _mqtt;
     if (_selectedDeviceId == null || _selectedSensorType.isEmpty) {
-      return;
-    }
-
-    if (!LanPolicy.enabled) {
-      _isLoading = false;
-      _error = 'Режим «Только MQTT»: история с SD-карты недоступна. '
-          'Включите LAN в настройках.';
-      notifyListeners();
       return;
     }
 
@@ -126,36 +129,68 @@ class ChartsProvider extends ChangeNotifier {
       return;
     }
 
-    if (client == null) {
+    final mqttReady = mqtt?.isConnected ?? false;
+    if (client == null && !mqttReady) {
       _isLoading = false;
-      _error =
-          'У устройства нет IP-адреса. Подключите его к той же сети Wi-Fi и обновите список.';
+      _error = 'История недоступна: LAN выключен, MQTT не подключён.';
       notifyListeners();
       return;
     }
 
     final seq = ++_loadSeq;
     final sensorType = _selectedSensorType;
+    final deviceId = _selectedDeviceId!;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final series = await _fetchHistory(
-        client,
-        sensorType,
-        since: _timeRange.start,
-        limit: _calculateLimit(),
-      );
+      SensorDataSeries series;
+      if (client != null) {
+        try {
+          series = await _fetchHistory(
+            client,
+            sensorType,
+            since: _timeRange.start,
+            limit: _calculateLimit(),
+          );
+        } on DioException catch (e) {
+          // LAN is unreachable (for example the phone is on mobile data):
+          // fall back to the SD history over the broker.
+          if (!_isConnectionError(e) || !mqttReady) rethrow;
+          series = await _fetchHistoryMqtt(
+            deviceId,
+            sensorType,
+            since: _timeRange.start,
+            limit: _calculateLimit(),
+          );
+        }
+      } else {
+        series = await _fetchHistoryMqtt(
+          deviceId,
+          sensorType,
+          since: _timeRange.start,
+          limit: _calculateLimit(),
+        );
+      }
       // A newer request (device/sensor/range change) may have started while
       // this one was in flight — discard the stale response.
       if (_disposed || seq != _loadSeq) return;
       _dataSeries[sensorType] = series;
+    } on TimeoutException {
+      if (_disposed || seq != _loadSeq) return;
+      _error =
+          'Устройство не ответило на запрос истории по MQTT. '
+          'Проверьте связь и повторите.';
+    } on StateError catch (e) {
+      if (_disposed || seq != _loadSeq) return;
+      _error = e.message;
     } on DioException catch (e) {
       if (_disposed || seq != _loadSeq) return;
       if (_isConnectionError(e)) {
         final address = selected?.httpBaseUrl ?? 'устройству';
-        _error = 'Устройство не ответило на запрос истории ($address). '
+        _error =
+            'Устройство не ответило на запрос истории ($address). '
             'Данные с SD-карты временно недоступны — повторите попытку.';
       } else {
         _error = e.message ?? e.toString();
@@ -202,6 +237,29 @@ class ChartsProvider extends ChangeNotifier {
         limit: limit,
       );
     }
+  }
+
+  Future<SensorDataSeries> _fetchHistoryMqtt(
+    String deviceId,
+    String sensorType, {
+    required DateTime since,
+    required int limit,
+  }) async {
+    final mqtt = _mqtt;
+    if (mqtt == null || !mqtt.isConnected) {
+      throw StateError('MQTT не подключён');
+    }
+    final points = await mqtt.requestHistory(
+      deviceId,
+      sensorType,
+      since: since,
+      limit: limit,
+    );
+    return SensorDataSeries(
+      sensorType: sensorType,
+      unit: getSensorUnit(sensorType),
+      points: points,
+    );
   }
 
   int _calculateLimit([DateTimeRange? range]) {
@@ -262,22 +320,24 @@ class ChartsProvider extends ChangeNotifier {
     final clients = <DirectDeviceClient>[];
 
     try {
-      await Future.wait(candidates.map((device) async {
-        final client = DirectDeviceClient(baseUrl: device.httpBaseUrl!);
-        clients.add(client);
-        try {
-          final series = await client.getHistory(
-            sensorType,
-            unit: _unitFor(sensorType, device),
-            since: range.start,
-            limit: _calculateLimit(range),
-          );
-          if (series.points.isNotEmpty) {
-            results[device.id] = series;
-            names[device.id] = device.name;
-          }
-        } catch (_) {}
-      }));
+      await Future.wait(
+        candidates.map((device) async {
+          final client = DirectDeviceClient(baseUrl: device.httpBaseUrl!);
+          clients.add(client);
+          try {
+            final series = await client.getHistory(
+              sensorType,
+              unit: _unitFor(sensorType, device),
+              since: range.start,
+              limit: _calculateLimit(range),
+            );
+            if (series.points.isNotEmpty) {
+              results[device.id] = series;
+              names[device.id] = device.name;
+            }
+          } catch (_) {}
+        }),
+      );
     } finally {
       for (final client in clients) {
         client.dispose();
