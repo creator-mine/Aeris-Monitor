@@ -588,7 +588,8 @@ Mobile App
 **Изменения в существующих провайдерах:**
 
 - `DashboardProvider` — подписывается на WebSocket ESP32 вместо MQTT
-- `ChartsProvider` — получает историю через HTTP с ESP32 (`/history`)
+- `ChartsProvider` — получает историю с SD через HTTP (`/sensors/history`) или,
+  в режиме «Только MQTT» / при недоступном LAN, через MQTT-команду `history`
 - `DevicesProvider` — получает список через Signaling Server, команды шлёт напрямую на ESP32
 
 ### 4. Relay Server (опционально)
@@ -636,14 +637,16 @@ ESP32-C3
 
 ```
 Mobile App
-  └── HTTP GET /api/v1/sensors/history?since=<ts>&type=<type>
-       │
-       ├── [LAN] ──► ESP32:80 (прямо)
-       │
-       └── [WAN] ──► Relay Server ──► ESP32 (через relay)
-            │
-            ESP32 читает SD-карту, отдаёт JSON
+  ├── [LAN] ── HTTP GET /api/v1/sensors/history?since=<ts>&type=<type>
+  │              └──► ESP32:80 (прямо) ──► SD-карта
+  │
+  └── [MQTT] ── iot/<id>/commands {command:"history", request_id, sensor, since, limit}
+                 └──► ESP32 ──► SD-карта
+                        └──► iot/<id>/sensors/history, чанки по 1,2 КБ
 ```
+
+Чанки собираются приложением по `request_id`; последний помечен `last: true`.
+Лимит одного запроса — 500 точек.
 
 ### Обновление прошивки (без изменений)
 

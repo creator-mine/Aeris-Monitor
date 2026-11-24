@@ -170,7 +170,7 @@
   "time_synced": true,
   "rssi": -58,
   "chip_temp": 42.3,
-  "firmware": "1.4.0",
+  "firmware": "1.4.1",
   "led": "online",
   "sd": {
     "status": "ok",
@@ -214,7 +214,7 @@
 
       <pre><code>{
   "ok": true,
-  "status": { "device_id": "esp32c6_001", "firmware": "1.4.0", "ip": "192.168.1.50" },
+  "status": { "device_id": "esp32c6_001", "firmware": "1.4.1", "ip": "192.168.1.50" },
   "sensors": { "timestamp": 128374, "modules": { "BME680_0x76": { "temperature": 21.4 } } },
   "modules": [ { "id": "BME680_0x76", "driver": "BME680" } ]
 }</code></pre>
@@ -225,7 +225,7 @@
 
       <pre><code>$ echo -n AERIS_DISCOVER_V1 | nc -u -b 192.168.1.255 8266
 {"id":"esp32c6_001","name":"Main Controller C6","type":"esp32c6",
- "fw":"1.4.0","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
+ "fw":"1.4.1","ip":"192.168.1.50","port":80,"uptime":128}</code></pre>
 
       <p data-ru="Приложение 1.2.3 и новее делает это автоматически: при недоступном облачном реестре находит устройство по broadcast и подключается прямо к http://<ip>/api/v1." data-en="App 1.2.3 and newer does this automatically: when the cloud registry is unreachable it finds the device by broadcast and connects straight to http://&lt;ip&gt;/api/v1.">Приложение находит устройство само.</p>
 
@@ -268,6 +268,21 @@
           <p data-ru="Чтение с карты ограничено по времени: просматривается не больше 4096 строк за запрос. На медленной карте это заметно ограничивает глубину выборки, поэтому для больших периодов надёжнее MQTT или экспорт CSV." data-en="Reading is time-bounded: at most 4096 lines are scanned per request. On a slow card that noticeably caps how deep a query can go, so for long periods MQTT or a CSV export is more reliable.">За просмотр не больше 4096 строк.</p>
         </div>
       </div>
+
+      <h3 id="history-mqtt" data-ru="История через MQTT" data-en="History over MQTT">История через MQTT</h3>
+
+      <p data-ru-html="С прошивки <code>1.4.1</code> та же SD-история доступна без LAN. Приложение публикует команду в <code>iot/&lt;id&gt;/commands</code>:" data-en-html="Since firmware <code>1.4.1</code> the same SD history is available without LAN. The app publishes a command to <code>iot/&lt;id&gt;/commands</code>:">История доступна и по MQTT.</p>
+
+      <pre><code>{
+  "type": "command",
+  "command": "history",
+  "request_id": "h1795528584000",
+  "sensor": "iaq",
+  "since": 1795440000000,
+  "limit": 500
+}</code></pre>
+
+      <p data-ru-html="Ответ приходит в <code>iot/&lt;id&gt;/sensors/history</code> несколькими чанками до 1,2 КБ. В каждом есть <code>request_id</code>, <code>sensor</code>, <code>chunk</code>, <code>last</code> и <code>points</code>. Последний чанк имеет <code>last: true</code>, в нём может быть пустой массив. Если карта не смонтирована, приходит <code>error: "no_card"</code>. Один запрос отдаёт не больше 500 точек." data-en-html="The reply arrives on <code>iot/&lt;id&gt;/sensors/history</code> in chunks of up to 1.2 KB. Each has <code>request_id</code>, <code>sensor</code>, <code>chunk</code>, <code>last</code> and <code>points</code>. The final chunk has <code>last: true</code> and may contain an empty array. If the card is not mounted, <code>error: "no_card"</code> is included. One request returns at most 500 points.">Ответ приходит чанками.</p>
 
       <h3 id="wifi-http" data-ru="Wi-Fi" data-en="Wi-Fi">Wi-Fi</h3>
 
@@ -883,7 +898,7 @@ Content-Type: application/json
       <pre><code>GET /fw/version-esp32-c6.json
 
 {
-  "version": "1.4.0",
+  "version": "1.4.1",
   "device_type": "esp32-c6",
   "build_date": "2026-11-17T18:54:12Z",
   "sha256": "457d937a…b8845b",
