@@ -40,6 +40,10 @@ unsigned long lastReconnect = 0;
 
 String deviceId = DEVICE_ID;
 
+// Defined near the SD helpers below; the MQTT history publisher needs it to
+// report a missing card in the response.
+extern bool sdMounted;
+
 // MQTT is optional: NVS flag "mqtt_en" (default MQTT_ENABLED_DEFAULT).
 bool mqttReady() {
     return MqttConfig::enabled() && mqtt.connected();
@@ -207,6 +211,76 @@ void mqttPublishRelay() {
     mqtt.publish(topic.c_str(), payload.c_str());
 }
 
+// MQTT history: the app sends {"command":"history","sensor":"iaq",
+// "request_id":"...","since":<ms>,"limit":500}. The SD history is split into
+// small chunks because the PubSubClient buffer is 2 KB; the app reassembles
+// them by request_id. The topic lives under sensors/ so the existing app ACL
+// (iot/+/sensors/#) already covers it.
+void mqttPublishHistory(const String& requestId, const String& sensor,
+                        uint64_t since, uint16_t limit) {
+    if (!mqttReady()) return;
+    if (limit == 0 || limit > 500) limit = 500;
+
+    String json = WebServer::buildHistoryJsonFor(sensor, since, limit, true);
+    const String prefix = "{\"points\":[";
+    String inner;
+    if (json.startsWith(prefix) && json.endsWith("]}")) {
+        inner = json.substring(prefix.length(), json.length() - 2);
+    }
+
+    const char* error = sdMounted ? "" : "no_card";
+    auto publishChunk = [&](const String& body, bool last, uint16_t chunk) {
+        String payload = "{";
+        payload += "\"device_id\":\"" + deviceId + "\",";
+        payload += "\"request_id\":\"" + requestId + "\",";
+        payload += "\"sensor\":\"" + sensor + "\",";
+        payload += "\"chunk\":" + String(chunk) + ",";
+        payload += "\"last\":" + String(last ? "true" : "false") + ",";
+        if (error[0] != '\0') payload += "\"error\":\"" + String(error) + "\",";
+        payload += "\"points\":[" + body + "]}";
+        if (!mqtt.publish(mqttTopic("sensors/history").c_str(), payload.c_str())) {
+            Serial.println("[MQTT] History chunk publish failed");
+        }
+    };
+
+    if (inner.isEmpty()) {
+        publishChunk("", true, 0);
+        return;
+    }
+
+    // Each point is a flat object ({"timestamp":...,"value":...}), so "},{" is
+    // an unambiguous boundary. ~1.2 KB per message keeps us well under the
+    // 2 KB PubSubClient buffer.
+    const int MAX_CHUNK = 1200;
+    uint16_t chunk = 0;
+    int pos = 0;
+    String buffer;
+    while (pos < inner.length()) {
+        int cut = inner.indexOf("},{", pos);
+        String point;
+        int nextPos;
+        if (cut < 0) {
+            point = inner.substring(pos);
+            nextPos = inner.length();
+        } else {
+            point = inner.substring(pos, cut + 1);
+            nextPos = cut + 2;
+        }
+        if (!buffer.isEmpty() &&
+            buffer.length() + point.length() + 1 > MAX_CHUNK) {
+            publishChunk(buffer, false, chunk++);
+            buffer = "";
+        }
+        if (!buffer.isEmpty()) buffer += ",";
+        buffer += point;
+        pos = nextPos;
+    }
+    if (!buffer.isEmpty()) publishChunk(buffer, false, chunk++);
+    publishChunk("", true, chunk);
+    Serial.printf("[MQTT] History %s: %u chunk(s), limit %u\n",
+                  sensor.c_str(), (unsigned)chunk + 1, (unsigned)limit);
+}
+
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
     if (length > 512) {
         Serial.printf("[MQTT] Oversized message (%u bytes) dropped\n", length);
@@ -286,6 +360,21 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         if (handled) {
             mqttPublishRelay();
             return;
+        }
+    }
+
+    if (msg.indexOf("\"history\"") >= 0) {
+        JsonDocument doc;
+        if (!deserializeJson(doc, msg)) {
+            const char* cmd = doc["command"] | "";
+            if (strcmp(cmd, "history") == 0) {
+                String requestId = String((const char*)(doc["request_id"] | ""));
+                String sensor = String((const char*)(doc["sensor"] | ""));
+                uint64_t since = (uint64_t)(doc["since"] | 0ULL);
+                uint16_t limit = (uint16_t)(doc["limit"] | 500);
+                mqttPublishHistory(requestId, sensor, since, limit);
+                return;
+            }
         }
     }
 

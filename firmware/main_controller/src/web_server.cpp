@@ -14,6 +14,9 @@
 #include <WiFi.h>
 #include <SD.h>
 #include <ArduinoJson.h>
+#include <esp_task_wdt.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include <cmath>
 #include <vector>
 
@@ -300,7 +303,18 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
         if (request->hasParam("since")) since = strtoull(request->getParam("since")->value().c_str(), nullptr, 10);
         if (request->hasParam("limit")) limit = (uint16_t)request->getParam("limit")->value().toInt();
     }
+    return buildHistoryJsonFor(filterType, since, limit, false);
+}
+
+String WebServer::buildHistoryJsonFor(const String& filterType, uint64_t since,
+                                      uint16_t limit, bool resetWatchdog) {
     if (limit == 0) limit = 1000;
+
+    // HTTP (async_tcp) and the MQTT callback (loop task) can both request
+    // history. Serialize them so the shared point buffer is never interleaved.
+    static SemaphoreHandle_t historyLock = nullptr;
+    if (historyLock == nullptr) historyLock = xSemaphoreCreateMutex();
+    if (historyLock != nullptr) xSemaphoreTake(historyLock, portMAX_DELAY);
 
     // Parse CSV: timestamp,key,value,unit. Points are collected newest-first
     // and then reversed, so charts always get the freshest data even when the
@@ -311,6 +325,7 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
     };
     static Point points[1024];  // ~16KB — keep off the task stack (BSS)
     uint16_t count = 0;
+    uint16_t parseOps = 0;
     bool stopAll = false;
 
     // Collect log files: legacy flat file (pre-NTP-sync) + daily-rotated files.
@@ -367,9 +382,9 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
         // task, which has priority over loopTask. Without yielding, the loop
         // task starves for >20 s and the task watchdog reboots the board,
         // producing the 0-valued chart dips and dropped HTTP requests.
-        static uint16_t parseOps = 0;
         if (++parseOps >= 128) {
             parseOps = 0;
+            if (resetWatchdog) esp_task_wdt_reset();
             delay(1);
         }
         int c1 = raw.indexOf(',');
@@ -429,7 +444,10 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
             int n = f.read(buf, want);
             if (n <= 0) break;
             chunksRead++;
-            if ((chunksRead & 0x03) == 0) delay(1);
+            if ((chunksRead & 0x03) == 0) {
+                if (resetWatchdog) esp_task_wdt_reset();
+                delay(1);
+            }
             pos = startPos;
 
             String chunk((const char*)buf, (unsigned)n);
@@ -475,6 +493,7 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
         json += "\"value\":" + String(p.value, 2) + "}";
     }
     json += "]}";
+    if (historyLock != nullptr) xSemaphoreGive(historyLock);
     return json;
 }
 
