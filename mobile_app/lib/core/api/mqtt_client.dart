@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 
@@ -288,8 +289,14 @@ class MqttService {
 
     _currentDeviceId = deviceId;
     const prefix = AppConfig.mqttTopicPrefix;
-    _client!.subscribe('$prefix/$deviceId/sensors/#', MqttQos.atMostOnce);
-    _client!.subscribe('$prefix/$deviceId/status', MqttQos.atMostOnce);
+    try {
+      _client!.subscribe('$prefix/$deviceId/sensors/#', MqttQos.atMostOnce);
+      _client!.subscribe('$prefix/$deviceId/status', MqttQos.atMostOnce);
+    } catch (error) {
+      // The connection can still be in the "connecting" state for a moment
+      // after the flag flips; _onConnected resubscribes from _currentDeviceId.
+      debugPrint('MQTT subscribe deferred: $error');
+    }
 
     _ensureUpdatesListener();
   }
@@ -377,9 +384,8 @@ class MqttService {
       final sensorData = SensorData.fromJson(json);
       _sensorDataController.add(
         SensorData(
-          deviceId: topicDeviceId.isNotEmpty
-              ? topicDeviceId
-              : sensorData.deviceId,
+          deviceId:
+              topicDeviceId.isNotEmpty ? topicDeviceId : sensorData.deviceId,
           sensorType: _topicSensorType(topic) ?? sensorData.sensorType,
           timestamp: sensorData.timestamp,
           data: sensorData.data,

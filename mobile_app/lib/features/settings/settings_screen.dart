@@ -708,8 +708,11 @@ class SettingsScreen extends StatelessWidget {
           decoration: AppTheme.cardDecoration(
               darkMode: Theme.of(context).brightness == Brightness.dark),
           padding: const EdgeInsets.all(18),
-          child: Column(
-            children: children,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              children: children,
+            ),
           ),
         ),
       ],
