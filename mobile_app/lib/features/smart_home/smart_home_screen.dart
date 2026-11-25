@@ -5,7 +5,7 @@ import '../../models/smart_rule.dart';
 import '../../core/config/app_config.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/loading_indicator.dart';
-import '../../shared/widgets/error_widget.dart';
+import '../../shared/widgets/ui_kit.dart';
 import '../../shared/theme/app_theme.dart';
 import '../devices/providers/devices_provider.dart';
 import 'providers/smart_home_provider.dart';
@@ -91,35 +91,27 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
             return const LoadingIndicator(message: 'Загрузка правил...');
           }
           if (provider.error != null && provider.rules.isEmpty) {
-            return AppErrorWidget(
+            return EmptyState(
+              icon: Icons.cloud_off_rounded,
+              title: 'Правила недоступны',
               message: provider.error!,
-              onRetry: () => provider.loadRules(),
+              action: FilledButton.icon(
+                onPressed: () => provider.loadRules(),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const TrText('Повторить'),
+              ),
             );
           }
           if (provider.rules.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.auto_awesome, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  const TrText(
-                    'Нет правил',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 8),
-                  TrText(
-                    'Создайте правило: при превышении порога\nотправить команду или уведомить',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => _openEditor(context, rule: null),
-                    icon: const Icon(Icons.add),
-                    label: const TrText('Добавить правило'),
-                  ),
-                ],
+            return EmptyState(
+              icon: Icons.auto_awesome,
+              title: 'Нет правил',
+              message: 'Создайте правило: при превышении порога отправить '
+                  'команду или уведомить.',
+              action: FilledButton.icon(
+                onPressed: () => _openEditor(context, rule: null),
+                icon: const Icon(Icons.add, size: 18),
+                label: const TrText('Добавить правило'),
               ),
             );
           }
@@ -143,55 +135,68 @@ class _SmartHomeScreenState extends State<SmartHomeScreen> {
     SmartHomeProvider provider,
     SmartRule rule,
   ) {
+    final palette = AppPalette.of(context);
     final enabled = rule.enabled;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: (enabled ? AppTheme.primaryColor : Colors.grey)
-                .withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            ruleActionIcon(rule.action),
-            color: enabled ? AppTheme.primaryColor : Colors.grey,
-          ),
-        ),
-        title: Row(
+    final color = enabled ? palette.primary : palette.faint;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AppSurface(
+        padding: const EdgeInsets.fromLTRB(18, 14, 10, 14),
+        onTap: () => _openEditor(context, rule: rule),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: TrText(
-                rule.name.isEmpty ? 'Правило' : rule.name,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(ruleActionIcon(rule.action), color: color),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TrText(
+                    rule.name.isEmpty ? 'Правило' : rule.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: palette.text,
+                    ),
+                  ),
+                ),
+                Switch(
+                  value: enabled,
+                  onChanged: (_) => provider.toggleRule(rule),
+                ),
+                IconButton(
+                  tooltip: L10n.of(context, 'Удалить'),
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    Icons.delete_outline,
+                    color: palette.danger,
+                    size: 20,
+                  ),
+                  onPressed: () => _confirmDelete(context, provider, rule),
+                ),
+              ],
             ),
-            Switch(
-              value: enabled,
-              onChanged: (_) => provider.toggleRule(rule),
+            const SizedBox(height: 8),
+            TrText(
+              describeRule(
+                rule,
+                deviceName: provider.deviceName,
+                sensorName: (key) =>
+                    L10n.of(context, AppConfig.defaultSensorNames[key] ?? key),
+              ),
+              style: TextStyle(color: palette.muted, fontSize: 12),
             ),
           ],
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: TrText(
-            describeRule(
-              rule,
-              deviceName: provider.deviceName,
-              sensorName: (key) =>
-                  L10n.of(context, AppConfig.defaultSensorNames[key] ?? key),
-            ),
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-          ),
-        ),
-        onTap: () => _openEditor(context, rule: rule),
-        trailing: IconButton(
-          tooltip: L10n.of(context, 'Удалить'),
-          icon: const Icon(Icons.delete_outline, color: Colors.red),
-          onPressed: () => _confirmDelete(context, provider, rule),
         ),
       ),
     );

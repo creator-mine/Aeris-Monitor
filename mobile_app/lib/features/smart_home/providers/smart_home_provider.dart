@@ -71,6 +71,10 @@ class SmartHomeProvider extends ChangeNotifier {
     if (!_disposed) evaluateSensorData(data);
   }
 
+  static const String loadErrorMessage =
+      'Не удалось загрузить правила. Сервер недоступен — проверьте '
+      'подключение и повторите.';
+
   Future<void> loadRules() async {
     if (_disposed) return;
     _isLoading = true;
@@ -80,7 +84,8 @@ class SmartHomeProvider extends ChangeNotifier {
     try {
       _rules = await _apiClient.getRules();
     } catch (e) {
-      _error = e.toString();
+      debugPrint('Smart home rules unavailable: $e');
+      _error = loadErrorMessage;
     } finally {
       if (!_disposed) {
         _isLoading = false;
@@ -97,7 +102,8 @@ class SmartHomeProvider extends ChangeNotifier {
       _safeNotify();
       return true;
     } catch (e) {
-      _error = e.toString();
+      debugPrint('Could not create smart rule: $e');
+      _error = 'Не удалось сохранить правило. Проверьте подключение к серверу.';
       _safeNotify();
       return false;
     }
@@ -112,7 +118,8 @@ class SmartHomeProvider extends ChangeNotifier {
       _safeNotify();
       return true;
     } catch (e) {
-      _error = e.toString();
+      debugPrint('Could not update smart rule: $e');
+      _error = 'Не удалось обновить правило. Проверьте подключение к серверу.';
       _safeNotify();
       return false;
     }
@@ -130,7 +137,8 @@ class SmartHomeProvider extends ChangeNotifier {
       _safeNotify();
       return true;
     } catch (e) {
-      _error = e.toString();
+      debugPrint('Could not delete smart rule: $e');
+      _error = 'Не удалось удалить правило. Проверьте подключение к серверу.';
       _safeNotify();
       return false;
     }
