@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/config/connection_mode.dart';
@@ -38,9 +37,6 @@ class SettingsProvider extends ChangeNotifier {
   PressureUnit _pressureUnit = PressureUnit.hpa;
   LogMode _logMode = LogMode.standard;
   int _accentColorIndex = 0;
-  String? _backgroundImagePath;
-  Uint8List? _backgroundImageBytes;
-  double _backgroundOpacity = 0.3;
   ConnectionMode _connectionMode = ConnectionMode.auto;
   bool _backgroundMonitor = true;
 
@@ -58,9 +54,6 @@ class SettingsProvider extends ChangeNotifier {
   PressureUnit get pressureUnit => _pressureUnit;
   LogMode get logMode => _logMode;
   int get accentColorIndex => _accentColorIndex;
-  String? get backgroundImagePath => _backgroundImagePath;
-  Uint8List? get backgroundImageBytes => _backgroundImageBytes;
-  double get backgroundOpacity => _backgroundOpacity;
   ConnectionMode get connectionMode => _connectionMode;
 
   /// Android only: keeps the "Слежу за устройствами" foreground service alive.
@@ -115,16 +108,6 @@ class SettingsProvider extends ChangeNotifier {
       orElse: () => LogMode.standard,
     );
     _accentColorIndex = _prefs.getInt('accent_color_index') ?? 0;
-    _backgroundImagePath = _prefs.getString('background_image_path');
-    final storedBackgroundB64 = _prefs.getString('background_image_bytes');
-    if (storedBackgroundB64 != null && storedBackgroundB64.isNotEmpty) {
-      try {
-        _backgroundImageBytes = base64Decode(storedBackgroundB64);
-      } catch (_) {
-        _backgroundImageBytes = null;
-      }
-    }
-    _backgroundOpacity = _prefs.getDouble('background_opacity') ?? 0.3;
     _backgroundMonitor = _prefs.getBool(backgroundMonitorPrefKey) ?? true;
 
     final storedMode = _prefs.getString('connection_mode');
@@ -272,38 +255,6 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setAccentColorIndex(int index) async {
     _accentColorIndex = index;
     await _prefs.setInt('accent_color_index', index);
-    notifyListeners();
-  }
-
-  Future<void> setBackgroundImagePath(String? path) async {
-    _backgroundImagePath = path;
-    if (path != null) {
-      await _prefs.setString('background_image_path', path);
-    } else {
-      await _prefs.remove('background_image_path');
-    }
-    notifyListeners();
-  }
-
-  /// Web build: background is stored as in-memory bytes (no local FS path).
-  Future<void> setBackgroundImageBytes(Uint8List bytes) async {
-    _backgroundImageBytes = bytes;
-    await _prefs.setString('background_image_bytes', base64Encode(bytes));
-    notifyListeners();
-  }
-
-  /// Clears the background on every platform (path on desktop, bytes on web).
-  Future<void> clearBackgroundImage() async {
-    _backgroundImagePath = null;
-    _backgroundImageBytes = null;
-    await _prefs.remove('background_image_path');
-    await _prefs.remove('background_image_bytes');
-    notifyListeners();
-  }
-
-  Future<void> setBackgroundOpacity(double opacity) async {
-    _backgroundOpacity = opacity;
-    await _prefs.setDouble('background_opacity', opacity);
     notifyListeners();
   }
 

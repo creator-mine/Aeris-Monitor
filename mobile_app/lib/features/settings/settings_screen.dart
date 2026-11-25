@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'providers/settings_provider.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/theme/app_theme.dart';
@@ -256,15 +254,6 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.terminal,
             subtitle: 'Журнал и язык',
           );
-          final background = _buildSection(
-            context,
-            'Фон приложения',
-            [
-              _buildBackgroundSelector(context, provider),
-            ],
-            icon: Icons.image_outlined,
-            subtitle: 'Оформление рабочей области',
-          );
           final androidSection =
               (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
                   ? _buildSection(
@@ -335,8 +324,6 @@ class SettingsScreen extends StatelessWidget {
                     appearance,
                     const SizedBox(height: 20),
                     logging,
-                    const SizedBox(height: 20),
-                    background,
                     if (androidSection != null) ...[
                       const SizedBox(height: 20),
                       androidSection,
@@ -373,8 +360,6 @@ class SettingsScreen extends StatelessWidget {
                               appearance,
                               const SizedBox(height: 20),
                               logging,
-                              const SizedBox(height: 20),
-                              background,
                               if (androidSection != null) ...[
                                 const SizedBox(height: 20),
                                 androidSection,
@@ -448,108 +433,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBackgroundSelector(
-      BuildContext context, SettingsProvider provider) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (provider.backgroundImagePath != null ||
-            provider.backgroundImageBytes != null) ...[
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: kIsWeb
-                ? Image.memory(
-                    provider.backgroundImageBytes!,
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return _brokenImage();
-                    },
-                  )
-                : Image.file(
-                    File(provider.backgroundImagePath!),
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return _brokenImage();
-                    },
-                  ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              TrText(
-                'Прозрачность: ${(provider.backgroundOpacity * 100).round()}%',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              Expanded(
-                child: Slider(
-                  value: provider.backgroundOpacity,
-                  min: 0.0,
-                  max: 1.0,
-                  divisions: 20,
-                  label: '${(provider.backgroundOpacity * 100).round()}%',
-                  onChanged: (value) => provider.setBackgroundOpacity(value),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => _pickImage(context, provider),
-                icon: const Icon(Icons.swap_horiz, size: 18),
-                label: const TrText('Заменить'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: () => provider.clearBackgroundImage(),
-                icon: const Icon(Icons.delete_outline, size: 18),
-                label: const TrText('Сбросить'),
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-              ),
-            ],
-          ),
-        ] else ...[
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Column(
-              children: [
-                Icon(Icons.image_outlined,
-                    size: 64, color: Colors.grey.shade400),
-                const SizedBox(height: 12),
-                TrText(
-                  'Фон не выбран',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                TrText(
-                  'Выберите изображение для фона приложения',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: () => _pickImage(context, provider),
-                  icon: const Icon(Icons.add_photo_alternate_outlined),
-                  label: const TrText('Выбрать изображение'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
   Future<void> _applyAndReconnect(
       BuildContext context, SettingsProvider provider) async {
     if (!context.mounted) return;
@@ -614,43 +497,6 @@ class SettingsScreen extends StatelessWidget {
               : 'Настройки применены, MQTT не подключился',
         ),
         duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  Future<void> _pickImage(
-      BuildContext context, SettingsProvider provider) async {
-    final picker = ImagePicker();
-    final xFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1920,
-      maxHeight: 1080,
-    );
-    if (xFile == null) return;
-    if (kIsWeb) {
-      final bytes = await xFile.readAsBytes();
-      await provider.setBackgroundImageBytes(bytes);
-    } else {
-      await provider.setBackgroundImagePath(xFile.path);
-    }
-  }
-
-  Widget _brokenImage() {
-    return Container(
-      height: 180,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.broken_image, size: 48, color: Colors.grey),
-            SizedBox(height: 8),
-            TrText('Файл не найден', style: TextStyle(color: Colors.grey)),
-          ],
-        ),
       ),
     );
   }

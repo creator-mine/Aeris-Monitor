@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -424,17 +423,12 @@ class _MainNavigationState extends State<MainNavigation>
   Widget build(BuildContext context) {
     return Consumer<SettingsProvider>(
       builder: (context, settings, child) {
-        final hasBackground = kIsWeb
-            ? settings.backgroundImageBytes != null
-            : settings.backgroundImagePath != null &&
-                File(settings.backgroundImagePath!).existsSync();
-
         final width = MediaQuery.sizeOf(context).width;
         final useRail = width >= 900;
         final extendedRail = width >= 1240;
         final palette = AppPalette.of(context);
 
-        Widget scaffold = useRail
+        return useRail
             ? Scaffold(
                 backgroundColor: palette.background,
                 body: Row(
@@ -457,30 +451,6 @@ class _MainNavigationState extends State<MainNavigation>
                 ),
                 bottomNavigationBar: _buildMobileNav(context),
               );
-
-        if (hasBackground) {
-          scaffold = Stack(
-            children: [
-              Positioned.fill(
-                child: Opacity(
-                  opacity: settings.backgroundOpacity,
-                  child: kIsWeb
-                      ? Image.memory(
-                          settings.backgroundImageBytes!,
-                          fit: BoxFit.cover,
-                        )
-                      : Image.file(
-                          File(settings.backgroundImagePath!),
-                          fit: BoxFit.cover,
-                        ),
-                ),
-              ),
-              scaffold,
-            ],
-          );
-        }
-
-        return scaffold;
       },
     );
   }
