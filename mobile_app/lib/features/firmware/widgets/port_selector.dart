@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../../core/i18n/l10n.dart';
+import '../../../shared/theme/app_theme.dart';
+import '../../../shared/widgets/tr_text.dart';
+import '../../../shared/widgets/ui_kit.dart';
 import '../providers/firmware_provider.dart';
-import 'package:aeris/shared/widgets/tr_text.dart';
-import 'package:aeris/core/i18n/l10n.dart';
 
 class PortSelector extends StatelessWidget {
   const PortSelector({super.key});
@@ -11,6 +14,7 @@ class PortSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<FirmwareProvider>(
       builder: (context, provider, child) {
+        final palette = AppPalette.of(context);
         final hasPorts = provider.availablePorts.isNotEmpty;
         final selectedIsValid =
             hasPorts && provider.availablePorts.contains(provider.selectedPort);
@@ -25,105 +29,96 @@ class PortSelector extends StatelessWidget {
             provider.selectPort(effectivePort!);
           });
         }
-        return Card(
+
+        return AppSurface(
           margin: const EdgeInsets.symmetric(horizontal: 16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const TrText(
-                      'COM-порт',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.refresh, size: 20),
-                      onPressed: provider.refreshPorts,
-                      tooltip: L10n.of(context, 'Обновить список портов'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (provider.availablePorts.isEmpty)
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.shade200),
+                      color: palette.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Row(
+                    child: Icon(Icons.usb, size: 18, color: palette.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.warning_amber,
-                            color: Colors.orange.shade700, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TrText(
-                            'Устройства не обнаружены. Подключите ESP32 по USB.',
-                            style: TextStyle(
-                                color: Colors.orange.shade700, fontSize: 13),
-                          ),
+                        TrText(
+                          'COM-порт',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                        ),
+                        TrText(
+                          'Подключите плату по USB или выберите порт',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: palette.muted,
+                                  ),
                         ),
                       ],
                     ),
-                  )
-                else if (effectivePort != null) ...[
-                  _ConnectedDevicePanel(
-                    port: effectivePort,
-                    description: _descriptionOf(provider, effectivePort),
                   ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey(effectivePort),
-                    initialValue: effectivePort,
-                    decoration: InputDecoration(
-                      labelText: L10n.of(context, 'Изменить порт'),
-                      border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                    ),
-                    items: provider.availablePorts.map((port) {
-                      final info = provider.portInfoFor(port);
-                      return DropdownMenuItem(
-                        value: port,
-                        child: info != null && info.description.isNotEmpty
-                            ? Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  TrText(
-                                    port,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                  TrText(
-                                    info.description,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : TrText(port),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        provider.selectPort(value);
-                      }
-                    },
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 20),
+                    onPressed: provider.refreshPorts,
+                    tooltip: L10n.of(context, 'Обновить список портов'),
                   ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
+                ],
+              ),
+              const SizedBox(height: 14),
+              if (provider.availablePorts.isEmpty)
+                _InlineBanner(
+                  color: palette.warning,
+                  icon: Icons.warning_amber_rounded,
+                  text: 'Устройства не обнаружены. Подключите ESP32 по USB.',
+                )
+              else if (effectivePort != null) ...[
+                _ConnectedDevicePanel(
+                  port: effectivePort,
+                  description: _descriptionOf(provider, effectivePort),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  key: ValueKey(effectivePort),
+                  initialValue: effectivePort,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: L10n.of(context, 'Порт'),
+                    prefixIcon: const Icon(Icons.usb, size: 18),
+                  ),
+                  items: provider.availablePorts.map((port) {
+                    final info = provider.portInfoFor(port);
+                    final description = info?.description ?? '';
+                    return DropdownMenuItem(
+                      value: port,
+                      child: Text(
+                        description.isEmpty ? port : '$port · $description',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) provider.selectPort(value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
                       onPressed:
                           provider.isDetectingChip ? null : provider.detectChip,
                       icon: provider.isDetectingChip
@@ -139,22 +134,22 @@ class PortSelector extends StatelessWidget {
                             : 'Определить чип',
                       ),
                     ),
-                  ),
-                  if (provider.detectedChip != null) ...[
-                    const SizedBox(height: 8),
-                    _ChipResultBanner(
-                      detected: provider.detectedChip!,
-                      matched: provider.detectedChip!.toUpperCase() ==
-                          provider.expectedChipName.toUpperCase(),
-                      expected: provider.expectedChipName,
-                    ),
-                  ] else if (provider.detectChipError != null) ...[
-                    const SizedBox(height: 8),
-                    _ChipErrorBanner(message: provider.detectChipError!),
                   ],
+                ),
+                if (provider.detectedChip != null) ...[
+                  const SizedBox(height: 10),
+                  _ChipResultBanner(
+                    detected: provider.detectedChip!,
+                    matched: provider.detectedChip!.toUpperCase() ==
+                        provider.expectedChipName.toUpperCase(),
+                    expected: provider.expectedChipName,
+                  ),
+                ] else if (provider.detectChipError != null) ...[
+                  const SizedBox(height: 10),
+                  _ChipErrorBanner(message: provider.detectChipError!),
                 ],
               ],
-            ),
+            ],
           ),
         );
       },
@@ -176,43 +171,86 @@ class _ConnectedDevicePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green.shade200),
+        color: palette.success.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: palette.success.withValues(alpha: 0.30)),
       ),
       child: Row(
         children: [
-          Icon(Icons.usb, color: Colors.green.shade700, size: 28),
+          Icon(Icons.usb, color: palette.success, size: 26),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TrText(
-                  port,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade800,
-                  ),
+                Row(
+                  children: [
+                    TrText(
+                      port,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: palette.text,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    StatusPill(
+                      label: 'Подключено',
+                      color: palette.success,
+                      compact: true,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                TrText(
-                  description.isNotEmpty
-                      ? description
-                      : 'Устройство не определено',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: description.isNotEmpty
-                        ? Colors.green.shade700
-                        : Colors.grey[600],
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  TrText(
+                    description,
+                    style: TextStyle(fontSize: 12, color: palette.muted),
                   ),
-                ),
+                ],
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineBanner extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final String text;
+
+  const _InlineBanner({
+    required this.color,
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TrText(
+              text,
+              style: TextStyle(color: color, fontSize: 12),
             ),
           ),
         ],
@@ -234,37 +272,14 @@ class _ChipResultBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = matched ? Colors.green : Colors.orange;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            matched ? Icons.check_circle_outline : Icons.error_outline,
-            color: color.shade700,
-            size: 22,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TrText(
-              matched
-                  ? '$detected · совпадает с выбранным устройством'
-                  : '$detected · не совпадает — выбрано $expected',
-              style: TextStyle(
-                fontSize: 13,
-                color: color.shade800,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
+    final palette = AppPalette.of(context);
+    final color = matched ? palette.success : palette.warning;
+    return _InlineBanner(
+      color: color,
+      icon: matched ? Icons.check_circle_outline : Icons.error_outline,
+      text: matched
+          ? '$detected · совпадает с выбранным устройством'
+          : '$detected · не совпадает — выбрано $expected',
     );
   }
 }
@@ -276,30 +291,10 @@ class _ChipErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.warning_amber, color: Colors.red.shade700, size: 22),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TrText(
-              message,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.red.shade800,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return _InlineBanner(
+      color: AppPalette.of(context).danger,
+      icon: Icons.warning_amber_rounded,
+      text: message,
     );
   }
 }

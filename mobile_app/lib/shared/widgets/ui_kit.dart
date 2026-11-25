@@ -40,6 +40,7 @@ class AppSurface extends StatelessWidget {
     );
 
     final content = Container(
+      margin: margin,
       decoration: decoration,
       padding: padding,
       child: child,

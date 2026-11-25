@@ -268,7 +268,8 @@ class _WifiScreenState extends State<WifiScreen> {
     );
 
     if (result != true) return;
-    final ssid = ssidController.text.trim();
+    // Preserve trailing/leading spaces: they are part of the real SSID.
+    final ssid = ssidController.text;
     final password = passwordController.text;
 
     await _run(() async {

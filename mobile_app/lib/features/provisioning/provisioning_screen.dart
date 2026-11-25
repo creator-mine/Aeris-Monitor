@@ -80,8 +80,10 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
   }
 
   Future<void> _save() async {
-    final ssid = _ssidController.text.trim();
-    if (ssid.isEmpty) {
+    // SSIDs may legally contain leading/trailing spaces. Android hotspots
+    // often do; trimming HERE used to save a profile that never matched.
+    final ssid = _ssidController.text;
+    if (ssid.trim().isEmpty) {
       setState(() => _error = 'Введите имя домашней сети (SSID)');
       return;
     }

@@ -172,7 +172,7 @@ document.getElementById('f').addEventListener('submit', async (e) => {
   statusState = { key:'saving' };
   renderStatus();
   const body = JSON.stringify({
-    ssid: e.target.ssid.value.trim(),
+    ssid: e.target.ssid.value,
     password: e.target.password.value,
     mqtt_user: e.target.mqtt_user.value.trim(),
     mqtt_password: e.target.mqtt_password.value
@@ -232,7 +232,8 @@ void handleSaveCollect(AsyncWebServerRequest* request, uint8_t* data, size_t len
     String password = doc["password"] | "";
     String mqttUser = doc["mqtt_user"] | "";
     String mqttPass = doc["mqtt_password"] | "";
-    ssid.trim();
+    // Do not trim the SSID: leading/trailing spaces are part of the real
+    // network name (common on phone hotspots) and must match byte-for-byte.
     mqttUser.trim();
 
     if (ssid.isEmpty()) {

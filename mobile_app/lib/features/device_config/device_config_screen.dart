@@ -513,8 +513,7 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
                             MaterialPageRoute(
                               builder: (_) => WifiScreen(
                                 title: 'Wi-Fi (USB)',
-                                transport:
-                                    SerialWifiTransport(provider.serial),
+                                transport: SerialWifiTransport(provider.serial),
                               ),
                             ),
                           );
@@ -801,8 +800,8 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
 
   Future<void> _saveWifi(
       BuildContext context, DeviceConfigProvider provider) async {
-    final ssid = _ssidController.text.trim();
-    if (ssid.isEmpty) {
+    final ssid = _ssidController.text;
+    if (ssid.trim().isEmpty) {
       _showSnack(context, 'Введите SSID');
       return;
     }
