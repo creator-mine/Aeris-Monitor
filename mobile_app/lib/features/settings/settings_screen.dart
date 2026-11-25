@@ -177,18 +177,21 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              SegmentedButton<PressureUnit>(
-                segments: [
-                  for (final unit in PressureUnit.values)
-                    ButtonSegment(
-                      value: unit,
-                      label: TrText(unit.label),
-                    ),
-                ],
-                selected: {provider.pressureUnit},
-                onSelectionChanged: (selection) =>
-                    provider.setPressureUnit(selection.first),
-                showSelectedIcon: false,
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SegmentedButton<PressureUnit>(
+                  segments: [
+                    for (final unit in PressureUnit.values)
+                      ButtonSegment(
+                        value: unit,
+                        label: TrText(unit.label),
+                      ),
+                  ],
+                  selected: {provider.pressureUnit},
+                  onSelectionChanged: (selection) =>
+                      provider.setPressureUnit(selection.first),
+                  showSelectedIcon: false,
+                ),
               ),
               const SizedBox(height: 8),
               TrText(

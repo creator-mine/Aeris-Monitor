@@ -342,11 +342,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  StatusPill(
-                    label: online ? 'Онлайн' : 'Офлайн',
-                    color: online ? palette.success : palette.faint,
-                  ),
                   IconButton(
                     tooltip: L10n.of(context, 'Переименовать устройство'),
                     icon: const Icon(Icons.edit_outlined),
@@ -360,6 +355,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
+                  StatusPill(
+                    label: online ? 'Онлайн' : 'Офлайн',
+                    color: online ? palette.success : palette.faint,
+                  ),
                   _buildChannelSelector(context, provider),
                   TrText(
                     provider.lastUpdate == null

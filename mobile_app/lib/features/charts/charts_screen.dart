@@ -544,8 +544,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
     String format(double value) =>
         '${_displayValue(provider, pressureUnit, value).toStringAsFixed(decimals)} $unit';
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.center,
       children: [
         _buildStatCard(
           context,
