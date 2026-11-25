@@ -33,6 +33,11 @@ bool add(const String& ssid, const String& password, int priority,
          uint8_t* outId, String* error);
 
 bool update(uint8_t id, const String& password, int priority, int enabled);
+
+// Replaces only the SSID, keeping the stored password. Used to repair profiles
+// that were saved before Wi-Fi names with leading/trailing spaces were kept
+// byte-for-byte.
+bool updateSsid(uint8_t id, const String& ssid);
 bool remove(uint8_t id);
 bool reorder(const std::vector<uint8_t>& ids);
 

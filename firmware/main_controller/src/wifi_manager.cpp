@@ -105,6 +105,86 @@ std::vector<WifiProfile> enabledSorted() {
     return out;
 }
 
+bool sameSsidIgnoringEdgeSpaces(const String& a, const String& b) {
+    String left = a;
+    String right = b;
+    left.trim();
+    right.trim();
+    return !left.isEmpty() && left == right;
+}
+
+void scanBlockingInto(std::vector<ScanEntry>& out) {
+    out.clear();
+    int16_t found = WiFi.scanNetworks(false, true);
+    if (found <= 0) {
+        WiFi.scanDelete();
+        return;
+    }
+    for (int i = 0; i < found; i++) {
+        String ssid = WiFi.SSID(i);
+        if (ssid.isEmpty()) continue;
+        bool merged = false;
+        for (auto& e : out) {
+            if (e.ssid == ssid) {
+                if (WiFi.RSSI(i) > e.rssi) {
+                    e.rssi = WiFi.RSSI(i);
+                    e.secure = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+                    e.channel = WiFi.channel(i);
+                    e.bssid = WiFi.BSSIDstr(i);
+                }
+                merged = true;
+                break;
+            }
+        }
+        if (merged) continue;
+        ScanEntry e;
+        e.ssid = ssid;
+        e.rssi = WiFi.RSSI(i);
+        e.secure = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+        e.channel = WiFi.channel(i);
+        e.bssid = WiFi.BSSIDstr(i);
+        out.push_back(e);
+    }
+    WiFi.scanDelete();
+}
+
+/// Saved profiles used to be stored with a trimmed SSID by the app and the
+/// provisioning page. Phone hotspots often advertise a trailing space, so
+/// repair the stored name from a scan while keeping the password untouched.
+void reconcileProfilesFromScan(const std::vector<ScanEntry>& entries) {
+    if (entries.empty()) return;
+    for (const auto& profile : WifiProfiles::list()) {
+        bool exact = false;
+        int best = -1;
+        int bestRssi = -127;
+        for (size_t i = 0; i < entries.size(); i++) {
+            const String& ssid = entries[i].ssid;
+            if (ssid == profile.ssid) {
+                exact = true;
+                break;
+            }
+            if (sameSsidIgnoringEdgeSpaces(ssid, profile.ssid) &&
+                entries[i].rssi > bestRssi) {
+                best = (int)i;
+                bestRssi = entries[i].rssi;
+            }
+        }
+        if (exact || best < 0) continue;
+        const String exactSsid = entries[best].ssid;
+        if (WifiProfiles::updateSsid(profile.id, exactSsid)) {
+            Serial.printf("[WiFi] SSID repaired: '%s' -> '%s'\n",
+                          profile.ssid.c_str(), exactSsid.c_str());
+        }
+    }
+}
+
+void reconcileProfilesWithScan() {
+    if (WifiProfiles::count() == 0) return;
+    std::vector<ScanEntry> entries;
+    scanBlockingInto(entries);
+    reconcileProfilesFromScan(entries);
+}
+
 void startNext() {
     uint32_t now = millis();
     std::vector<WifiProfile> candidates = enabledSorted();
@@ -229,6 +309,12 @@ bool begin() {
         return false;
     }
 
+    // Repair legacy trimmed SSIDs before the first connection attempt. This
+    // also covers boards that already have a saved profile for a phone hotspot
+    // whose name contains a trailing space.
+    reconcileProfilesWithScan();
+    profiles = enabledSorted();
+
     std::vector<WifiProfile> order;
     auto pushUnique = [&order](const WifiProfile& p) {
         for (const auto& existing : order) {
@@ -282,6 +368,10 @@ void update() {
     portEXIT_CRITICAL(&g_connectMux);
 
     if (runQueued) {
+        // Manual selection: repair a trimmed SSID before the attempt, so an
+        // already saved Redmi/phone hotspot connects without re-entering the
+        // password.
+        if (!g_scanRunning) reconcileProfilesWithScan();
         WifiProfile p;
         if (WifiProfiles::get(queuedId, p) && p.enabled) {
             if (connected() && queuedId == g_activeId) {
@@ -518,6 +608,7 @@ void serviceScan() {
     g_scanRunning = false;
     g_scanRequested = false;
     g_scanJustFinished = true;
+    reconcileProfilesFromScan(g_scan);
 }
 void requestScan() {
     if (!g_scanRequested) g_scanRequested = true;

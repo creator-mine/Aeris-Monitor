@@ -241,6 +241,23 @@ bool add(const String& ssid, const String& password, int priority,
     return true;
 }
 
+bool updateSsid(uint8_t id, const String& ssid) {
+    if (!validSsid(ssid)) return false;
+    lock();
+    bool changed = false;
+    for (auto& p : g_profiles) {
+        if (p.id != id) continue;
+        if (p.ssid != ssid) {
+            p.ssid = ssid;
+            saveLocked();
+            changed = true;
+        }
+        break;
+    }
+    unlock();
+    return changed;
+}
+
 bool update(uint8_t id, const String& password, int priority, int enabled) {
     lock();
     bool found = false;
