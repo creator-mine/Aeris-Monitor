@@ -150,7 +150,11 @@ bool Win32Window::Create(const std::wstring& title,
 }
 
 bool Win32Window::Show() {
-  return ShowWindow(window_handle_, SW_SHOWNORMAL);
+  const bool shown = ShowWindow(window_handle_, SW_SHOWNORMAL);
+  // Re-apply after the window is visible: some DWM attributes are ignored
+  // until the composition target exists.
+  UpdateTheme(window_handle_);
+  return shown;
 }
 
 // static
@@ -285,6 +289,9 @@ void Win32Window::UpdateTheme(HWND const window) {
     // configured for light mode.
     BOOL enable_dark_mode = TRUE;
     (void)light_mode;
+    // Windows 11 uses attribute 20, Windows 10 (before 22H2) uses 19.
+    DwmSetWindowAttribute(window, 19, &enable_dark_mode,
+                          sizeof(enable_dark_mode));
     DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE,
                           &enable_dark_mode, sizeof(enable_dark_mode));
 
