@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $app = Join-Path $root "mobile_app"
 $buildDir = Join-Path $app "build\web"
-$remote = "root@64.188.67.46"
+$remote = "root@48.102.204.190"
 $remotePath = "/opt/iot/deploy/docker/runtime/site/app"
 
 if (-not $SkipBuild) {
