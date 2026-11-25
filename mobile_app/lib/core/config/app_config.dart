@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AppConfig {
-  static const String appName = 'Aeris Monitor Preview';
-  static const String appVersion = '1.3.11';
+  static const String appName = 'Aeris Monitor';
+  static const String appVersion = '1.4.0';
 
   // API Configuration
   static const String apiBaseUrl = 'https://spe4naz.online';
