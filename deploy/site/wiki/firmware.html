@@ -242,6 +242,13 @@ pio run -e esp32-c6 -t upload</code></pre>
         </div>
       </div>
 
+      <div class="callout info">
+        <div class="co-ic">📶</div>
+        <div class="co-body">
+          <p data-ru-html="В 1.4.2–1.4.3 исправлено подключение к сетям, у которых SSID начинается или заканчивается пробелом — частый случай у хотспота телефона. Имя сети больше не обрезается при сохранении. Если старый профиль уже был сохранён без пробела, плата при загрузке или ручном подключении сканирует эфир, находит точное имя и исправляет SSID, сохраняя пароль." data-en-html="1.4.2–1.4.3 fix joining networks whose SSID starts or ends with a space, a common phone-hotspot case. The network name is no longer trimmed when saved. If an old profile was stored without the space, the board scans on boot or on a manual connect, finds the exact name and repairs the SSID while keeping the password.">SSID с пробелами по краям сохраняется и исправляется.</p>
+        </div>
+      </div>
+
       <h3 id="istorija-mqtt" data-ru="История для графиков по MQTT" data-en="Chart history over MQTT">История для графиков по MQTT</h3>
 
       <p data-ru-html="С 1.4.1 приложение может получить историю с SD-карты без LAN. Оно публикует в <code>iot/&lt;id&gt;/commands</code> команду <code>{"command":"history","request_id":"…","sensor":"iaq","since":0,"limit":500}</code>. Устройство отвечает в <code>iot/&lt;id&gt;/sensors/history</code> несколькими чанками: в каждом есть <code>request_id</code>, <code>sensor</code>, <code>chunk</code>, <code>last</code> и массив <code>points</code>. Такой топик выбран специально: он попадает под существующее право приложения на чтение <code>iot/+/sensors/#</code>. Один запрос ограничен 500 точками, ответ — около 20 сообщений по 1,2 КБ." data-en-html="Since 1.4.1 the app can fetch SD history without LAN. It publishes <code>{"command":"history","request_id":"…","sensor":"iaq","since":0,"limit":500}</code> to <code>iot/&lt;id&gt;/commands</code>. The device replies on <code>iot/&lt;id&gt;/sensors/history</code> in several chunks; each carries <code>request_id</code>, <code>sensor</code>, <code>chunk</code>, <code>last</code> and a <code>points</code> array. That topic was chosen because it already falls under the app's <code>iot/+/sensors/#</code> read permission. One request is capped at 500 points, about 20 messages of 1.2 KB.">История по MQTT режется на чанки.</p>
