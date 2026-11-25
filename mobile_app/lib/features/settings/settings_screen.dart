@@ -13,6 +13,7 @@ import '../../core/background/background_service.dart';
 import '../../core/api/api_client.dart';
 import '../../core/config/app_config.dart';
 import '../../core/config/log_mode.dart';
+import '../../core/config/pressure_unit.dart';
 import '../devices/providers/devices_provider.dart';
 import '../alerts/providers/alerts_provider.dart';
 import '../dashboard/providers/dashboard_provider.dart';
@@ -53,6 +54,21 @@ class SettingsScreen extends StatelessWidget {
                     provider.otaUrl,
                     (value) => provider.setOtaUrl(value),
                     icon: Icons.system_update_alt,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    context,
+                    'Адрес платы (LAN)',
+                    provider.deviceHost,
+                    (value) => provider.setDeviceHost(value),
+                    icon: Icons.lan,
+                  ),
+                  const SizedBox(height: 4),
+                  TrText(
+                    'Необязательно. IP платы в локальной сети или её точки '
+                    'доступа, например 192.168.4.1. Нужен, если автоматический '
+                    'поиск блокируется VPN или гостевым Wi-Fi.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 12),
                   _buildTextField(
@@ -140,6 +156,40 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _buildColorThemeSelector(context, provider),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _buildSection(
+                context,
+                'Единицы измерения',
+                [
+                  DropdownButtonFormField<PressureUnit>(
+                    initialValue: provider.pressureUnit,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: L10n.of(context, 'Давление'),
+                      prefixIcon: const Icon(Icons.speed),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: [
+                      for (final unit in PressureUnit.values)
+                        DropdownMenuItem(
+                          value: unit,
+                          child: TrText(unit.label),
+                        ),
+                    ],
+                    onChanged: (unit) {
+                      if (unit != null) provider.setPressureUnit(unit);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TrText(
+                    'Меняет только отображение на панели и графиках. '
+                    'История и CSV хранятся в hPa.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),

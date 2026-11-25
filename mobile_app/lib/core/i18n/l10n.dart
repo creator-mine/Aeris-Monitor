@@ -268,6 +268,14 @@ class L10n {
     "Температура": "Temperature",
     "Влажность": "Humidity",
     "Давление": "Pressure",
+    "Единицы измерения": "Units",
+    "Адрес платы (LAN)": "Board address (LAN)",
+    "Необязательно. IP платы в локальной сети или её точки доступа, например 192.168.4.1. Нужен, если автоматический поиск блокируется VPN или гостевым Wi-Fi.":
+        "Optional. The board IP on the LAN or its access point, for example 192.168.4.1. Useful when automatic discovery is blocked by a VPN or guest Wi-Fi.",
+    "кПа": "kPa",
+    "мм рт. ст.": "mmHg",
+    "Меняет только отображение на панели и графиках. История и CSV хранятся в hPa.":
+        "Changes the dashboard and charts only. History and CSV stay in hPa.",
     "Освещённость": "Illuminance",
     "Качество воздуха (IAQ)": "Air quality (IAQ)",
     "Точность IAQ": "IAQ accuracy",
@@ -365,6 +373,9 @@ class L10n {
     "Проверки перед сборкой": "Pre-build checks",
     "Проверяю связь с 192.168.4.1...": "Checking connection to 192.168.4.1...",
     "Произошла ошибка": "An error occurred",
+    "Нет связи с устройствами": "No connection to devices",
+    "Не удалось найти устройства. Подключите телефон к той же Wi-Fi-сети, что и плата, или укажите её адрес в настройках (например, 192.168.4.1).":
+        "No devices found. Connect the phone to the same Wi-Fi network as the board, or enter its address in Settings (for example, 192.168.4.1).",
     "Прошивка": "Firmware",
     "Прошивка: —": "Firmware: —",
     "Данные ещё не получены": "No data received yet",

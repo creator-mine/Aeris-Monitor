@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aeris/app.dart';
 import 'package:aeris/core/api/api_client.dart';
+import 'package:aeris/core/api/local_device_service.dart';
 import 'package:aeris/core/api/mqtt_client.dart';
 import 'package:aeris/core/api/signaling_api.dart';
 import 'package:aeris/features/dashboard/providers/dashboard_provider.dart';
@@ -26,6 +27,10 @@ void main() {
             value: DashboardProvider(
               signalingApi: SignalingApi(
                 baseUrl: 'http://127.0.0.1:1/api/v1',
+              ),
+              localDevices: LocalDeviceService(
+                probe: (_, __) async => null,
+                scan: () async => const [],
               ),
             ),
           ),

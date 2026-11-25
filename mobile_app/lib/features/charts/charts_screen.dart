@@ -7,9 +7,11 @@ import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/loading_indicator.dart';
 import '../../shared/widgets/error_widget.dart';
 import '../../shared/theme/app_theme.dart';
+import '../../core/config/pressure_unit.dart';
 import '../../core/utils/csv_exporter.dart';
 import '../devices/providers/devices_provider.dart';
 import '../dashboard/providers/dashboard_provider.dart';
+import '../settings/providers/settings_provider.dart';
 import '../../models/sensor_data.dart';
 import '../../models/device.dart';
 
@@ -53,13 +55,18 @@ class _ChartsScreenState extends State<ChartsScreen> {
       ],
       body: Consumer<ChartsProvider>(
         builder: (context, provider, child) {
+          final pressureUnit = context.select<SettingsProvider, PressureUnit>(
+            (settings) => settings.pressureUnit,
+          );
           return Column(
             children: [
               if (provider.isComparing) _buildCompareBanner(context, provider),
               _buildDeviceSelector(context, provider),
               _buildSensorTypeSelector(context, provider),
               _buildTimeRangeSelector(context, provider),
-              Expanded(child: _buildChartArea(context, provider)),
+              Expanded(
+                child: _buildChartArea(context, provider, pressureUnit),
+              ),
             ],
           );
         },
@@ -270,7 +277,43 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  Widget _buildChartArea(BuildContext context, ChartsProvider provider) {
+  /// Pressure is stored in hPa; convert only for rendering. Other metrics
+  /// keep the unit reported by the device.
+  bool _convertsPressure(ChartsProvider provider) {
+    return provider.selectedSensorType == 'pressure' &&
+        provider.getSensorUnit('pressure').toLowerCase() == 'hpa';
+  }
+
+  double _displayValue(
+    ChartsProvider provider,
+    PressureUnit unit,
+    double value,
+  ) {
+    return _convertsPressure(provider) ? unit.fromHpa(value) : value;
+  }
+
+  String _displayUnit(
+    BuildContext context,
+    ChartsProvider provider,
+    PressureUnit unit,
+  ) {
+    if (_convertsPressure(provider)) return L10n.of(context, unit.label);
+    return provider.getSensorUnit(provider.selectedSensorType);
+  }
+
+  int _displayDecimals(ChartsProvider provider, PressureUnit unit) {
+    return _convertsPressure(provider) ? unit.decimals : 1;
+  }
+
+  int _axisDecimals(ChartsProvider provider, PressureUnit unit) {
+    return _convertsPressure(provider) ? unit.axisDecimals : 1;
+  }
+
+  Widget _buildChartArea(
+    BuildContext context,
+    ChartsProvider provider,
+    PressureUnit pressureUnit,
+  ) {
     if (provider.isLoading || provider.isLoadingComparison) {
       return const LoadingIndicator(message: 'Загрузка данных...');
     }
@@ -324,7 +367,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
           children: [
             _buildCompareLegend(context, provider),
             const SizedBox(height: 16),
-            Expanded(child: _buildCompareChart(context, provider)),
+            Expanded(
+              child: _buildCompareChart(context, provider, pressureUnit),
+            ),
           ],
         ),
       );
@@ -362,9 +407,11 @@ class _ChartsScreenState extends State<ChartsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildStatsRow(context, provider, series),
+          _buildStatsRow(context, provider, series, pressureUnit),
           const SizedBox(height: 16),
-          Expanded(child: _buildLineChart(context, provider, series)),
+          Expanded(
+            child: _buildLineChart(context, provider, series, pressureUnit),
+          ),
         ],
       ),
     );
@@ -374,26 +421,32 @@ class _ChartsScreenState extends State<ChartsScreen> {
     BuildContext context,
     ChartsProvider provider,
     SensorDataSeries series,
+    PressureUnit pressureUnit,
   ) {
+    final unit = _displayUnit(context, provider, pressureUnit);
+    final decimals = _displayDecimals(provider, pressureUnit);
+    String format(double value) =>
+        '${_displayValue(provider, pressureUnit, value).toStringAsFixed(decimals)} $unit';
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         _buildStatCard(
           context,
           'Минимум',
-          '${series.minValue.toStringAsFixed(1)} ${provider.getSensorUnit(provider.selectedSensorType)}',
+          format(series.minValue),
           AppTheme.infoColor,
         ),
         _buildStatCard(
           context,
           'Среднее',
-          '${series.avgValue.toStringAsFixed(1)} ${provider.getSensorUnit(provider.selectedSensorType)}',
+          format(series.avgValue),
           AppTheme.successColor,
         ),
         _buildStatCard(
           context,
           'Максимум',
-          '${series.maxValue.toStringAsFixed(1)} ${provider.getSensorUnit(provider.selectedSensorType)}',
+          format(series.maxValue),
           AppTheme.warningColor,
         ),
       ],
@@ -438,11 +491,16 @@ class _ChartsScreenState extends State<ChartsScreen> {
     BuildContext context,
     ChartsProvider provider,
     SensorDataSeries series,
+    PressureUnit pressureUnit,
   ) {
-    final range = series.maxValue - series.minValue;
+    final displayMin = _displayValue(provider, pressureUnit, series.minValue);
+    final displayMax = _displayValue(provider, pressureUnit, series.maxValue);
+    final range = displayMax - displayMin;
     final safeRange = range == 0 ? 1.0 : range;
     final pointCount = series.points.length;
     final safePointCount = pointCount == 0 ? 1.0 : pointCount.toDouble();
+    final unit = _displayUnit(context, provider, pressureUnit);
+    final axisDecimals = _axisDecimals(provider, pressureUnit);
 
     return LineChart(
       LineChartData(
@@ -499,7 +557,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
               interval: safeRange / 5,
               getTitlesWidget: (value, meta) {
                 return TrText(
-                  value.toStringAsFixed(1),
+                  value.toStringAsFixed(axisDecimals),
                   style: const TextStyle(fontSize: 10),
                 );
               },
@@ -512,17 +570,20 @@ class _ChartsScreenState extends State<ChartsScreen> {
         ),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: _tooltipItems,
+            getTooltipItems: _tooltipItems(unit, axisDecimals),
           ),
         ),
         minX: 0,
         maxX: pointCount > 0 ? pointCount.toDouble() - 1 : 1,
-        minY: series.minValue - safeRange * 0.1,
-        maxY: series.maxValue + safeRange * 0.1,
+        minY: displayMin - safeRange * 0.1,
+        maxY: displayMax + safeRange * 0.1,
         lineBarsData: [
           LineChartBarData(
             spots: series.points.asMap().entries.map<FlSpot>((entry) {
-              return FlSpot(entry.key.toDouble(), entry.value.value);
+              return FlSpot(
+                entry.key.toDouble(),
+                _displayValue(provider, pressureUnit, entry.value.value),
+              );
             }).toList(),
             isCurved: true,
             gradient: LinearGradient(
@@ -551,17 +612,22 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  List<LineTooltipItem> _tooltipItems(List<LineBarSpot> touchedSpots) {
-    return touchedSpots.map((spot) {
-      return LineTooltipItem(
-        spot.y.toStringAsFixed(1),
-        const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-        ),
-      );
-    }).toList();
+  List<LineTooltipItem> Function(List<LineBarSpot>) _tooltipItems(
+    String unit,
+    int decimals,
+  ) {
+    return (touchedSpots) {
+      return touchedSpots.map((spot) {
+        return LineTooltipItem(
+          '${spot.y.toStringAsFixed(decimals)} $unit',
+          const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        );
+      }).toList();
+    };
   }
 
   static const List<Color> _comparePalette = [
@@ -602,7 +668,11 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  Widget _buildCompareChart(BuildContext context, ChartsProvider provider) {
+  Widget _buildCompareChart(
+    BuildContext context,
+    ChartsProvider provider,
+    PressureUnit pressureUnit,
+  ) {
     final entries = provider.compareSeries.entries.toList();
     var minValue = 0.0;
     var maxValue = 1.0;
@@ -611,19 +681,23 @@ class _ChartsScreenState extends State<ChartsScreen> {
       final series = entry.value;
       if (series.points.isEmpty) continue;
       if (series.points.length > maxLength) maxLength = series.points.length;
+      final seriesMin = _displayValue(provider, pressureUnit, series.minValue);
+      final seriesMax = _displayValue(provider, pressureUnit, series.maxValue);
       minValue = minValue == 0
-          ? series.minValue
-          : minValue <= series.minValue
+          ? seriesMin
+          : minValue <= seriesMin
               ? minValue
-              : series.minValue;
+              : seriesMin;
       maxValue = maxValue == 1
-          ? series.maxValue
-          : maxValue >= series.maxValue
+          ? seriesMax
+          : maxValue >= seriesMax
               ? maxValue
-              : series.maxValue;
+              : seriesMax;
     }
     final safeRange = maxValue - minValue == 0 ? 1.0 : maxValue - minValue;
     final safeLength = maxLength == 0 ? 1.0 : maxLength.toDouble();
+    final unit = _displayUnit(context, provider, pressureUnit);
+    final axisDecimals = _axisDecimals(provider, pressureUnit);
 
     return LineChart(
       LineChartData(
@@ -672,7 +746,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
               reservedSize: 50,
               interval: safeRange / 5,
               getTitlesWidget: (value, meta) => TrText(
-                value.toStringAsFixed(1),
+                value.toStringAsFixed(axisDecimals),
                 style: const TextStyle(fontSize: 10),
               ),
             ),
@@ -684,7 +758,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
         ),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: _tooltipItems,
+            getTooltipItems: _tooltipItems(unit, axisDecimals),
           ),
         ),
         minX: 0,
@@ -700,7 +774,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   .asMap()
                   .entries
                   .map(
-                    (entry) => FlSpot(entry.key.toDouble(), entry.value.value),
+                    (entry) => FlSpot(
+                      entry.key.toDouble(),
+                      _displayValue(provider, pressureUnit, entry.value.value),
+                    ),
                   )
                   .toList(),
               isCurved: true,

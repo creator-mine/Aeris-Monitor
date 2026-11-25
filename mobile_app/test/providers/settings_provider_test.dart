@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:aeris/core/config/pressure_unit.dart';
 import 'package:aeris/features/settings/providers/settings_provider.dart';
 
 import '../support/fake_secret_store.dart';
@@ -43,6 +44,45 @@ void main() {
 
       await p.setOtaUrl('   ');
       expect(p.effectiveOtaUrl, p.apiUrl);
+    });
+  });
+
+  group('SettingsProvider LAN address', () {
+    test('defaults to empty and persists the manual host', () async {
+      SharedPreferences.setMockInitialValues({});
+      final p = SettingsProvider(secrets: FakeSecretStore());
+      await p.init();
+      expect(p.deviceHost, '');
+
+      await p.setDeviceHost(' 192.168.4.1 ');
+      expect(p.deviceHost, '192.168.4.1');
+
+      final reloaded = SettingsProvider(secrets: FakeSecretStore());
+      await reloaded.init();
+      expect(reloaded.deviceHost, '192.168.4.1');
+    });
+  });
+
+  group('SettingsProvider pressure unit', () {
+    test('defaults to hPa and persists the selection', () async {
+      SharedPreferences.setMockInitialValues({});
+      final p = SettingsProvider(secrets: FakeSecretStore());
+      await p.init();
+      expect(p.pressureUnit, PressureUnit.hpa);
+
+      await p.setPressureUnit(PressureUnit.kpa);
+      expect(p.pressureUnit, PressureUnit.kpa);
+
+      final reloaded = SettingsProvider(secrets: FakeSecretStore());
+      await reloaded.init();
+      expect(reloaded.pressureUnit, PressureUnit.kpa);
+    });
+
+    test('unknown stored value falls back to hPa', () async {
+      SharedPreferences.setMockInitialValues({'pressure_unit': 'bar'});
+      final p = SettingsProvider(secrets: FakeSecretStore());
+      await p.init();
+      expect(p.pressureUnit, PressureUnit.hpa);
     });
   });
 }

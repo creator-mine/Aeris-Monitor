@@ -130,6 +130,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           if (provider.error != null && provider.devices.isEmpty) {
             return AppErrorWidget(
+              title: 'Нет связи с устройствами',
               message: provider.error!,
               onRetry: () => provider.loadDevices(),
             );
@@ -482,6 +483,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     final iaqAccuracy = provider.getSensorValue('iaq_accuracy');
+    final pressureUnit = context.watch<SettingsProvider>().pressureUnit;
 
     return GridView.builder(
       shrinkWrap: true,
@@ -497,13 +499,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final metric = metrics[index];
         final value = provider.getSensorValue(metric.key);
         final isIaq = metric.key == 'iaq';
+        // Pressure is stored and logged in hPa; the tile may show kPa or
+        // mmHg, but only as a display conversion.
+        final isPressure =
+            metric.key == 'pressure' && metric.unit.toLowerCase() == 'hpa';
+        final displayValue =
+            isPressure && value != null ? pressureUnit.fromHpa(value) : value;
+        final displayUnit = isPressure ? pressureUnit.label : metric.unit;
 
         return SensorTile(
           name: AppConfig.defaultSensorNames[metric.key] ?? metric.name,
-          value: value,
-          unit: metric.unit,
+          value: displayValue,
+          unit: displayUnit,
           icon: AppConfig.metricIcon(metric.key),
-          decimals: isIaq ? 0 : 1,
+          decimals: isIaq
+              ? 0
+              : isPressure
+                  ? pressureUnit.decimals
+                  : 1,
           valueSuffix: isIaq ? L10n.of(context, 'из 500') : null,
           caption: isIaq && iaqAccuracy != null
               ? 'Калибровка ${iaqAccuracy.clamp(0, 3).round()}/3'

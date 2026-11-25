@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/config/connection_mode.dart';
 import '../../../core/config/log_mode.dart';
+import '../../../core/config/pressure_unit.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/background/background_prefs.dart';
 import '../../../core/security/secret_store.dart';
@@ -27,12 +28,14 @@ class SettingsProvider extends ChangeNotifier {
 
   String _apiUrl = _defaultApiUrl;
   String _otaUrl = '';
+  String _deviceHost = '';
   String _mqttBroker = _defaultMqttBroker;
   int _mqttPort = _defaultMqttPort;
   String _mqttUsername = AppConfig.mqttUsername;
   String _mqttPassword = AppConfig.mqttPassword;
   bool _darkMode = false;
   String _language = 'ru';
+  PressureUnit _pressureUnit = PressureUnit.hpa;
   LogMode _logMode = LogMode.standard;
   int _accentColorIndex = 0;
   String? _backgroundImagePath;
@@ -43,12 +46,16 @@ class SettingsProvider extends ChangeNotifier {
 
   String get apiUrl => _apiUrl;
   String get otaUrl => _otaUrl;
+
+  /// Optional board address for LAN/AP sessions where discovery is blocked.
+  String get deviceHost => _deviceHost;
   String get mqttBroker => _mqttBroker;
   int get mqttPort => _mqttPort;
   String get mqttUsername => _mqttUsername;
   String get mqttPassword => _mqttPassword;
   bool get darkMode => _darkMode;
   String get language => _language;
+  PressureUnit get pressureUnit => _pressureUnit;
   LogMode get logMode => _logMode;
   int get accentColorIndex => _accentColorIndex;
   String? get backgroundImagePath => _backgroundImagePath;
@@ -82,6 +89,7 @@ class SettingsProvider extends ChangeNotifier {
     _apiUrl = _resolveApiUrl(storedApiUrl);
 
     _otaUrl = _prefs.getString('ota_url')?.trim() ?? '';
+    _deviceHost = _prefs.getString(AppConfig.deviceHostPrefKey)?.trim() ?? '';
 
     final storedMqttBroker = _prefs.getString('mqtt_broker');
     _mqttBroker =
@@ -101,6 +109,7 @@ class SettingsProvider extends ChangeNotifier {
 
     _darkMode = _prefs.getBool('dark_mode') ?? false;
     _language = _prefs.getString('language') ?? 'ru';
+    _pressureUnit = PressureUnit.fromName(_prefs.getString('pressure_unit'));
     _logMode = LogMode.values.firstWhere(
       (m) => m.name == _prefs.getString('log_mode'),
       orElse: () => LogMode.standard,
@@ -187,6 +196,14 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Stores an optional host/URL (for example `192.168.4.1`) that the local
+  /// discovery probes before falling back to UDP broadcast.
+  Future<void> setDeviceHost(String host) async {
+    _deviceHost = host.trim();
+    await _prefs.setString(AppConfig.deviceHostPrefKey, _deviceHost);
+    notifyListeners();
+  }
+
   Future<void> setMqttBroker(String broker) async {
     _mqttBroker = broker.trim();
     await _prefs.setString('mqtt_broker', _mqttBroker);
@@ -228,6 +245,13 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setLanguage(String lang) async {
     _language = lang;
     await _prefs.setString('language', lang);
+    notifyListeners();
+  }
+
+  /// Changes only the display unit; history and CSV stay in hPa.
+  Future<void> setPressureUnit(PressureUnit unit) async {
+    _pressureUnit = unit;
+    await _prefs.setString('pressure_unit', unit.name);
     notifyListeners();
   }
 

@@ -10,11 +10,14 @@ import '../../models/log_entry.dart';
 class DirectDeviceClient {
   final Dio _dio;
 
-  DirectDeviceClient({required String baseUrl})
-      : _dio = Dio(BaseOptions(
+  DirectDeviceClient({
+    required String baseUrl,
+    Duration connectTimeout = const Duration(seconds: 5),
+    Duration receiveTimeout = const Duration(seconds: 10),
+  }) : _dio = Dio(BaseOptions(
           baseUrl: baseUrl,
-          connectTimeout: const Duration(seconds: 5),
-          receiveTimeout: const Duration(seconds: 10),
+          connectTimeout: connectTimeout,
+          receiveTimeout: receiveTimeout,
         ));
 
   Future<Map<String, dynamic>> getSensors() async {
@@ -83,16 +86,14 @@ class DirectDeviceClient {
     );
 
     final data = response.data as Map<String, dynamic>;
-    final points = (data['points'] as List<dynamic>? ?? [])
-        .map((p) {
-          final map = p as Map<String, dynamic>;
-          return SensorDataPoint(
-            timestamp: DateTime.fromMillisecondsSinceEpoch(
-                (map['timestamp'] as num).toInt()),
-            value: (map['value'] as num).toDouble(),
-          );
-        })
-        .toList();
+    final points = (data['points'] as List<dynamic>? ?? []).map((p) {
+      final map = p as Map<String, dynamic>;
+      return SensorDataPoint(
+        timestamp: DateTime.fromMillisecondsSinceEpoch(
+            (map['timestamp'] as num).toInt()),
+        value: (map['value'] as num).toDouble(),
+      );
+    }).toList();
 
     return SensorDataSeries(
       sensorType: sensorType,

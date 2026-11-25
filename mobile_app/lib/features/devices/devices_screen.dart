@@ -50,6 +50,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
 
           if (provider.error != null && provider.devices.isEmpty) {
             return AppErrorWidget(
+              title: 'Нет связи с устройствами',
               message: provider.error!,
               onRetry: () => provider.loadDevices(),
             );

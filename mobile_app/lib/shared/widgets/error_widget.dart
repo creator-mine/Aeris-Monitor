@@ -3,11 +3,13 @@ import 'package:aeris/shared/widgets/tr_text.dart';
 
 class AppErrorWidget extends StatelessWidget {
   final String message;
+  final String title;
   final VoidCallback? onRetry;
 
   const AppErrorWidget({
     super.key,
     required this.message,
+    this.title = 'Произошла ошибка',
     this.onRetry,
   });
 
@@ -27,7 +29,7 @@ class AppErrorWidget extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             TrText(
-              'Произошла ошибка',
+              title,
               style: Theme.of(context).textTheme.headlineSmall,
               textAlign: TextAlign.center,
             ),

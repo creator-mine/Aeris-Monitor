@@ -70,6 +70,8 @@ void main() async {
   final dashboardProvider = DashboardProvider(
     signalingApi: signalingApi,
     mqtt: mqttService,
+    // Start in the saved mode so a LAN-only launch never calls the cloud.
+    mode: settingsProvider.connectionMode,
   );
   final smartHomeProvider = SmartHomeProvider(
     apiClient: apiClient,

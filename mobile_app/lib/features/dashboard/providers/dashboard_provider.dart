@@ -7,6 +7,7 @@ import '../../../core/api/device_ws_client.dart';
 import '../../../core/api/mqtt_client.dart';
 import '../../../core/api/lan_discovery.dart';
 import '../../../core/api/lan_devices.dart';
+import '../../../core/api/local_device_service.dart';
 import '../../../core/config/connection_mode.dart';
 import '../../../models/device.dart';
 import '../../../models/sensor_data.dart';
@@ -38,6 +39,7 @@ class DashboardProvider extends ChangeNotifier {
   final SignalingApi _signalingApi;
   final DeviceWsClient _wsClient;
   final MqttService? _mqtt;
+  final LocalDeviceService _localDevices;
   StreamSubscription<SensorData>? _mqttSensorSub;
   StreamSubscription<bool>? _mqttConnSub;
   StreamSubscription<String>? _mqttStatusSub;
@@ -53,6 +55,7 @@ class DashboardProvider extends ChangeNotifier {
   void Function(SensorData data)? onSensorReading;
 
   List<Device> _devices = [];
+  final Set<String> _localDeviceIds = {};
   Device? _selectedDevice;
   SdCardInfo? _sdCard;
   final Map<String, SensorData> _latestSensorData = {};
@@ -66,8 +69,10 @@ class DashboardProvider extends ChangeNotifier {
     required SignalingApi signalingApi,
     MqttService? mqtt,
     ConnectionMode mode = ConnectionMode.auto,
+    LocalDeviceService? localDevices,
   })  : _signalingApi = signalingApi,
         _mqtt = mqtt,
+        _localDevices = localDevices ?? LocalDeviceService(),
         _mode = mode,
         _wsClient = DeviceWsClient() {
     _wsClient
@@ -119,9 +124,12 @@ class DashboardProvider extends ChangeNotifier {
   /// after its stale timeout, but the app used to keep the first snapshot.
   Future<void> refreshPresence() async {
     if (_disposed || _isRefreshingPresence) return;
+    // A LAN-only session must not depend on the cloud at all.
+    if (_mode == ConnectionMode.lanDirect) return;
     _isRefreshingPresence = true;
     try {
-      final registry = await _signalingApi.getDevices();
+      final registry =
+          await _signalingApi.getDevices().timeout(const Duration(seconds: 5));
       if (_disposed) return;
 
       final freshById = {for (final device in registry) device.id: device};
@@ -179,48 +187,140 @@ class DashboardProvider extends ChangeNotifier {
   Future<void> loadDevices() async {
     _isLoading = true;
     _error = null;
+    _localDeviceIds.clear();
     _safeNotify();
 
-    try {
-      final registry = await _signalingApi.getDevices();
-      final lan = await discoverLanDevices();
-      _devices = mergeLanDevices(registry, lan);
-      if (_devices.isNotEmpty) _error = null;
-      if (_disposed) return;
+    // The registry is optional. In LAN-only mode it is not called at all,
+    // otherwise a missing DNS entry would block the local connection.
+    Object? cloudError;
+    final Future<List<Device>>? registryFuture =
+        _mode == ConnectionMode.lanDirect
+            ? null
+            : _signalingApi.getDevices().onError((error, stackTrace) {
+                // Consume the error immediately: the local discovery below may
+                // take a moment and an unobserved future would surface as an
+                // unhandled async error.
+                cloudError = error;
+                return const <Device>[];
+              });
 
-      final previousId = _selectedDevice?.id;
-      Device? matched;
-      if (previousId != null) {
-        // Keep the selection in sync with fresh status/firmware/IP without
-        // tearing down the active connection.
-        for (final device in _devices) {
-          if (device.id == previousId) {
-            matched = device;
-            break;
-          }
-        }
-      }
-      _selectedDevice = matched;
-
-      if (_devices.isNotEmpty && _selectedDevice == null) {
-        await selectDevice(pickPreferredDevice(_devices)!);
-      }
-    } catch (e) {
-      // Cloud registry is optional: discover the device on the local network.
-      final lan = await discoverLanDevices();
-      _devices = mergeLanDevices(const [], lan);
-      _error = _devices.isEmpty ? e.toString() : null;
-    } finally {
-      if (!_disposed) {
-        _isLoading = false;
-        _safeNotify();
+    // Local boards come first: this is the path that works without internet.
+    List<Device> local = const [];
+    if (_mode != ConnectionMode.mqtt) {
+      try {
+        local = await _localDevices.discover();
+      } catch (error) {
+        debugPrint('Local device discovery failed: $error');
       }
     }
+    if (_disposed) return;
+
+    if (local.isNotEmpty) {
+      for (final device in local) {
+        _localDeviceIds.add(device.id);
+      }
+      _devices = _mergeDevices(local, preferIncoming: true);
+      await _selectFromList();
+      if (_disposed) return;
+      // Show local readings immediately; the registry can catch up later.
+      _isLoading = false;
+      _safeNotify();
+    }
+
+    List<Device> registry = const [];
+    if (registryFuture != null) {
+      try {
+        registry = await registryFuture.timeout(const Duration(seconds: 4));
+      } catch (error) {
+        cloudError = error;
+      }
+    }
+    if (_disposed) return;
+
+    if (registry.isNotEmpty) {
+      _devices = _mergeDevices(registry);
+      await _selectFromList();
+    }
+
+    if (_devices.isEmpty) {
+      _error = LocalDeviceService.offlineMessage;
+      if (cloudError != null) {
+        debugPrint('Cloud registry unavailable: $cloudError');
+      }
+    } else {
+      _error = null;
+    }
+    _isLoading = false;
+    if (!_disposed) _safeNotify();
+  }
+
+  /// Merges a fresh list into the known devices, preferring live local
+  /// addresses over a stale registry entry with the same id. When the incoming
+  /// list came from the LAN, its address wins over the cached one.
+  List<Device> _mergeDevices(
+    List<Device> incoming, {
+    bool preferIncoming = false,
+  }) {
+    final byId = <String, Device>{
+      for (final device in _devices) device.id: device
+    };
+    for (final device in incoming) {
+      final existing = byId[device.id];
+      if (existing == null) {
+        byId[device.id] = device;
+        continue;
+      }
+      // A live local connection is more authoritative than a registry entry
+      // whose IP may already be stale after DHCP or a network change.
+      final keepLocal = !preferIncoming &&
+          existing.isOnline &&
+          existing.ip.isNotEmpty &&
+          _localDeviceIds.contains(existing.id);
+      byId[device.id] = existing.copyWith(
+        name: device.name.isNotEmpty ? device.name : existing.name,
+        type: device.type.isNotEmpty ? device.type : existing.type,
+        status: existing.isOnline
+            ? 'online'
+            : (device.isOnline ? 'online' : existing.status),
+        lastSeen: device.lastSeen.isAfter(existing.lastSeen)
+            ? device.lastSeen
+            : existing.lastSeen,
+        ip: keepLocal ? existing.ip : device.ip,
+        port: keepLocal ? existing.port : device.port,
+        modules: preferIncoming
+            ? (device.modules.isNotEmpty ? device.modules : existing.modules)
+            : (existing.modules.isNotEmpty ? existing.modules : device.modules),
+        firmwareVersion: device.firmwareVersion ?? existing.firmwareVersion,
+      );
+    }
+    return byId.values.toList();
+  }
+
+  Future<void> _selectFromList() async {
+    if (_devices.isEmpty) return;
+    final previousId = _selectedDevice?.id;
+    Device? matched;
+    if (previousId != null) {
+      for (final device in _devices) {
+        if (device.id == previousId) {
+          matched = device;
+          break;
+        }
+      }
+    }
+    if (matched != null) {
+      // Keep the active connection; just refresh status/firmware/IP.
+      _selectedDevice = matched;
+      _safeNotify();
+      return;
+    }
+    await selectDevice(pickPreferredDevice(_devices, previousId: previousId)!);
   }
 
   Future<void> selectDevice(Device device) async {
     final seq = ++_connectionSeq;
     _selectedDevice = device;
+    unawaited(_localDevices.remember(device));
     _latestSensorData.clear();
     _sdCard = null;
     _lastUpdate = null;
@@ -288,6 +388,9 @@ class DashboardProvider extends ChangeNotifier {
         _deviceClient = DirectDeviceClient(baseUrl: baseUrl);
         await _wsClient.connect(target);
         if (seq != _connectionSeq || _disposed) return;
+        // Populate the tiles even if the WebSocket is blocked on a guest
+        // network or VPN; the socket then keeps them up to date.
+        unawaited(_refreshSensorsHttp());
         unawaited(refreshSdInfo());
       }
     }
@@ -398,6 +501,8 @@ class DashboardProvider extends ChangeNotifier {
   void _handleConnected() {
     if (_disposed) return;
     _isConnected = true;
+    final device = _selectedDevice;
+    if (device != null) unawaited(_localDevices.remember(device));
     _updateActiveChannel();
     _safeNotify();
   }
@@ -450,7 +555,20 @@ class DashboardProvider extends ChangeNotifier {
 
   Future<void> refreshData() async {
     await loadDevices();
-    await refreshSdInfo();
+    await Future.wait([refreshSdInfo(), _refreshSensorsHttp()]);
+  }
+
+  Future<void> _refreshSensorsHttp() async {
+    final client = _deviceClient;
+    if (client == null || _disposed) return;
+    final seq = _connectionSeq;
+    try {
+      final data = await client.getSensors();
+      if (_disposed || seq != _connectionSeq) return;
+      _handleSensorUpdate(data);
+    } catch (_) {
+      // WebSocket updates remain the primary channel; an HTTP hiccup is fine.
+    }
   }
 
   /// Pulls the SD-card state straight from the device so the dashboard shows

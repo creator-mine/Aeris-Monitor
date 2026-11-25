@@ -2,12 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:aeris/core/api/ota_api.dart';
 import 'package:aeris/core/api/signaling_api.dart';
 import 'package:aeris/core/api/lan_discovery.dart';
+import 'package:aeris/core/api/local_device_service.dart';
 import 'package:aeris/features/devices/providers/devices_provider.dart';
 import 'package:aeris/models/device.dart';
 import 'package:aeris/models/firmware_manifest.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeSignalingApi extends SignalingApi {
-  _FakeSignalingApi(this.devices, {this.failLoads = false, this.removeFails = false});
+  _FakeSignalingApi(this.devices,
+      {this.failLoads = false, this.removeFails = false});
 
   final List<Device> devices;
   bool failLoads;
@@ -26,13 +29,29 @@ class _FakeSignalingApi extends SignalingApi {
   }
 }
 
+class _FakeLocalDevices extends LocalDeviceService {
+  _FakeLocalDevices(this.found);
+
+  final List<Device> found;
+
+  @override
+  Future<List<Device>> discover({
+    Duration timeout = const Duration(milliseconds: 1500),
+  }) async =>
+      found;
+
+  @override
+  Future<void> remember(Device device, {SharedPreferences? prefs}) async {}
+}
+
 class _FakeOtaApi extends OtaApi {
   _FakeOtaApi(this.manifest);
 
   final FirmwareManifest? manifest;
 
   @override
-  Future<FirmwareManifest?> fetchManifest({String? deviceType}) async => manifest;
+  Future<FirmwareManifest?> fetchManifest({String? deviceType}) async =>
+      manifest;
 }
 
 Device _device({
@@ -79,6 +98,21 @@ void main() {
       expect(provider.getDeviceById('missing'), isNull);
     });
 
+    test('loadDevices keeps LAN boards when the registry is down', () async {
+      final provider = DevicesProvider(
+        signalingApi: _FakeSignalingApi([], failLoads: true),
+        discoverLan: () async => const <DiscoveredDevice>[],
+        localDevices: _FakeLocalDevices([
+          _device(id: 'local_s3', status: 'online'),
+        ]),
+      );
+
+      await provider.loadDevices();
+
+      expect(provider.devices.single.id, 'local_s3');
+      expect(provider.error, isNull);
+    });
+
     test('loadDevices surfaces errors without losing prior state', () async {
       final provider = DevicesProvider(
         discoverLan: () async => const <DiscoveredDevice>[],
@@ -106,7 +140,8 @@ void main() {
       expect(provider.manifestFor(provider.devices.first)?.version, '1.2.2');
     });
 
-    test('isOutdated compares device firmware to the published manifest', () async {
+    test('isOutdated compares device firmware to the published manifest',
+        () async {
       final provider = DevicesProvider(
         discoverLan: () async => const <DiscoveredDevice>[],
         signalingApi: _FakeSignalingApi([
@@ -141,7 +176,8 @@ void main() {
       expect(provider.getDeviceById('a'), isNull);
     });
 
-    test('deleteDevice keeps the list and reports an error on failure', () async {
+    test('deleteDevice keeps the list and reports an error on failure',
+        () async {
       final provider = DevicesProvider(
         discoverLan: () async => const <DiscoveredDevice>[],
         signalingApi: _FakeSignalingApi(

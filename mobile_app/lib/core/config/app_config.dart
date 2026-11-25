@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppConfig {
   static const String appName = 'Aeris Monitor';
-  static const String appVersion = '1.3.10';
+  static const String appVersion = '1.3.11';
 
   // API Configuration
   static const String apiBaseUrl = 'https://spe4naz.online';
@@ -15,6 +15,10 @@ class AppConfig {
   // Direct device connection
   static const int deviceHttpPort = 80;
   static const int deviceWsPort = 80;
+
+  /// Optional manual LAN address (host or host:port) used when UDP discovery
+  /// is unavailable, for example on a phone hotspot or behind a VPN.
+  static const String deviceHostPrefKey = 'device_host';
 
   // MQTT Configuration (primary remote transport via VPS broker)
   static const String mqttBroker = 'spe4naz.online';

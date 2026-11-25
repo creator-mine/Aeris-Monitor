@@ -6,7 +6,7 @@ import '../../../core/api/ota_api.dart';
 import '../../../core/api/mqtt_client.dart';
 import '../../../core/api/direct_device_client.dart';
 import '../../../core/api/lan_discovery.dart';
-import '../../../core/api/lan_devices.dart';
+import '../../../core/api/local_device_service.dart';
 import '../../../core/config/connection_mode.dart';
 import '../../../core/utils/version.dart';
 import '../../../models/device.dart';
@@ -17,7 +17,7 @@ class DevicesProvider extends ChangeNotifier {
   final SignalingApi _signalingApi;
   OtaApi? _otaApi;
   final MqttService? _mqtt;
-  final Future<List<DiscoveredDevice>> Function() _discoverLan;
+  final LocalDeviceService _localDevices;
 
   List<Device> _devices = [];
   bool _isLoading = false;
@@ -35,10 +35,17 @@ class DevicesProvider extends ChangeNotifier {
     OtaApi? otaApi,
     MqttService? mqtt,
     Future<List<DiscoveredDevice>> Function()? discoverLan,
+    LocalDeviceService? localDevices,
   })  : _signalingApi = signalingApi,
         _otaApi = otaApi,
         _mqtt = mqtt,
-        _discoverLan = discoverLan ?? discoverLanDevices;
+        _localDevices = localDevices ??
+            LocalDeviceService(
+              scan: discoverLan ?? discoverLanDevices,
+              // An injected scan is a deterministic test hook: keep the HTTP
+              // probes out of unit tests.
+              probe: discoverLan == null ? null : (_, __) async => null,
+            );
 
   List<Device> get devices => _devices;
   bool get isLoading => _isLoading;
@@ -85,24 +92,77 @@ class DevicesProvider extends ChangeNotifier {
     _error = null;
     _safeNotify();
 
-    try {
-      final registry = await _signalingApi.getDevices();
-      final lan =
-          LanPolicy.enabled ? await _discoverLan() : const <DiscoveredDevice>[];
-      _devices = mergeLanDevices(registry, lan);
-    } catch (e) {
-      // The cloud registry may be unreachable while the device is still on
-      // the same Wi-Fi: fall back to local discovery.
-      final lan =
-          LanPolicy.enabled ? await _discoverLan() : const <DiscoveredDevice>[];
-      _devices = mergeLanDevices(const [], lan);
-      if (_devices.isEmpty) _error = e.toString();
-    } finally {
-      if (!_disposed) {
-        _isLoading = false;
-        _safeNotify();
+    // The registry is a convenience: a LAN-only phone must not wait for DNS.
+    Object? cloudError;
+    final registryFuture =
+        _signalingApi.getDevices().onError((error, stackTrace) {
+      // Attach the handler before the local scan so the failure is never
+      // reported as an unhandled async error.
+      cloudError = error;
+      return const <Device>[];
+    });
+
+    List<Device> local = const [];
+    if (LanPolicy.enabled) {
+      try {
+        local = await _localDevices.discover();
+      } catch (error) {
+        debugPrint('Local device discovery failed: $error');
       }
     }
+    if (_disposed) return;
+
+    if (local.isNotEmpty) {
+      _devices = _mergeDevices(_devices, local);
+      _isLoading = false;
+      _safeNotify();
+    }
+
+    List<Device> registry = const [];
+    try {
+      registry = await registryFuture.timeout(const Duration(seconds: 4));
+    } catch (error) {
+      cloudError = error;
+    }
+    if (_disposed) return;
+
+    if (registry.isNotEmpty) {
+      _devices = _mergeDevices(registry, _devices);
+    }
+    if (_devices.isEmpty) {
+      _error = LocalDeviceService.offlineMessage;
+      if (cloudError != null) {
+        debugPrint('Cloud registry unavailable: $cloudError');
+      }
+    } else {
+      _error = null;
+    }
+    _isLoading = false;
+    if (!_disposed) _safeNotify();
+  }
+
+  List<Device> _mergeDevices(List<Device> registry, List<Device> local) {
+    final byId = <String, Device>{
+      for (final device in registry) device.id: device
+    };
+    for (final device in local) {
+      final existing = byId[device.id];
+      if (existing == null) {
+        byId[device.id] = device;
+        continue;
+      }
+      byId[device.id] = existing.copyWith(
+        name: device.name.isNotEmpty ? device.name : existing.name,
+        type: device.type.isNotEmpty ? device.type : existing.type,
+        status: device.isOnline ? 'online' : existing.status,
+        lastSeen: device.lastSeen,
+        ip: device.ip.isNotEmpty ? device.ip : existing.ip,
+        port: device.port,
+        modules: device.modules.isNotEmpty ? device.modules : existing.modules,
+        firmwareVersion: device.firmwareVersion ?? existing.firmwareVersion,
+      );
+    }
+    return byId.values.toList();
   }
 
   Future<void> refreshDevices() async {
@@ -119,7 +179,8 @@ class DevicesProvider extends ChangeNotifier {
     if (_disposed || _isRefreshingPresence) return;
     _isRefreshingPresence = true;
     try {
-      final registry = await _signalingApi.getDevices();
+      final registry =
+          await _signalingApi.getDevices().timeout(const Duration(seconds: 5));
       if (_disposed) return;
 
       final freshById = {for (final device in registry) device.id: device};
