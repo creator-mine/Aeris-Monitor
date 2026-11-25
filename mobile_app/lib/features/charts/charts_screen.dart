@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -348,6 +350,37 @@ class _ChartsScreenState extends State<ChartsScreen> {
     return _convertsPressure(provider) ? unit.axisDecimals : 1;
   }
 
+  int _decimalsForStep(double step) {
+    if (step >= 1) return 0;
+    if (step >= 0.1) return 1;
+    return 2;
+  }
+
+  /// Rounds the Y axis to human-friendly steps (0.1/0.2/0.5/1/2/5…), so tick
+  /// labels do not repeat and the grid does not jump when one new point lands.
+  ({double min, double max, double step}) _niceAxis(double min, double max) {
+    final range = max - min;
+    if (!range.isFinite || range <= 0) {
+      return (min: min - 0.5, max: max + 0.5, step: 0.2);
+    }
+    final rough = range / 5;
+    final magnitude =
+        math.pow(10, (math.log(rough) / math.ln10).floor()).toDouble();
+    final normalized = rough / magnitude;
+    final niceNormalized = normalized <= 1
+        ? 1.0
+        : normalized <= 2
+            ? 2.0
+            : normalized <= 5
+                ? 5.0
+                : 10.0;
+    final step = niceNormalized * magnitude;
+    final niceMin = (min / step).floor() * step;
+    var niceMax = (max / step).ceil() * step;
+    if (niceMax <= niceMin) niceMax = niceMin + step;
+    return (min: niceMin, max: niceMax, step: step);
+  }
+
   Widget _buildChartArea(
     BuildContext context,
     ChartsProvider provider,
@@ -628,12 +661,14 @@ class _ChartsScreenState extends State<ChartsScreen> {
   ) {
     final displayMin = _displayValue(provider, pressureUnit, series.minValue);
     final displayMax = _displayValue(provider, pressureUnit, series.maxValue);
-    final range = displayMax - displayMin;
-    final safeRange = range == 0 ? 1.0 : range;
     final pointCount = series.points.length;
     final safePointCount = pointCount == 0 ? 1.0 : pointCount.toDouble();
     final unit = _displayUnit(context, provider, pressureUnit);
     final axisDecimals = _axisDecimals(provider, pressureUnit);
+    final axis = _niceAxis(displayMin, displayMax);
+    final labelDecimals = _convertsPressure(provider)
+        ? math.max(axisDecimals, _decimalsForStep(axis.step))
+        : _decimalsForStep(axis.step);
     final palette = AppPalette.of(context);
     final primary = Theme.of(context).colorScheme.primary;
 
@@ -642,7 +677,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: true,
-          horizontalInterval: safeRange / 5,
+          horizontalInterval: axis.step,
           verticalInterval: safePointCount / 5,
           getDrawingHorizontalLine: (value) {
             return FlLine(
@@ -689,10 +724,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 50,
-              interval: safeRange / 5,
+              interval: axis.step,
               getTitlesWidget: (value, meta) {
                 return TrText(
-                  value.toStringAsFixed(axisDecimals),
+                  value.toStringAsFixed(labelDecimals),
                   style: TextStyle(fontSize: 11, color: palette.muted),
                 );
               },
@@ -705,13 +740,13 @@ class _ChartsScreenState extends State<ChartsScreen> {
         ),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: _tooltipItems(unit, axisDecimals),
+            getTooltipItems: _tooltipItems(unit, labelDecimals),
           ),
         ),
         minX: 0,
         maxX: pointCount > 0 ? pointCount.toDouble() - 1 : 1,
-        minY: displayMin - safeRange * 0.1,
-        maxY: displayMax + safeRange * 0.1,
+        minY: axis.min,
+        maxY: axis.max,
         lineBarsData: [
           LineChartBarData(
             spots: series.points.asMap().entries.map<FlSpot>((entry) {
@@ -829,10 +864,13 @@ class _ChartsScreenState extends State<ChartsScreen> {
               ? maxValue
               : seriesMax;
     }
-    final safeRange = maxValue - minValue == 0 ? 1.0 : maxValue - minValue;
     final safeLength = maxLength == 0 ? 1.0 : maxLength.toDouble();
     final unit = _displayUnit(context, provider, pressureUnit);
     final axisDecimals = _axisDecimals(provider, pressureUnit);
+    final axis = _niceAxis(minValue, maxValue);
+    final labelDecimals = _convertsPressure(provider)
+        ? math.max(axisDecimals, _decimalsForStep(axis.step))
+        : _decimalsForStep(axis.step);
     final palette = AppPalette.of(context);
 
     return LineChart(
@@ -840,7 +878,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: true,
-          horizontalInterval: safeRange / 5,
+          horizontalInterval: axis.step,
           verticalInterval: safeLength / 5,
           getDrawingHorizontalLine: (value) => FlLine(
             color: palette.border.withValues(alpha: 0.7),
@@ -884,9 +922,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 50,
-              interval: safeRange / 5,
+              interval: axis.step,
               getTitlesWidget: (value, meta) => TrText(
-                value.toStringAsFixed(axisDecimals),
+                value.toStringAsFixed(labelDecimals),
                 style: TextStyle(fontSize: 11, color: palette.muted),
               ),
             ),
@@ -898,13 +936,13 @@ class _ChartsScreenState extends State<ChartsScreen> {
         ),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: _tooltipItems(unit, axisDecimals),
+            getTooltipItems: _tooltipItems(unit, labelDecimals),
           ),
         ),
         minX: 0,
         maxX: safeLength - 1,
-        minY: minValue - safeRange * 0.1,
-        maxY: maxValue + safeRange * 0.1,
+        minY: axis.min,
+        maxY: axis.max,
         lineBarsData: [
           for (var i = 0; i < entries.length; i++)
             LineChartBarData(

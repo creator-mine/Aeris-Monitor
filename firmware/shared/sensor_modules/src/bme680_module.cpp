@@ -60,8 +60,11 @@ bool BME680Module::init(uint8_t address) {
 
     bsecSensor sensors[] = {
         BSEC_OUTPUT_IAQ,
-        BSEC_OUTPUT_RAW_TEMPERATURE,
-        BSEC_OUTPUT_RAW_HUMIDITY,
+        // RAW_TEMPERATURE/HUMIDITY still contain the gas-heater self-heating
+        // cycle, which shows up as regular 0.5-1 °C spikes in charts. The
+        // heat-compensated outputs are the values meant for display/logging.
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE,
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
         BSEC_OUTPUT_RAW_PRESSURE,
     };
     if (!_bsec.updateSubscription(sensors, ARRAY_LEN(sensors),
@@ -157,10 +160,10 @@ void BME680Module::captureOutputs(const bsecOutputs& outputs) {
                 }
                 break;
             }
-            case BSEC_OUTPUT_RAW_TEMPERATURE:
+            case BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE:
                 _temperature = out.signal;
                 break;
-            case BSEC_OUTPUT_RAW_HUMIDITY:
+            case BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY:
                 _humidity = out.signal;
                 break;
             case BSEC_OUTPUT_RAW_PRESSURE:
