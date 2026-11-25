@@ -121,7 +121,7 @@ class _WifiScreenState extends State<WifiScreen> {
                           return ListTile(
                             leading: Icon(
                                 entry.secure ? Icons.lock_outline : Icons.wifi),
-                            title: Text(entry.ssid),
+                            title: Text(_visibleSsid(entry.ssid)),
                             subtitle: Text(
                                 '${entry.rssi} dBm · канал ${entry.channel}'
                                 '${saved ? ' · сохранена' : ''}'),
@@ -145,6 +145,10 @@ class _WifiScreenState extends State<WifiScreen> {
       await _addNetwork(prefillSsid: selected.ssid);
     }
   }
+
+  /// Quotes SSIDs with leading/trailing spaces so the invisible difference is
+  /// visible in the scan list.
+  String _visibleSsid(String ssid) => ssid == ssid.trim() ? ssid : '"$ssid"';
 
   WifiProfile? _profileFor(String ssid) {
     final profiles = _status?.profiles ?? const <WifiProfile>[];
@@ -503,7 +507,7 @@ class _WifiScreenState extends State<WifiScreen> {
           profile.connected ? Icons.wifi : Icons.wifi_outlined,
           color: profile.connected ? Colors.green : null,
         ),
-        title: Text(profile.ssid),
+        title: Text(_visibleSsid(profile.ssid)),
         subtitle: Text(subtitle),
         trailing: PopupMenuButton<String>(
           enabled: !_busy,
