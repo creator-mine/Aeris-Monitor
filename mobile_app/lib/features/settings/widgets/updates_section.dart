@@ -42,8 +42,7 @@ class UpdatesSection extends StatelessWidget {
             child: Column(
               children: [
                 SwitchListTile(
-                  secondary:
-                      const Icon(Icons.sync, color: AppTheme.primaryColor),
+                  secondary: Icon(Icons.sync, color: AppTheme.primaryColor),
                   title: const TrText('Проверять обновления'),
                   subtitle: const TrText(
                     'Автоматически раз в несколько часов через GitHub Releases',
@@ -67,7 +66,7 @@ class UpdatesSection extends StatelessWidget {
                       .withValues(alpha: isDark ? 0.4 : 0.25),
                 ),
                 ListTile(
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.cloud_download_outlined,
                     color: AppTheme.primaryColor,
                   ),
@@ -176,7 +175,7 @@ Future<void> showAppUpdateDialog(
       return AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.system_update, color: AppTheme.primaryColor),
+            Icon(Icons.system_update, color: AppTheme.primaryColor),
             const SizedBox(width: 10),
             Expanded(
               child: Text(

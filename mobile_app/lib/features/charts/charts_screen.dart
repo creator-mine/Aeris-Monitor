@@ -6,7 +6,9 @@ import 'providers/charts_provider.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/loading_indicator.dart';
 import '../../shared/widgets/error_widget.dart';
+import '../../shared/widgets/ui_kit.dart';
 import '../../shared/theme/app_theme.dart';
+import '../../core/config/app_config.dart';
 import '../../core/config/pressure_unit.dart';
 import '../../core/utils/csv_exporter.dart';
 import '../devices/providers/devices_provider.dart';
@@ -61,9 +63,22 @@ class _ChartsScreenState extends State<ChartsScreen> {
           return Column(
             children: [
               if (provider.isComparing) _buildCompareBanner(context, provider),
-              _buildDeviceSelector(context, provider),
-              _buildSensorTypeSelector(context, provider),
-              _buildTimeRangeSelector(context, provider),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: AppSurface(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDeviceSelector(context, provider),
+                      const SizedBox(height: 12),
+                      _buildSensorTypeSelector(context, provider),
+                      const SizedBox(height: 10),
+                      _buildTimeRangeSelector(context, provider),
+                    ],
+                  ),
+                ),
+              ),
               Expanded(
                 child: _buildChartArea(context, provider, pressureUnit),
               ),
@@ -110,62 +125,94 @@ class _ChartsScreenState extends State<ChartsScreen> {
     final devices = dashboard.devices;
     if (devices.isEmpty) return const SizedBox.shrink();
 
+    final palette = AppPalette.of(context);
     final ids = devices.map((device) => device.id).toSet();
     var selectedId = provider.selectedDeviceId;
     if (selectedId != null && !ids.contains(selectedId)) selectedId = null;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Row(
-        children: [
-          const Icon(Icons.devices_other, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: selectedId,
-                isExpanded: true,
-                hint: const TrText('Выберите устройство'),
-                items: devices.map((device) {
-                  return DropdownMenuItem<String>(
-                    value: device.id,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.circle,
-                          size: 8,
-                          color: device.isOnline ? Colors.green : Colors.grey,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TrText(
-                            device.isOnline
-                                ? device.name
-                                : '${device.name} — офлайн',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (id) async {
-                  if (id == null) return;
-                  final device = devices.firstWhere((d) => d.id == id);
-                  // Update charts first so the screen reacts immediately; the
-                  // dashboard selection below keeps both screens in sync.
-                  provider.setSelectedDevice(
-                    device.id,
-                    metrics: device.allMetrics,
-                    device: device,
-                  );
-                  await dashboard.selectDevice(device);
-                },
-              ),
-            ),
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: palette.surfaceAlt,
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(color: palette.border),
           ),
-        ],
-      ),
+          child: Icon(Icons.devices_other, size: 19, color: palette.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TrText(
+                'Устройство',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: palette.muted,
+                    ),
+              ),
+              DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedId,
+                  isExpanded: true,
+                  isDense: true,
+                  padding: EdgeInsets.zero,
+                  hint: const TrText('Выберите устройство'),
+                  style: TextStyle(
+                    color: palette.text,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  icon: Icon(Icons.keyboard_arrow_down_rounded,
+                      color: palette.muted),
+                  items: devices.map((device) {
+                    return DropdownMenuItem<String>(
+                      value: device.id,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: device.isOnline
+                                  ? palette.success
+                                  : palette.faint,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TrText(
+                              device.isOnline
+                                  ? device.name
+                                  : '${device.name} — офлайн',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (id) async {
+                    if (id == null) return;
+                    final device = devices.firstWhere((d) => d.id == id);
+                    // Update charts first so the screen reacts immediately; the
+                    // dashboard selection below keeps both screens in sync.
+                    provider.setSelectedDevice(
+                      device.id,
+                      metrics: device.allMetrics,
+                      device: device,
+                    );
+                    await dashboard.selectDevice(device);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -173,30 +220,42 @@ class _ChartsScreenState extends State<ChartsScreen> {
     BuildContext context,
     ChartsProvider provider,
   ) {
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    final palette = AppPalette.of(context);
+    return SizedBox(
+      height: 42,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: provider.availableSensorTypes.length,
         itemBuilder: (context, index) {
           final sensorType = provider.availableSensorTypes[index];
           final isSelected = provider.selectedSensorType == sensorType;
+          final color = isSelected
+              ? Theme.of(context).colorScheme.onPrimary
+              : palette.muted;
 
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
-              label: TrText(provider.getSensorName(sensorType)),
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(AppConfig.metricIcon(sensorType),
+                      size: 15, color: color),
+                  const SizedBox(width: 6),
+                  TrText(
+                    provider.getSensorName(sensorType),
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
               selected: isSelected,
-              onSelected: (selected) {
+              onSelected: (_) {
                 provider.setSelectedSensorType(sensorType);
               },
-              selectedColor: AppTheme.primaryColor,
-              labelStyle: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : Theme.of(context).textTheme.bodyLarge?.color,
-              ),
             ),
           );
         },
@@ -208,47 +267,34 @@ class _ChartsScreenState extends State<ChartsScreen> {
     BuildContext context,
     ChartsProvider provider,
   ) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildTimeRangeButton(
-            context,
-            provider,
-            '1ч',
-            const Duration(hours: 1),
+    final palette = AppPalette.of(context);
+    const ranges = [
+      ('1ч', Duration(hours: 1)),
+      ('6ч', Duration(hours: 6)),
+      ('24ч', Duration(hours: 24)),
+      ('7д', Duration(days: 7)),
+      ('30д', Duration(days: 30)),
+    ];
+
+    return Row(
+      children: [
+        Icon(Icons.schedule, size: 16, color: palette.muted),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final (label, duration) in ranges)
+                _buildTimeRangeChip(context, provider, label, duration),
+            ],
           ),
-          _buildTimeRangeButton(
-            context,
-            provider,
-            '6ч',
-            const Duration(hours: 6),
-          ),
-          _buildTimeRangeButton(
-            context,
-            provider,
-            '24ч',
-            const Duration(hours: 24),
-          ),
-          _buildTimeRangeButton(
-            context,
-            provider,
-            '7д',
-            const Duration(days: 7),
-          ),
-          _buildTimeRangeButton(
-            context,
-            provider,
-            '30д',
-            const Duration(days: 30),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildTimeRangeButton(
+  Widget _buildTimeRangeChip(
     BuildContext context,
     ChartsProvider provider,
     String label,
@@ -256,9 +302,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
   ) {
     final isSelected =
         provider.timeRange.end.difference(provider.timeRange.start) == duration;
-
-    return OutlinedButton(
-      onPressed: () {
+    return ChoiceChip(
+      label: TrText(label),
+      selected: isSelected,
+      onSelected: (_) {
         provider.setTimeRange(
           DateTimeRange(
             start: DateTime.now().subtract(duration),
@@ -266,14 +313,6 @@ class _ChartsScreenState extends State<ChartsScreen> {
           ),
         );
       },
-      style: OutlinedButton.styleFrom(
-        backgroundColor: isSelected ? AppTheme.primaryColor : null,
-        foregroundColor: isSelected ? Colors.white : null,
-        side: BorderSide(
-          color: isSelected ? AppTheme.primaryColor : Colors.grey,
-        ),
-      ),
-      child: TrText(label),
     );
   }
 
@@ -403,17 +442,94 @@ class _ChartsScreenState extends State<ChartsScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildStatsRow(context, provider, series, pressureUnit),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Expanded(
-            child: _buildLineChart(context, provider, series, pressureUnit),
+            child: AppSurface(
+              padding: const EdgeInsets.fromLTRB(14, 14, 18, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildChartHeader(context, provider, series, pressureUnit),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: _buildLineChart(
+                      context,
+                      provider,
+                      series,
+                      pressureUnit,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildChartHeader(
+    BuildContext context,
+    ChartsProvider provider,
+    SensorDataSeries series,
+    PressureUnit pressureUnit,
+  ) {
+    final palette = AppPalette.of(context);
+    final unit = _displayUnit(context, provider, pressureUnit);
+    final decimals = _displayDecimals(provider, pressureUnit);
+    final last = series.points.isEmpty ? null : series.points.last.value;
+    final value = last == null
+        ? '—'
+        : '${_displayValue(provider, pressureUnit, last).toStringAsFixed(decimals)} $unit';
+
+    return Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: palette.primary.withValues(alpha: 0.13),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            AppConfig.metricIcon(provider.selectedSensorType),
+            color: palette.primary,
+            size: 19,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TrText(
+                provider.getSensorName(provider.selectedSensorType),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              TrText(
+                '${series.points.length} точек · история с SD-карты',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: palette.muted,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        TrText(
+          value,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
     );
   }
 
@@ -459,28 +575,43 @@ class _ChartsScreenState extends State<ChartsScreen> {
     String value,
     Color color,
   ) {
+    final palette = AppPalette.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: palette.border),
       ),
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          TrText(
-            label,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: Colors.grey),
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(height: 4),
-          TrText(
-            value,
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.bold, color: color),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TrText(
+                label,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: palette.muted),
+              ),
+              const SizedBox(height: 2),
+              TrText(
+                value,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: palette.text,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -501,6 +632,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
     final safePointCount = pointCount == 0 ? 1.0 : pointCount.toDouble();
     final unit = _displayUnit(context, provider, pressureUnit);
     final axisDecimals = _axisDecimals(provider, pressureUnit);
+    final palette = AppPalette.of(context);
+    final primary = Theme.of(context).colorScheme.primary;
 
     return LineChart(
       LineChartData(
@@ -511,13 +644,13 @@ class _ChartsScreenState extends State<ChartsScreen> {
           verticalInterval: safePointCount / 5,
           getDrawingHorizontalLine: (value) {
             return FlLine(
-              color: Colors.grey.withValues(alpha: 0.2),
+              color: palette.border.withValues(alpha: 0.7),
               strokeWidth: 1,
             );
           },
           getDrawingVerticalLine: (value) {
             return FlLine(
-              color: Colors.grey.withValues(alpha: 0.2),
+              color: palette.border.withValues(alpha: 0.35),
               strokeWidth: 1,
             );
           },
@@ -544,7 +677,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   padding: const EdgeInsets.only(top: 8),
                   child: TrText(
                     '${point.timestamp.hour}:${point.timestamp.minute.toString().padLeft(2, '0')}',
-                    style: const TextStyle(fontSize: 10),
+                    style: TextStyle(fontSize: 11, color: palette.muted),
                   ),
                 );
               },
@@ -558,7 +691,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
               getTitlesWidget: (value, meta) {
                 return TrText(
                   value.toStringAsFixed(axisDecimals),
-                  style: const TextStyle(fontSize: 10),
+                  style: TextStyle(fontSize: 11, color: palette.muted),
                 );
               },
             ),
@@ -566,7 +699,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
         ),
         borderData: FlBorderData(
           show: true,
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+          border: Border.all(color: palette.border),
         ),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
@@ -588,8 +721,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
             isCurved: true,
             gradient: LinearGradient(
               colors: [
-                AppTheme.primaryColor.withValues(alpha: 0.5),
-                AppTheme.primaryColor,
+                primary.withValues(alpha: 0.55),
+                primary,
               ],
             ),
             barWidth: 3,
@@ -599,8 +732,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
               show: true,
               gradient: LinearGradient(
                 colors: [
-                  AppTheme.primaryColor.withValues(alpha: 0.3),
-                  AppTheme.primaryColor.withValues(alpha: 0.0),
+                  primary.withValues(alpha: 0.28),
+                  primary.withValues(alpha: 0.0),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -698,6 +831,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
     final safeLength = maxLength == 0 ? 1.0 : maxLength.toDouble();
     final unit = _displayUnit(context, provider, pressureUnit);
     final axisDecimals = _axisDecimals(provider, pressureUnit);
+    final palette = AppPalette.of(context);
 
     return LineChart(
       LineChartData(
@@ -706,10 +840,14 @@ class _ChartsScreenState extends State<ChartsScreen> {
           drawVerticalLine: true,
           horizontalInterval: safeRange / 5,
           verticalInterval: safeLength / 5,
-          getDrawingHorizontalLine: (value) =>
-              FlLine(color: Colors.grey.withValues(alpha: 0.2), strokeWidth: 1),
-          getDrawingVerticalLine: (value) =>
-              FlLine(color: Colors.grey.withValues(alpha: 0.2), strokeWidth: 1),
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: palette.border.withValues(alpha: 0.7),
+            strokeWidth: 1,
+          ),
+          getDrawingVerticalLine: (value) => FlLine(
+            color: palette.border.withValues(alpha: 0.35),
+            strokeWidth: 1,
+          ),
         ),
         titlesData: FlTitlesData(
           show: true,
@@ -734,7 +872,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   padding: const EdgeInsets.only(top: 8),
                   child: TrText(
                     '${point.timestamp.hour}:${point.timestamp.minute.toString().padLeft(2, '0')}',
-                    style: const TextStyle(fontSize: 10),
+                    style: TextStyle(fontSize: 11, color: palette.muted),
                   ),
                 );
               },
@@ -747,14 +885,14 @@ class _ChartsScreenState extends State<ChartsScreen> {
               interval: safeRange / 5,
               getTitlesWidget: (value, meta) => TrText(
                 value.toStringAsFixed(axisDecimals),
-                style: const TextStyle(fontSize: 10),
+                style: TextStyle(fontSize: 11, color: palette.muted),
               ),
             ),
           ),
         ),
         borderData: FlBorderData(
           show: true,
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+          border: Border.all(color: palette.border),
         ),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(

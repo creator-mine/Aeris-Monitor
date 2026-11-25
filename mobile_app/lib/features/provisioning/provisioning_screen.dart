@@ -368,11 +368,12 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
   Widget _buildAdvanced(BuildContext context) {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
+    final palette = AppPalette.of(context);
     return Container(
       decoration: AppTheme.cardDecoration(darkMode: dark),
       clipBehavior: Clip.antiAlias,
       child: Material(
-        color: dark ? Colors.grey[850] : Colors.white,
+        color: palette.surface,
         child: Theme(
           data: theme.copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
@@ -447,7 +448,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
             ),
             child: TrText(
               '$number',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.primaryColor,

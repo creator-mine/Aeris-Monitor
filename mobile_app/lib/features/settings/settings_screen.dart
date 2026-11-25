@@ -33,282 +33,360 @@ class SettingsScreen extends StatelessWidget {
       title: 'Настройки',
       body: Consumer<SettingsProvider>(
         builder: (context, provider, child) {
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildSection(
+          final connection = _buildSection(
+            context,
+            'Подключение',
+            [
+              _buildTextField(
                 context,
-                'Подключение',
-                [
-                  _buildTextField(
-                    context,
-                    'API URL',
-                    provider.apiUrl,
-                    (value) => provider.setApiUrl(value),
-                    icon: Icons.link,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    context,
-                    'OTA URL (прошивки)',
-                    provider.otaUrl,
-                    (value) => provider.setOtaUrl(value),
-                    icon: Icons.system_update_alt,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    context,
-                    'Адрес платы (LAN)',
-                    provider.deviceHost,
-                    (value) => provider.setDeviceHost(value),
-                    icon: Icons.lan,
-                  ),
-                  const SizedBox(height: 4),
-                  TrText(
-                    'Необязательно. IP платы в локальной сети или её точки '
-                    'доступа, например 192.168.4.1. Нужен, если автоматический '
-                    'поиск блокируется VPN или гостевым Wi-Fi.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    context,
-                    'MQTT Брокер',
-                    provider.mqttBroker,
-                    (value) => provider.setMqttBroker(value),
-                    icon: Icons.cloud,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    context,
-                    'MQTT Порт',
-                    provider.mqttPort.toString(),
-                    (value) {
-                      final port = int.tryParse(value);
-                      if (port != null) {
-                        provider.setMqttPort(port);
-                      }
-                    },
-                    icon: Icons.numbers,
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    context,
-                    'Логин (MQTT и API)',
-                    provider.mqttUsername,
-                    (value) => provider.setMqttUsername(value),
-                    icon: Icons.person,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    context,
-                    'Пароль (MQTT и API)',
-                    provider.mqttPassword,
-                    (value) => provider.setMqttPassword(value),
-                    icon: Icons.key,
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSwitchTile(
-                    context,
-                    'Только MQTT (отключить LAN)',
-                    provider.connectionMode == ConnectionMode.mqtt,
-                    (value) {
-                      final mode =
-                          value ? ConnectionMode.mqtt : ConnectionMode.auto;
-                      provider.setConnectionMode(mode);
-                      context.read<DashboardProvider>().setConnectionMode(mode);
-                    },
-                    icon: Icons.cloud_queue,
-                  ),
-                  TrText(
-                    'Приложение не ищет устройство в локальной сети и не '
-                    'открывает HTTP/WebSocket к плате — весь обмен идёт '
-                    'через MQTT.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _applyAndReconnect(context, provider),
-                      icon: const Icon(Icons.sync, size: 18),
-                      label: const TrText('Применить и переподключиться'),
-                    ),
-                  ),
-                ],
+                'API URL',
+                provider.apiUrl,
+                (value) => provider.setApiUrl(value),
+                icon: Icons.link,
               ),
-              const SizedBox(height: 24),
-              _buildSection(
+              const SizedBox(height: 12),
+              _buildTextField(
                 context,
-                'Внешний вид',
-                [
-                  _buildSwitchTile(
-                    context,
-                    'Тёмная тема',
-                    provider.darkMode,
-                    (value) => provider.setDarkMode(value),
-                    icon: Icons.dark_mode,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildColorThemeSelector(context, provider),
-                ],
+                'OTA URL (прошивки)',
+                provider.otaUrl,
+                (value) => provider.setOtaUrl(value),
+                icon: Icons.system_update_alt,
               ),
-              const SizedBox(height: 24),
-              _buildSection(
+              const SizedBox(height: 12),
+              _buildTextField(
                 context,
-                'Единицы измерения',
-                [
-                  DropdownButtonFormField<PressureUnit>(
-                    initialValue: provider.pressureUnit,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: L10n.of(context, 'Давление'),
-                      prefixIcon: const Icon(Icons.speed),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: [
-                      for (final unit in PressureUnit.values)
-                        DropdownMenuItem(
-                          value: unit,
-                          child: TrText(unit.label),
-                        ),
-                    ],
-                    onChanged: (unit) {
-                      if (unit != null) provider.setPressureUnit(unit);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TrText(
-                    'Меняет только отображение на панели и графиках. '
-                    'История и CSV хранятся в hPa.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ],
+                'Адрес платы (LAN)',
+                provider.deviceHost,
+                (value) => provider.setDeviceHost(value),
+                icon: Icons.lan,
               ),
-              const SizedBox(height: 24),
-              _buildSection(
+              const SizedBox(height: 4),
+              TrText(
+                'Необязательно. IP платы в локальной сети или её точки '
+                'доступа, например 192.168.4.1. Нужен, если автоматический '
+                'поиск блокируется VPN или гостевым Wi-Fi.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+              _buildTextField(
                 context,
-                'Логирование',
-                [
-                  SegmentedButton<LogMode>(
-                    segments: const [
-                      ButtonSegment(
-                        value: LogMode.standard,
-                        label: TrText('Стандартный'),
-                        icon: Icon(Icons.article_outlined, size: 18),
-                      ),
-                      ButtonSegment(
-                        value: LogMode.lightweight,
-                        label: TrText('Облегчённый'),
-                        icon: Icon(Icons.translate, size: 18),
-                      ),
-                    ],
-                    selected: {provider.logMode},
-                    onSelectionChanged: (selection) =>
-                        provider.setLogMode(selection.first),
-                    showSelectedIcon: false,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: provider.language,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: L10n.of(context, 'Язык интерфейса'),
-                      prefixIcon: const Icon(Icons.language),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'ru', child: TrText('Русский')),
-                      DropdownMenuItem(value: 'en', child: TrText('English')),
-                    ],
-                    onChanged: (lang) {
-                      if (lang != null) provider.setLanguage(lang);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TrText(
-                    'Переключает язык интерфейса и перевод логов.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 12),
-                  TrText(
-                    'В облегчённом режиме известные системные события '
-                    'показываются краткими переведёнными фразами.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ],
+                'MQTT Брокер',
+                provider.mqttBroker,
+                (value) => provider.setMqttBroker(value),
+                icon: Icons.cloud,
               ),
-              const SizedBox(height: 24),
-              _buildSection(
+              const SizedBox(height: 12),
+              _buildTextField(
                 context,
-                'Фон приложения',
-                [
-                  _buildBackgroundSelector(context, provider),
-                ],
+                'MQTT Порт',
+                provider.mqttPort.toString(),
+                (value) {
+                  final port = int.tryParse(value);
+                  if (port != null) {
+                    provider.setMqttPort(port);
+                  }
+                },
+                icon: Icons.numbers,
+                keyboardType: TextInputType.number,
               ),
-              if (!kIsWeb &&
-                  defaultTargetPlatform == TargetPlatform.android) ...[
-                const SizedBox(height: 24),
-                _buildSection(
-                  context,
-                  'Фоновая работа',
-                  [
-                    _buildSwitchTile(
-                      context,
-                      'Слежу за устройствами',
-                      provider.backgroundMonitor,
-                      (value) {
-                        provider.setBackgroundMonitor(value);
-                        if (value) {
-                          unawaited(startBackgroundMonitor(force: true));
-                        } else {
-                          unawaited(stopBackgroundMonitor());
-                        }
-                      },
-                      icon: Icons.notifications_active_outlined,
-                    ),
-                    TrText(
-                      'Постоянное уведомление нужно Android, чтобы события '
-                      'правил приходили при закрытом приложении. Выключите — '
-                      'уведомление исчезнет, фоновый мониторинг остановится.',
-                      style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                    ),
-                  ],
+              const SizedBox(height: 12),
+              _buildTextField(
+                context,
+                'Логин (MQTT и API)',
+                provider.mqttUsername,
+                (value) => provider.setMqttUsername(value),
+                icon: Icons.person,
+              ),
+              const SizedBox(height: 12),
+              _buildTextField(
+                context,
+                'Пароль (MQTT и API)',
+                provider.mqttPassword,
+                (value) => provider.setMqttPassword(value),
+                icon: Icons.key,
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              _buildSwitchTile(
+                context,
+                'Только MQTT (отключить LAN)',
+                provider.connectionMode == ConnectionMode.mqtt,
+                (value) {
+                  final mode =
+                      value ? ConnectionMode.mqtt : ConnectionMode.auto;
+                  provider.setConnectionMode(mode);
+                  context.read<DashboardProvider>().setConnectionMode(mode);
+                },
+                icon: Icons.cloud_queue,
+              ),
+              TrText(
+                'Приложение не ищет устройство в локальной сети и не '
+                'открывает HTTP/WebSocket к плате — весь обмен идёт '
+                'через MQTT.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
                 ),
-              ],
-              const SizedBox(height: 24),
-              const UpdatesSection(),
-              const SizedBox(height: 24),
-              _buildSection(
-                context,
-                'О приложении',
-                [
-                  _buildInfoTile(
-                    context,
-                    'Версия',
-                    AppConfig.appVersion,
-                    icon: Icons.info,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildInfoTile(
-                    context,
-                    'Разработчик',
-                    'Aeris Monitor',
-                    icon: Icons.code,
-                  ),
-                ],
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: () => _applyAndReconnect(context, provider),
+                  icon: const Icon(Icons.sync, size: 18),
+                  label: const TrText('Применить и переподключиться'),
+                ),
               ),
             ],
+            icon: Icons.cloud_outlined,
+            subtitle: 'Сервер, плата и MQTT-брокер',
+          );
+          final appearance = _buildSection(
+            context,
+            'Внешний вид',
+            [
+              _buildSwitchTile(
+                context,
+                'Тёмная тема',
+                provider.darkMode,
+                (value) => provider.setDarkMode(value),
+                icon: Icons.dark_mode,
+              ),
+              const SizedBox(height: 16),
+              _buildColorThemeSelector(context, provider),
+            ],
+            icon: Icons.palette_outlined,
+            subtitle: 'Тема и акцентный цвет',
+          );
+          final units = _buildSection(
+            context,
+            'Единицы измерения',
+            [
+              Row(
+                children: [
+                  Icon(
+                    Icons.speed,
+                    size: 18,
+                    color: AppPalette.of(context).muted,
+                  ),
+                  const SizedBox(width: 8),
+                  const TrText(
+                    'Давление',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SegmentedButton<PressureUnit>(
+                segments: [
+                  for (final unit in PressureUnit.values)
+                    ButtonSegment(
+                      value: unit,
+                      label: TrText(unit.label),
+                    ),
+                ],
+                selected: {provider.pressureUnit},
+                onSelectionChanged: (selection) =>
+                    provider.setPressureUnit(selection.first),
+                showSelectedIcon: false,
+              ),
+              const SizedBox(height: 8),
+              TrText(
+                'Меняет только отображение на панели и графиках. '
+                'История и CSV хранятся в hPa.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+            icon: Icons.straighten,
+            subtitle: 'Единицы отображения',
+          );
+          final logging = _buildSection(
+            context,
+            'Логирование',
+            [
+              SegmentedButton<LogMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: LogMode.standard,
+                    label: TrText('Стандартный'),
+                    icon: Icon(Icons.article_outlined, size: 18),
+                  ),
+                  ButtonSegment(
+                    value: LogMode.lightweight,
+                    label: TrText('Облегчённый'),
+                    icon: Icon(Icons.translate, size: 18),
+                  ),
+                ],
+                selected: {provider.logMode},
+                onSelectionChanged: (selection) =>
+                    provider.setLogMode(selection.first),
+                showSelectedIcon: false,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: provider.language,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: L10n.of(context, 'Язык интерфейса'),
+                  prefixIcon: const Icon(Icons.language),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'ru', child: TrText('Русский')),
+                  DropdownMenuItem(value: 'en', child: TrText('English')),
+                ],
+                onChanged: (lang) {
+                  if (lang != null) provider.setLanguage(lang);
+                },
+              ),
+              const SizedBox(height: 8),
+              TrText(
+                'Переключает язык интерфейса и перевод логов.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+              TrText(
+                'В облегчённом режиме известные системные события '
+                'показываются краткими переведёнными фразами.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+            icon: Icons.terminal,
+            subtitle: 'Журнал и язык',
+          );
+          final background = _buildSection(
+            context,
+            'Фон приложения',
+            [
+              _buildBackgroundSelector(context, provider),
+            ],
+            icon: Icons.image_outlined,
+            subtitle: 'Оформление рабочей области',
+          );
+          final androidSection =
+              (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+                  ? _buildSection(
+                      context,
+                      'Фоновая работа',
+                      [
+                        _buildSwitchTile(
+                          context,
+                          'Слежу за устройствами',
+                          provider.backgroundMonitor,
+                          (value) {
+                            provider.setBackgroundMonitor(value);
+                            if (value) {
+                              unawaited(startBackgroundMonitor(force: true));
+                            } else {
+                              unawaited(stopBackgroundMonitor());
+                            }
+                          },
+                          icon: Icons.notifications_active_outlined,
+                        ),
+                        TrText(
+                          'Постоянное уведомление нужно Android, чтобы события '
+                          'правил приходили при закрытом приложении. Выключите — '
+                          'уведомление исчезнет, фоновый мониторинг остановится.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                      icon: Icons.notifications_active_outlined,
+                      subtitle: 'Android foreground service',
+                    )
+                  : null;
+          final about = _buildSection(
+            context,
+            'О приложении',
+            [
+              _buildInfoTile(
+                context,
+                'Версия',
+                AppConfig.appVersion,
+                icon: Icons.info,
+              ),
+              const SizedBox(height: 12),
+              _buildInfoTile(
+                context,
+                'Разработчик',
+                'Aeris Monitor',
+                icon: Icons.code,
+              ),
+            ],
+            icon: Icons.info_outline,
+            subtitle: 'Версия и разработчик',
+          );
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 980;
+              if (!wide) {
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                  children: [
+                    connection,
+                    const SizedBox(height: 20),
+                    units,
+                    const SizedBox(height: 20),
+                    appearance,
+                    const SizedBox(height: 20),
+                    logging,
+                    const SizedBox(height: 20),
+                    background,
+                    if (androidSection != null) ...[
+                      const SizedBox(height: 20),
+                      androidSection,
+                    ],
+                    const SizedBox(height: 20),
+                    const UpdatesSection(),
+                    const SizedBox(height: 20),
+                    about,
+                  ],
+                );
+              }
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+                child: Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              connection,
+                              const SizedBox(height: 20),
+                              units,
+                              const SizedBox(height: 20),
+                              about,
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              appearance,
+                              const SizedBox(height: 20),
+                              logging,
+                              const SizedBox(height: 20),
+                              background,
+                              if (androidSection != null) ...[
+                                const SizedBox(height: 20),
+                                androidSection,
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    const UpdatesSection(),
+                  ],
+                ),
+              );
+            },
           );
         },
       ),
@@ -317,13 +395,14 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _buildColorThemeSelector(
       BuildContext context, SettingsProvider provider) {
+    final palette = AppPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TrText(
           'Акцентный цвет',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
         ),
         const SizedBox(height: 12),
@@ -343,7 +422,7 @@ class SettingsScreen extends StatelessWidget {
                   color: color,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected ? Colors.white : Colors.transparent,
+                    color: isSelected ? palette.text : Colors.transparent,
                     width: 3,
                   ),
                   boxShadow: [
@@ -574,22 +653,58 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildSection(
-      BuildContext context, String title, List<Widget> children) {
+    BuildContext context,
+    String title,
+    List<Widget> children, {
+    IconData? icon,
+    String? subtitle,
+  }) {
+    final palette = AppPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TrText(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryColor,
+        Row(
+          children: [
+            if (icon != null) ...[
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: palette.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: palette.primary),
               ),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TrText(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: palette.text,
+                        ),
+                  ),
+                  if (subtitle != null)
+                    TrText(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: palette.muted,
+                          ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Container(
           decoration: AppTheme.cardDecoration(
               darkMode: Theme.of(context).brightness == Brightness.dark),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           child: Column(
             children: children,
           ),
@@ -704,9 +819,6 @@ class _SettingsTextFieldState extends State<_SettingsTextField> {
       decoration: InputDecoration(
         labelText: widget.label,
         prefixIcon: Icon(widget.icon),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
       ),
       keyboardType: widget.keyboardType,
       obscureText: widget.obscureText,

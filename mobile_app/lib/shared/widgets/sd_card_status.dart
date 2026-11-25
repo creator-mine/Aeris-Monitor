@@ -5,6 +5,7 @@ import '../../models/sd_card_info.dart';
 import '../theme/app_theme.dart';
 import '../utils/byte_format.dart';
 import 'tr_text.dart';
+import 'ui_kit.dart';
 
 /// Shared SD-card summary: state badge, usage bar and capacity figures.
 /// Shown on the dashboard and in the device diagnostics sheet.
@@ -18,87 +19,78 @@ class SdCardStatusCard extends StatelessWidget {
     final language = Localizations.localeOf(context).languageCode;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final status = _statusOf(context);
+    final palette = AppPalette.of(context);
 
     return Container(
       decoration: AppTheme.cardDecoration(darkMode: isDark),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.sd_storage_outlined,
-                color: AppTheme.primaryColor,
+                color: palette.primary,
                 size: 20,
               ),
               const SizedBox(width: 8),
               const Expanded(
                 child: TrText(
                   'Карта памяти',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: status.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: TrText(
-                  status.label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: status.color,
-                  ),
-                ),
-              ),
+              StatusPill(
+                  label: status.label, color: status.color, compact: true),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           if (info == null || !info!.isOk) ...[
             TrText(
               status.hint,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: palette.muted),
             ),
           ] else ...[
             Row(
               children: [
                 _metric(
+                  context,
                   'Занято',
                   formatBytes(info!.usedBytes, language: language),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 24),
                 _metric(
+                  context,
                   'Свободно',
                   formatBytes(info!.freeBytes, language: language),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 24),
                 _metric(
+                  context,
                   'Всего',
                   formatBytes(info!.totalBytes, language: language),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: LinearProgressIndicator(
                 value: info!.usedFraction,
                 minHeight: 8,
-                backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                backgroundColor: palette.surfaceAlt,
                 color: status.color,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 7),
             Row(
               children: [
                 TrText(
                   '${info!.usedPercent}%',
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: status.color,
                   ),
                 ),
@@ -107,7 +99,7 @@ class SdCardStatusCard extends StatelessWidget {
                   TrText(
                     '${info!.cardType} · '
                     '${formatBytes(info!.totalBytes, language: language)}',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 11, color: palette.muted),
                   ),
               ],
             ),
@@ -117,29 +109,35 @@ class SdCardStatusCard extends StatelessWidget {
     );
   }
 
-  Widget _metric(String label, String value) {
+  Widget _metric(BuildContext context, String label, String value) {
+    final palette = AppPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TrText(
           label,
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 11, color: palette.muted),
         ),
         const SizedBox(height: 2),
         Text(
           value,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: palette.text,
+          ),
         ),
       ],
     );
   }
 
   _SdStatus _statusOf(BuildContext context) {
+    final palette = AppPalette.of(context);
     if (info == null) {
       return _SdStatus(
         label: L10n.of(context, 'Нет данных'),
         hint: L10n.of(context, 'Устройство не сообщает состояние карты.'),
-        color: Colors.grey,
+        color: palette.faint,
       );
     }
     switch (info!.status) {
@@ -147,7 +145,7 @@ class SdCardStatusCard extends StatelessWidget {
         return _SdStatus(
           label: L10n.of(context, 'Работает'),
           hint: '',
-          color: AppTheme.successColor,
+          color: palette.success,
         );
       case 'mount_failed':
         return _SdStatus(
@@ -157,7 +155,7 @@ class SdCardStatusCard extends StatelessWidget {
             'Файловая система не поддерживается. '
             'Отформатируйте карту в FAT32.',
           ),
-          color: AppTheme.warningColor,
+          color: palette.warning,
         );
       default:
         return _SdStatus(
@@ -166,7 +164,7 @@ class SdCardStatusCard extends StatelessWidget {
             context,
             'Карта не вставлена. Вставьте microSD-карту (FAT32).',
           ),
-          color: Colors.grey,
+          color: palette.faint,
         );
     }
   }

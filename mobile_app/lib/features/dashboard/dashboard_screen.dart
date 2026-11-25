@@ -5,8 +5,10 @@ import 'widgets/device_card.dart';
 import 'widgets/sensor_tile.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/loading_indicator.dart';
-import '../../shared/widgets/error_widget.dart';
 import '../../shared/widgets/sd_card_status.dart';
+import '../../shared/widgets/ui_kit.dart';
+import '../../shared/helpers/device_helper.dart';
+import '../../shared/theme/app_theme.dart';
 import '../../core/config/app_config.dart';
 import '../../core/config/connection_mode.dart';
 import '../../models/device.dart';
@@ -129,25 +131,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
 
           if (provider.error != null && provider.devices.isEmpty) {
-            return AppErrorWidget(
+            return EmptyState(
+              icon: Icons.wifi_off_rounded,
               title: 'Нет связи с устройствами',
               message: provider.error!,
-              onRetry: () => provider.loadDevices(),
+              action: FilledButton.icon(
+                onPressed: () => provider.loadDevices(),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const TrText('Повторить'),
+              ),
             );
           }
 
           if (provider.devices.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.devices_other, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  TrText(
-                    'Нет подключённых устройств',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                ],
+            return EmptyState(
+              icon: Icons.devices_other,
+              title: 'Нет подключённых устройств',
+              message: 'Плата появится здесь, когда ответит в локальной сети '
+                  'или зарегистрируется на сервере.',
+              action: FilledButton.icon(
+                onPressed: () => provider.loadDevices(),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const TrText('Искать устройства'),
               ),
             );
           }
@@ -156,12 +161,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onRefresh: () => provider.refreshData(),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildDevicesSection(context, provider),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                   if (provider.selectedDevice != null) ...[
                     _buildSelectedDeviceSection(context, provider),
                   ],
@@ -179,26 +184,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TrText(
-              'Устройства',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            TrText(
+        SectionHeader(
+          title: 'Устройства',
+          subtitle:
               '${provider.onlineDevices.length}/${provider.devices.length} онлайн',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey,
-                  ),
-            ),
-          ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         SizedBox(
-          height: 120,
+          height: 132,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: provider.devices.length,
@@ -296,48 +289,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
       BuildContext context, DashboardProvider provider) {
     final device = provider.selectedDevice!;
 
+    final palette = AppPalette.of(context);
+    final online = device.isOnline;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: TrText(
-                device.name,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+        AppSurface(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: palette.surfaceAlt,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: palette.border),
                     ),
-              ),
-            ),
-            IconButton(
-              tooltip: L10n.of(context, 'Переименовать устройство'),
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: () => _renameDevice(context, provider, device),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Text(
-              '${L10n.of(context, 'Версия прошивки')}: '
-              '${device.firmwareVersion ?? '—'}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey,
+                    child: Icon(
+                      DeviceHelper.getDeviceIcon(device.type),
+                      color: palette.primary,
+                      size: 28,
+                    ),
                   ),
-            ),
-            const SizedBox(width: 8),
-            _buildChannelSelector(context, provider),
-          ],
-        ),
-        const SizedBox(height: 4),
-        TrText(
-          provider.lastUpdate == null
-              ? 'Данные ещё не получены'
-              : 'Обновлено: ${_formatTime(provider.lastUpdate!)}',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TrText(
+                          device.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 4),
+                        TrText(
+                          '${device.type.toUpperCase()} · '
+                          '${L10n.of(context, 'Версия прошивки')}: '
+                          '${device.firmwareVersion ?? '—'}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: palette.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  StatusPill(
+                    label: online ? 'Онлайн' : 'Офлайн',
+                    color: online ? palette.success : palette.faint,
+                  ),
+                  IconButton(
+                    tooltip: L10n.of(context, 'Переименовать устройство'),
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () => _renameDevice(context, provider, device),
+                  ),
+                ],
               ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _buildChannelSelector(context, provider),
+                  TrText(
+                    provider.lastUpdate == null
+                        ? 'Данные ещё не получены'
+                        : 'Обновлено: ${_formatTime(provider.lastUpdate!)}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: palette.muted),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         Wrap(
@@ -443,7 +479,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 22),
+        const SectionHeader(
+          title: 'Показатели',
+          subtitle: 'Текущие значения с выбранного контроллера',
+        ),
+        const SizedBox(height: 12),
         _buildSensorsGrid(context, provider),
         const SizedBox(height: 16),
         Align(
@@ -484,15 +525,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final iaqAccuracy = provider.getSensorValue('iaq_accuracy');
     final pressureUnit = context.watch<SettingsProvider>().pressureUnit;
+    final palette = AppPalette.of(context);
+    Color metricColor(String key) => switch (key) {
+          'temperature' => palette.temperature,
+          'humidity' => palette.humidity,
+          'pressure' => palette.pressure,
+          'illuminance' => palette.illuminance,
+          'iaq' => palette.iaq,
+          _ => palette.primary,
+        };
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 220,
-        mainAxisExtent: 150,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+        maxCrossAxisExtent: 230,
+        mainAxisExtent: 152,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
       ),
       itemCount: metrics.length,
       itemBuilder: (context, index) {
@@ -512,6 +562,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           value: displayValue,
           unit: displayUnit,
           icon: AppConfig.metricIcon(metric.key),
+          color: metricColor(metric.key),
           decimals: isIaq
               ? 0
               : isPressure

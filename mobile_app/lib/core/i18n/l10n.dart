@@ -87,6 +87,12 @@ class L10n {
     if (source.contains(' записей')) {
       return source.replaceAll(' записей', ' entries');
     }
+    if (source.endsWith(' точек · история с SD-карты')) {
+      return source.replaceAll(
+        ' точек · история с SD-карты',
+        ' points · SD-card history',
+      );
+    }
     if (source.contains(' д ') ||
         source.contains(' ч ') ||
         source.contains(' м ')) {
@@ -276,6 +282,24 @@ class L10n {
     "мм рт. ст.": "mmHg",
     "Меняет только отображение на панели и графиках. История и CSV хранятся в hPa.":
         "Changes the dashboard and charts only. History and CSV stay in hPa.",
+    "Ещё": "More",
+    "Настройка Wi-Fi": "Wi-Fi setup",
+    "Подключение платы к сети": "Connect the board to a network",
+    "COM-порт и параметры платы": "COM port and board settings",
+    "OTA и локальный .bin": "OTA and local .bin",
+    "Подключение, вид и единицы": "Connection, appearance and units",
+    "Текущие значения с выбранного контроллера":
+        "Latest values from the selected controller",
+    "Плата появится здесь, когда ответит в локальной сети или зарегистрируется на сервере.":
+        "The board appears here when it answers on the local network or registers with the server.",
+    "Искать устройства": "Find devices",
+    "Действия": "Actions",
+    "Сервер, плата и MQTT-брокер": "Server, board and MQTT broker",
+    "Тема и акцентный цвет": "Theme and accent color",
+    "Единицы отображения": "Display units",
+    "Журнал и язык": "Logs and language",
+    "Оформление рабочей области": "Workspace appearance",
+    "Версия и разработчик": "Version and developer",
     "Освещённость": "Illuminance",
     "Качество воздуха (IAQ)": "Air quality (IAQ)",
     "Точность IAQ": "IAQ accuracy",

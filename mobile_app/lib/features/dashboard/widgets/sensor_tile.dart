@@ -7,6 +7,7 @@ class SensorTile extends StatelessWidget {
   final double? value;
   final String unit;
   final IconData icon;
+  final Color? color;
 
   /// Optional small line under the value, for example the IAQ calibration
   /// level ("Калибровка 2/3"). Kept short so the tile still fits the grid.
@@ -26,6 +27,7 @@ class SensorTile extends StatelessWidget {
     required this.value,
     required this.unit,
     required this.icon,
+    this.color,
     this.caption,
     this.valueSuffix,
     this.decimals = 1,
@@ -33,75 +35,93 @@ class SensorTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final palette = AppPalette.of(context);
+    final accent = color ?? palette.primary;
+    final hasValue = value != null;
 
     return Container(
-      decoration: AppTheme.cardDecoration(darkMode: isDark),
-      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.cardDecoration(
+        darkMode: Theme.of(context).brightness == Brightness.dark,
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                icon,
-                color: AppTheme.primaryColor,
-                size: 24,
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: accent, size: 19),
               ),
+              const Spacer(),
               if (unit.isNotEmpty)
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: palette.surfaceAlt,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: palette.border),
                   ),
                   child: TrText(
                     unit,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.w700,
+                      color: palette.muted,
                     ),
                   ),
                 ),
             ],
           ),
           const Spacer(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: TrText(
+                  hasValue ? value!.toStringAsFixed(decimals) : '--',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
+                    color: hasValue ? palette.text : palette.faint,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              if (hasValue && valueSuffix != null) ...[
+                const SizedBox(width: 6),
+                Flexible(
+                  child: TrText(
+                    valueSuffix!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: palette.muted,
+                        ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 2),
           TrText(
             name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey,
+                  color: palette.muted,
+                  fontWeight: FontWeight.w600,
                 ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              TrText(
-                value != null ? value!.toStringAsFixed(decimals) : '--',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: value != null
-                          ? Theme.of(context).textTheme.headlineMedium?.color
-                          : Colors.grey,
-                    ),
-              ),
-              if (value != null && valueSuffix != null) ...[
-                const SizedBox(width: 6),
-                Text(
-                  valueSuffix!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey,
-                      ),
-                ),
-              ],
-            ],
           ),
           if (caption != null) ...[
             const SizedBox(height: 2),
@@ -109,9 +129,9 @@ class SensorTile extends StatelessWidget {
               caption!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     fontSize: 10,
-                    color: Colors.grey,
+                    color: palette.faint,
                   ),
             ),
           ],

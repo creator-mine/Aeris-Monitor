@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'core/i18n/l10n.dart';
 import 'shared/theme/app_theme.dart';
+import 'shared/widgets/tr_text.dart';
 import 'features/settings/providers/settings_provider.dart';
 import 'features/settings/providers/update_provider.dart';
 import 'features/settings/widgets/updates_section.dart';
@@ -28,6 +30,24 @@ class IoTApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<SettingsProvider>(
       builder: (context, settings, child) {
+        final accent = AppTheme.accentColors[settings.accentColorIndex
+            .clamp(0, AppTheme.accentColors.length - 1)];
+        final palette = settings.darkMode
+            ? AppTheme.darkPalette(accent)
+            : AppTheme.lightPalette(accent);
+        SystemChrome.setSystemUIOverlayStyle(
+          SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness:
+                settings.darkMode ? Brightness.light : Brightness.dark,
+            statusBarBrightness:
+                settings.darkMode ? Brightness.dark : Brightness.light,
+            systemNavigationBarColor: palette.background,
+            systemNavigationBarDividerColor: palette.border,
+            systemNavigationBarIconBrightness:
+                settings.darkMode ? Brightness.light : Brightness.dark,
+          ),
+        );
         return MaterialApp(
           title: 'Aeris Monitor',
           debugShowCheckedModeBanner: false,
@@ -153,6 +173,253 @@ class _MainNavigationState extends State<MainNavigation>
         const SmartHomeScreen(),
       ];
 
+  void _selectTab(int index) {
+    if (index == _currentIndex) return;
+    if (index == 1) {
+      final dashboardProvider = context.read<DashboardProvider>();
+      final selectedDevice = dashboardProvider.selectedDevice;
+      if (selectedDevice != null) {
+        context.read<ChartsProvider>().setSelectedDevice(
+              selectedDevice.id,
+              metrics: selectedDevice.allMetrics,
+              device: selectedDevice,
+            );
+      }
+    }
+    setState(() => _currentIndex = index);
+  }
+
+  int get _mobileIndex => switch (_currentIndex) {
+        0 => 0,
+        1 => 1,
+        2 => 2,
+        6 => 3,
+        _ => 4,
+      };
+
+  Future<void> _openMoreSheet(BuildContext context) async {
+    final palette = AppPalette.of(context);
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: palette.surface,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(_isMobile ? Icons.wifi : Icons.tune),
+                  title: TrText(
+                    _isMobile ? 'Настройка Wi-Fi' : 'Настройка устройства',
+                  ),
+                  subtitle: TrText(
+                    _isMobile
+                        ? 'Подключение платы к сети'
+                        : 'COM-порт и параметры платы',
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  onTap: () => Navigator.pop(sheetContext, 3),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.memory_outlined),
+                  title: const TrText('Прошивка'),
+                  subtitle: const TrText('OTA и локальный .bin'),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  onTap: () => Navigator.pop(sheetContext, 4),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.settings_outlined),
+                  title: const TrText('Настройки'),
+                  subtitle: const TrText('Подключение, вид и единицы'),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  onTap: () => Navigator.pop(sheetContext, 5),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (selected != null && mounted) _selectTab(selected);
+  }
+
+  Widget _buildRail(BuildContext context, bool extended) {
+    final palette = AppPalette.of(context);
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        border: Border(right: BorderSide(color: palette.border)),
+      ),
+      child: NavigationRail(
+        extended: extended,
+        minWidth: 78,
+        minExtendedWidth: 240,
+        groupAlignment: -0.86,
+        selectedIndex: _currentIndex,
+        onDestinationSelected: _selectTab,
+        labelType: extended
+            ? NavigationRailLabelType.none
+            : NavigationRailLabelType.all,
+        leading: Padding(
+          padding: const EdgeInsets.fromLTRB(0, 22, 0, 26),
+          child: Column(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [primary, palette.humidity],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  Icons.sensors,
+                  color: AppTheme.onAccent(primary),
+                  size: 26,
+                ),
+              ),
+              if (extended) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'AERIS',
+                  style: TextStyle(
+                    color: palette.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 3,
+                  ),
+                ),
+                Text(
+                  'MONITOR',
+                  style: TextStyle(
+                    color: palette.faint,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 4,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        trailing: Expanded(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 18),
+              child: extended
+                  ? Text(
+                      'v1.3.11',
+                      style: TextStyle(color: palette.faint, fontSize: 11),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
+        ),
+        destinations: [
+          NavigationRailDestination(
+            icon: const Icon(Icons.dashboard_outlined),
+            selectedIcon: const Icon(Icons.dashboard),
+            label: TrText(L10n.of(context, 'Главная')),
+          ),
+          NavigationRailDestination(
+            icon: const Icon(Icons.show_chart_outlined),
+            selectedIcon: const Icon(Icons.show_chart),
+            label: TrText(L10n.of(context, 'Графики')),
+          ),
+          NavigationRailDestination(
+            icon: const Icon(Icons.devices_other_outlined),
+            selectedIcon: const Icon(Icons.devices_other),
+            label: TrText(L10n.of(context, 'Устройства')),
+          ),
+          NavigationRailDestination(
+            icon: Icon(_isMobile ? Icons.wifi : Icons.tune),
+            selectedIcon: Icon(_isMobile ? Icons.wifi : Icons.tune),
+            label: TrText(
+              _isMobile ? 'Настройка Wi-Fi' : L10n.of(context, 'Настройка'),
+            ),
+          ),
+          NavigationRailDestination(
+            icon: const Icon(Icons.memory_outlined),
+            selectedIcon: const Icon(Icons.memory),
+            label: TrText(L10n.of(context, 'Прошивка')),
+          ),
+          NavigationRailDestination(
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings),
+            label: TrText(L10n.of(context, 'Настройки')),
+          ),
+          NavigationRailDestination(
+            icon: const Icon(Icons.smart_toy_outlined),
+            selectedIcon: const Icon(Icons.smart_toy),
+            label: TrText(L10n.of(context, 'Умный дом')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileNav(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        border: Border(top: BorderSide(color: palette.border)),
+      ),
+      child: NavigationBar(
+        backgroundColor: palette.surface,
+        selectedIndex: _mobileIndex,
+        onDestinationSelected: (index) {
+          if (index == 4) {
+            _openMoreSheet(context);
+          } else {
+            _selectTab(const [0, 1, 2, 6][index]);
+          }
+        },
+        destinations: [
+          NavigationDestination(
+            icon: const Icon(Icons.dashboard_outlined),
+            selectedIcon: const Icon(Icons.dashboard),
+            label: L10n.of(context, 'Главная'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.show_chart_outlined),
+            selectedIcon: const Icon(Icons.show_chart),
+            label: L10n.of(context, 'Графики'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.devices_other_outlined),
+            selectedIcon: const Icon(Icons.devices_other),
+            label: L10n.of(context, 'Устройства'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.smart_toy_outlined),
+            selectedIcon: const Icon(Icons.smart_toy),
+            label: L10n.of(context, 'Умный дом'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.grid_view_outlined),
+            selectedIcon: const Icon(Icons.grid_view_rounded),
+            label: L10n.of(context, 'Ещё'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<SettingsProvider>(
@@ -162,81 +429,34 @@ class _MainNavigationState extends State<MainNavigation>
             : settings.backgroundImagePath != null &&
                 File(settings.backgroundImagePath!).existsSync();
 
-        final narrow = MediaQuery.sizeOf(context).width < 600;
-        final veryNarrow = MediaQuery.sizeOf(context).width < 400;
+        final width = MediaQuery.sizeOf(context).width;
+        final useRail = width >= 900;
+        final extendedRail = width >= 1240;
+        final palette = AppPalette.of(context);
 
-        Widget scaffold = Scaffold(
-          body: _screens[_currentIndex],
-          bottomNavigationBar: NavigationBarTheme(
-            data: NavigationBarThemeData(
-              labelTextStyle: WidgetStatePropertyAll(
-                TextStyle(fontSize: veryNarrow ? 10 : 12),
-              ),
-            ),
-            child: NavigationBar(
-              selectedIndex: _currentIndex,
-              // Seven destinations do not fit labels on a phone width: only
-              // the active tab keeps its caption instead of wrapping every
-              // label. A slightly smaller caption also fits "Графики".
-              labelBehavior: narrow
-                  ? NavigationDestinationLabelBehavior.onlyShowSelected
-                  : NavigationDestinationLabelBehavior.alwaysShow,
-              onDestinationSelected: (index) {
-                if (index == 1) {
-                  final dashboardProvider = context.read<DashboardProvider>();
-                  final selectedDevice = dashboardProvider.selectedDevice;
-                  if (selectedDevice != null) {
-                    context.read<ChartsProvider>().setSelectedDevice(
-                          selectedDevice.id,
-                          metrics: selectedDevice.allMetrics,
-                          device: selectedDevice,
-                        );
-                  }
-                }
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-              destinations: [
-                NavigationDestination(
-                  icon: const Icon(Icons.dashboard_outlined),
-                  selectedIcon: const Icon(Icons.dashboard),
-                  label: L10n.of(context, 'Главная'),
+        Widget scaffold = useRail
+            ? Scaffold(
+                backgroundColor: palette.background,
+                body: Row(
+                  children: [
+                    _buildRail(context, extendedRail),
+                    Expanded(
+                      child: _LazyIndexedStack(
+                        index: _currentIndex,
+                        children: _screens,
+                      ),
+                    ),
+                  ],
                 ),
-                NavigationDestination(
-                  icon: const Icon(Icons.show_chart_outlined),
-                  selectedIcon: const Icon(Icons.show_chart),
-                  label: L10n.of(context, 'Графики'),
+              )
+            : Scaffold(
+                backgroundColor: palette.background,
+                body: _LazyIndexedStack(
+                  index: _currentIndex,
+                  children: _screens,
                 ),
-                NavigationDestination(
-                  icon: const Icon(Icons.devices_other_outlined),
-                  selectedIcon: const Icon(Icons.devices_other),
-                  label: L10n.of(context, 'Устройства'),
-                ),
-                NavigationDestination(
-                  icon: Icon(_isMobile ? Icons.wifi : Icons.tune),
-                  selectedIcon: Icon(_isMobile ? Icons.wifi : Icons.tune),
-                  label: _isMobile ? 'Wi-Fi' : L10n.of(context, 'Настройка'),
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.memory_outlined),
-                  selectedIcon: const Icon(Icons.memory),
-                  label: L10n.of(context, 'Прошивка'),
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.settings_outlined),
-                  selectedIcon: const Icon(Icons.settings),
-                  label: L10n.of(context, 'Настройки'),
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.smart_toy_outlined),
-                  selectedIcon: const Icon(Icons.smart_toy),
-                  label: L10n.of(context, 'Умный дом'),
-                ),
-              ],
-            ),
-          ),
-        );
+                bottomNavigationBar: _buildMobileNav(context),
+              );
 
         if (hasBackground) {
           scaffold = Stack(
@@ -262,6 +482,51 @@ class _MainNavigationState extends State<MainNavigation>
 
         return scaffold;
       },
+    );
+  }
+}
+
+/// Builds a tab the first time it is opened and then keeps it alive offstage,
+/// so scroll positions and loaded data survive tab switches without paying for
+/// every screen (and its network requests) on cold start.
+class _LazyIndexedStack extends StatefulWidget {
+  final int index;
+  final List<Widget> children;
+
+  const _LazyIndexedStack({
+    required this.index,
+    required this.children,
+  });
+
+  @override
+  State<_LazyIndexedStack> createState() => _LazyIndexedStackState();
+}
+
+class _LazyIndexedStackState extends State<_LazyIndexedStack> {
+  late final Set<int> _visited = {widget.index};
+
+  @override
+  void didUpdateWidget(covariant _LazyIndexedStack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _visited.add(widget.index);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        for (var i = 0; i < widget.children.length; i++)
+          Offstage(
+            offstage: i != widget.index,
+            child: TickerMode(
+              enabled: i == widget.index,
+              child: _visited.contains(i)
+                  ? widget.children[i]
+                  : const SizedBox.shrink(),
+            ),
+          ),
+      ],
     );
   }
 }

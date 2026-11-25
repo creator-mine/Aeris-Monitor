@@ -141,6 +141,6 @@ void main() {
     // 1000 hPa = 100.0 kPa, 1002 hPa = 100.2 kPa, average 100.1 kPa.
     expect(find.text('100.0 кПа'), findsOneWidget);
     expect(find.text('100.1 кПа'), findsOneWidget);
-    expect(find.text('100.2 кПа'), findsOneWidget);
+    expect(find.text('100.2 кПа'), findsWidgets);
   });
 }

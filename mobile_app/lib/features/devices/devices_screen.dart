@@ -5,9 +5,10 @@ import 'widgets/device_diagnostics_dialog.dart';
 import 'widgets/rename_device_dialog.dart';
 import '../../shared/widgets/app_scaffold.dart';
 import '../../shared/widgets/loading_indicator.dart';
-import '../../shared/widgets/error_widget.dart';
+import '../../shared/widgets/ui_kit.dart';
 import '../../shared/theme/app_theme.dart';
 import '../../shared/helpers/device_helper.dart';
+import '../../core/i18n/l10n.dart';
 import '../../models/device.dart';
 import '../logs/logs_screen.dart';
 import 'package:aeris/shared/widgets/tr_text.dart';
@@ -49,45 +50,68 @@ class _DevicesScreenState extends State<DevicesScreen> {
           }
 
           if (provider.error != null && provider.devices.isEmpty) {
-            return AppErrorWidget(
+            return EmptyState(
+              icon: Icons.wifi_off_rounded,
               title: 'Нет связи с устройствами',
               message: provider.error!,
-              onRetry: () => provider.loadDevices(),
-            );
-          }
-
-          if (provider.devices.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.devices_other, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  TrText(
-                    'Нет устройств',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  TrText(
-                    'Устройства регистрируются автоматически\nпри подключении к сети',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
+              action: FilledButton.icon(
+                onPressed: () => provider.loadDevices(),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const TrText('Повторить'),
               ),
             );
           }
 
+          if (provider.devices.isEmpty) {
+            return EmptyState(
+              icon: Icons.devices_other,
+              title: 'Нет устройств',
+              message: 'Устройства находятся автоматически в локальной сети '
+                  'или через сервер.',
+              action: FilledButton.icon(
+                onPressed: () => provider.refreshDevices(),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const TrText('Искать устройства'),
+              ),
+            );
+          }
+
+          final wide = MediaQuery.sizeOf(context).width >= 900;
           return RefreshIndicator(
             onRefresh: () => provider.refreshDevices(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: provider.devices.length,
-              itemBuilder: (context, index) {
-                final device = provider.devices[index];
-                return _buildDeviceCard(context, device, provider);
-              },
-            ),
+            child: wide
+                ? GridView.builder(
+                    padding: const EdgeInsets.all(20),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 430,
+                      mainAxisExtent: 200,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                    ),
+                    itemCount: provider.devices.length,
+                    itemBuilder: (context, index) {
+                      return _buildDeviceCard(
+                        context,
+                        provider.devices[index],
+                        provider,
+                      );
+                    },
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    itemCount: provider.devices.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildDeviceCard(
+                          context,
+                          provider.devices[index],
+                          provider,
+                        ),
+                      );
+                    },
+                  ),
           );
         },
       ),
@@ -96,192 +120,214 @@ class _DevicesScreenState extends State<DevicesScreen> {
 
   Widget _buildDeviceCard(
       BuildContext context, Device device, DevicesProvider provider) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: device.isOnline
-                ? AppTheme.successColor.withValues(alpha: 0.1)
-                : Colors.grey.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            DeviceHelper.getDeviceIcon(device.type),
-            color: device.isOnline ? AppTheme.successColor : Colors.grey,
-          ),
-        ),
-        title: TrText(
-          device.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            TrText(
-              'ID: ${device.id}',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color:
-                        device.isOnline ? AppTheme.successColor : Colors.grey,
-                    shape: BoxShape.circle,
+    final palette = AppPalette.of(context);
+    final online = device.isOnline;
+
+    return AppSurface(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: (online ? palette.success : palette.muted)
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: (online ? palette.success : palette.border)
+                        .withValues(alpha: 0.3),
                   ),
                 ),
-                const SizedBox(width: 6),
-                TrText(
-                  device.isOnline ? 'Онлайн' : 'Офлайн',
-                  style: TextStyle(
-                    color:
-                        device.isOnline ? AppTheme.successColor : Colors.grey,
-                    fontSize: 12,
-                  ),
+                child: Icon(
+                  DeviceHelper.getDeviceIcon(device.type),
+                  color: online ? palette.success : palette.muted,
+                  size: 24,
                 ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                TrText(
-                  device.firmwareVersion == null
-                      ? 'Прошивка: —'
-                      : 'Прошивка v${device.firmwareVersion}',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                ),
-                if (provider.isOutdated(device)) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.warningColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TrText(
+                      device.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.system_update_alt,
-                            size: 12, color: AppTheme.warningColor),
-                        SizedBox(width: 4),
-                        TrText(
-                          'обновление',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.warningColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 3),
+                    TrText(
+                      device.type.toUpperCase(),
+                      style: TextStyle(
+                        color: palette.faint,
+                        fontSize: 10,
+                        letterSpacing: 0.8,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-        trailing: PopupMenuButton(
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'rename',
-              child: Row(
-                children: [
-                  Icon(Icons.edit_outlined, size: 20),
-                  SizedBox(width: 8),
-                  TrText('Переименовать устройство'),
-                ],
-              ),
-            ),
-            if (device.isOnline)
-              const PopupMenuItem(
-                value: 'ota',
-                child: Row(
-                  children: [
-                    Icon(Icons.system_update_alt, size: 20),
-                    SizedBox(width: 8),
-                    TrText('Обновить прошивку'),
                   ],
                 ),
               ),
-            if (device.isOnline)
-              const PopupMenuItem(
-                value: 'diagnostics',
-                child: Row(
-                  children: [
-                    Icon(Icons.monitor_heart_outlined, size: 20),
-                    SizedBox(width: 8),
-                    TrText('Диагностика'),
-                  ],
-                ),
+              _buildDeviceMenu(context, device, provider),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              StatusPill(
+                label: online ? 'Онлайн' : 'Офлайн',
+                color: online ? palette.success : palette.faint,
+                compact: true,
               ),
-            if (device.isOnline && device.ip.isNotEmpty)
-              const PopupMenuItem(
-                value: 'logs',
-                child: Row(
-                  children: [
-                    Icon(Icons.terminal, size: 20),
-                    SizedBox(width: 8),
-                    TrText('Живые логи'),
-                  ],
-                ),
-              ),
-            if (device.isOnline)
-              const PopupMenuItem(
-                value: 'ota_rollback',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings_backup_restore, size: 20),
-                    SizedBox(width: 8),
-                    TrText('Откатить прошивку'),
-                  ],
-                ),
-              ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, size: 20, color: Colors.red),
-                  SizedBox(width: 8),
-                  TrText('Удалить', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-          ],
-          onSelected: (value) {
-            if (value == 'rename') {
-              _renameDevice(context, device, provider);
-            } else if (value == 'delete') {
-              _showDeleteConfirmation(context, device, provider);
-            } else if (value == 'ota') {
-              _showOtaDialog(context, device, provider);
-            } else if (value == 'ota_rollback') {
-              _showRollbackDialog(context, device, provider);
-            } else if (value == 'diagnostics') {
-              showDeviceDiagnostics(
+              _deviceMeta(context, Icons.tag, device.id),
+              _deviceMeta(
                 context,
-                device,
-                mqttStatus: provider.latestStatusFor(device.id),
-                mqttSdCard: provider.sdCardFor(device.id),
-              );
-            } else if (value == 'logs') {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (context) => LogsScreen(device: device),
-                ),
-              );
-            }
-          },
-        ),
+                Icons.memory_outlined,
+                device.firmwareVersion == null
+                    ? 'Прошивка: —'
+                    : 'v${device.firmwareVersion}',
+              ),
+              if (device.ip.isNotEmpty)
+                _deviceMeta(context, Icons.lan_outlined, device.ip),
+            ],
+          ),
+          if (provider.isOutdated(device)) ...[
+            const SizedBox(height: 10),
+            StatusPill(
+              label: 'обновление',
+              color: palette.warning,
+              icon: Icons.system_update_alt,
+              compact: true,
+            ),
+          ],
+        ],
       ),
+    );
+  }
+
+  Widget _deviceMeta(BuildContext context, IconData icon, String text) {
+    final palette = AppPalette.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: palette.faint),
+        const SizedBox(width: 5),
+        TrText(
+          text,
+          style: TextStyle(color: palette.muted, fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeviceMenu(
+    BuildContext context,
+    Device device,
+    DevicesProvider provider,
+  ) {
+    return PopupMenuButton<String>(
+      tooltip: L10n.of(context, 'Действия'),
+      icon: const Icon(Icons.more_vert, size: 20),
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'rename',
+          child: Row(
+            children: [
+              Icon(Icons.edit_outlined, size: 20),
+              SizedBox(width: 8),
+              TrText('Переименовать устройство'),
+            ],
+          ),
+        ),
+        if (device.isOnline)
+          const PopupMenuItem(
+            value: 'ota',
+            child: Row(
+              children: [
+                Icon(Icons.system_update_alt, size: 20),
+                SizedBox(width: 8),
+                TrText('Обновить прошивку'),
+              ],
+            ),
+          ),
+        if (device.isOnline)
+          const PopupMenuItem(
+            value: 'diagnostics',
+            child: Row(
+              children: [
+                Icon(Icons.monitor_heart_outlined, size: 20),
+                SizedBox(width: 8),
+                TrText('Диагностика'),
+              ],
+            ),
+          ),
+        if (device.isOnline && device.ip.isNotEmpty)
+          const PopupMenuItem(
+            value: 'logs',
+            child: Row(
+              children: [
+                Icon(Icons.terminal, size: 20),
+                SizedBox(width: 8),
+                TrText('Живые логи'),
+              ],
+            ),
+          ),
+        if (device.isOnline)
+          const PopupMenuItem(
+            value: 'ota_rollback',
+            child: Row(
+              children: [
+                Icon(Icons.settings_backup_restore, size: 20),
+                SizedBox(width: 8),
+                TrText('Откатить прошивку'),
+              ],
+            ),
+          ),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete, size: 20, color: Colors.red),
+              SizedBox(width: 8),
+              TrText('Удалить', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
+      onSelected: (value) {
+        if (value == 'rename') {
+          _renameDevice(context, device, provider);
+        } else if (value == 'delete') {
+          _showDeleteConfirmation(context, device, provider);
+        } else if (value == 'ota') {
+          _showOtaDialog(context, device, provider);
+        } else if (value == 'ota_rollback') {
+          _showRollbackDialog(context, device, provider);
+        } else if (value == 'diagnostics') {
+          showDeviceDiagnostics(
+            context,
+            device,
+            mqttStatus: provider.latestStatusFor(device.id),
+            mqttSdCard: provider.sdCardFor(device.id),
+          );
+        } else if (value == 'logs') {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => LogsScreen(device: device),
+            ),
+          );
+        }
+      },
     );
   }
 
