@@ -179,8 +179,7 @@ class ChartsProvider extends ChangeNotifier {
       _dataSeries[sensorType] = series;
     } on TimeoutException {
       if (_disposed || seq != _loadSeq) return;
-      _error =
-          'Устройство не ответило на запрос истории по MQTT. '
+      _error = 'Устройство не ответило на запрос истории по MQTT. '
           'Проверьте связь и повторите.';
     } on StateError catch (e) {
       if (_disposed || seq != _loadSeq) return;
@@ -189,15 +188,17 @@ class ChartsProvider extends ChangeNotifier {
       if (_disposed || seq != _loadSeq) return;
       if (_isConnectionError(e)) {
         final address = selected?.httpBaseUrl ?? 'устройству';
-        _error =
-            'Устройство не ответило на запрос истории ($address). '
+        _error = 'Устройство не ответило на запрос истории ($address). '
             'Данные с SD-карты временно недоступны — повторите попытку.';
       } else {
-        _error = e.message ?? e.toString();
+        debugPrint('Chart history request failed: ${e.message ?? e}');
+        _error = 'Не удалось загрузить историю. Проверьте подключение '
+            'к устройству и повторите.';
       }
     } catch (e) {
       if (_disposed || seq != _loadSeq) return;
-      _error = e.toString();
+      debugPrint('Chart history request failed: $e');
+      _error = 'Не удалось загрузить историю. Повторите попытку.';
     } finally {
       if (!_disposed && seq == _loadSeq) {
         _isLoading = false;
