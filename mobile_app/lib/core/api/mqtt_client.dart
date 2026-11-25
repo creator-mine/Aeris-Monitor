@@ -56,26 +56,27 @@ class MqttService {
 
   /// Requests SD-card history from the device over MQTT. The firmware sends
   /// back small chunks on `iot/<id>/sensors/history`; they are reassembled by
-  /// `request_id` and returned as normal chart points.
-  Future<List<SensorDataPoint>> requestHistory(
+  /// `request_id` and returned as a chart series (with coverage metadata).
+  Future<SensorDataSeries> requestHistory(
     String deviceId,
     String sensorType, {
     required DateTime since,
     int limit = 500,
+    int maxPoints = 0,
   }) {
     if (!_isConnected || _client == null) {
-      return Future<List<SensorDataPoint>>.error(
+      return Future<SensorDataSeries>.error(
         StateError('MQTT не подключён'),
       );
     }
     if (deviceId.isEmpty || sensorType.isEmpty) {
-      return Future<List<SensorDataPoint>>.error(
+      return Future<SensorDataSeries>.error(
         StateError('Не выбрано устройство или датчик'),
       );
     }
 
     final requestId = 'h${DateTime.now().microsecondsSinceEpoch}';
-    final pending = _PendingHistory();
+    final pending = _PendingHistory()..sensorType = sensorType;
     _pendingHistory[requestId] = pending;
     pending.timer = Timer(const Duration(seconds: 25), () {
       final timedOut = _pendingHistory.remove(requestId);
@@ -92,6 +93,7 @@ class MqttService {
       'sensor': sensorType,
       'since': since.millisecondsSinceEpoch,
       'limit': limit > 500 ? 500 : limit,
+      if (maxPoints > 0) 'max_points': maxPoints > 500 ? 500 : maxPoints,
     });
     return pending.completer.future;
   }
@@ -124,6 +126,13 @@ class MqttService {
       final error = decoded['error']?.toString();
       if (error != null && error.isNotEmpty) pending.error = error;
 
+      pending.partial = decoded['partial'] == true;
+      final coveredRaw = decoded['covered_since'];
+      if (coveredRaw is num && coveredRaw > 0) {
+        pending.coveredSince =
+            DateTime.fromMillisecondsSinceEpoch(coveredRaw.toInt());
+      }
+
       if (decoded['last'] != true) return;
       _pendingHistory.remove(requestId);
       pending.timer?.cancel();
@@ -137,7 +146,15 @@ class MqttService {
           ),
         );
       } else {
-        pending.completer.complete(pending.points);
+        pending.completer.complete(
+          SensorDataSeries(
+            sensorType: pending.sensorType,
+            unit: '',
+            points: pending.points,
+            partial: pending.partial,
+            coveredSince: pending.coveredSince,
+          ),
+        );
       }
     } catch (_) {
       // A malformed chunk should not kill the MQTT loop; the request times out.
@@ -489,8 +506,10 @@ class _CachedStatus {
 
 class _PendingHistory {
   final List<SensorDataPoint> points = [];
-  final Completer<List<SensorDataPoint>> completer =
-      Completer<List<SensorDataPoint>>();
+  final Completer<SensorDataSeries> completer = Completer<SensorDataSeries>();
   Timer? timer;
   String? error;
+  String sensorType = '';
+  bool partial = false;
+  DateTime? coveredSince;
 }

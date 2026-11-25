@@ -28,6 +28,10 @@ class ChartsProvider extends ChangeNotifier {
   List<MetricInfo> _deviceMetrics = [];
   int _loadSeq = 0;
 
+  /// Aggregated history: the device averages the selected range into at most
+  /// this many time buckets, so 1h/24h/30d all cover the full period.
+  static const int historyMaxPoints = 300;
+
   // Multi-device comparison state (deviceId -> series / name).
   Map<String, SensorDataSeries> _compareSeries = {};
   Map<String, String> _compareNames = {};
@@ -153,6 +157,7 @@ class ChartsProvider extends ChangeNotifier {
             sensorType,
             since: _timeRange.start,
             limit: _calculateLimit(),
+            maxPoints: historyMaxPoints,
           );
         } on DioException catch (e) {
           // LAN is unreachable (for example the phone is on mobile data):
@@ -163,6 +168,7 @@ class ChartsProvider extends ChangeNotifier {
             sensorType,
             since: _timeRange.start,
             limit: _calculateLimit(),
+            maxPoints: historyMaxPoints,
           );
         }
       } else {
@@ -171,6 +177,7 @@ class ChartsProvider extends ChangeNotifier {
           sensorType,
           since: _timeRange.start,
           limit: _calculateLimit(),
+          maxPoints: historyMaxPoints,
         );
       }
       // A newer request (device/sensor/range change) may have started while
@@ -220,6 +227,7 @@ class ChartsProvider extends ChangeNotifier {
     String sensorType, {
     required DateTime since,
     required int limit,
+    int maxPoints = 0,
   }) async {
     try {
       return await client.getHistory(
@@ -227,6 +235,7 @@ class ChartsProvider extends ChangeNotifier {
         unit: getSensorUnit(sensorType),
         since: since,
         limit: limit,
+        maxPoints: maxPoints,
       );
     } on DioException catch (e) {
       if (!_isConnectionError(e)) rethrow;
@@ -236,6 +245,7 @@ class ChartsProvider extends ChangeNotifier {
         unit: getSensorUnit(sensorType),
         since: since,
         limit: limit,
+        maxPoints: maxPoints,
       );
     }
   }
@@ -245,21 +255,25 @@ class ChartsProvider extends ChangeNotifier {
     String sensorType, {
     required DateTime since,
     required int limit,
+    int maxPoints = 0,
   }) async {
     final mqtt = _mqtt;
     if (mqtt == null || !mqtt.isConnected) {
       throw StateError('MQTT не подключён');
     }
-    final points = await mqtt.requestHistory(
+    final series = await mqtt.requestHistory(
       deviceId,
       sensorType,
       since: since,
       limit: limit,
+      maxPoints: maxPoints,
     );
     return SensorDataSeries(
       sensorType: sensorType,
       unit: getSensorUnit(sensorType),
-      points: points,
+      points: series.points,
+      partial: series.partial,
+      coveredSince: series.coveredSince,
     );
   }
 
@@ -331,6 +345,7 @@ class ChartsProvider extends ChangeNotifier {
               unit: _unitFor(sensorType, device),
               since: range.start,
               limit: _calculateLimit(range),
+              maxPoints: historyMaxPoints,
             );
             if (series.points.isNotEmpty) {
               results[device.id] = series;

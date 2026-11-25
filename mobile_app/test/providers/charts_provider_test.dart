@@ -10,13 +10,20 @@ class _FakeMqtt extends MqttService {
   bool get isConnected => true;
 
   @override
-  Future<List<SensorDataPoint>> requestHistory(
+  Future<SensorDataSeries> requestHistory(
     String deviceId,
     String sensorType, {
     required DateTime since,
     int limit = 500,
+    int maxPoints = 0,
   }) async {
-    return [SensorDataPoint(timestamp: DateTime(2026, 11, 24, 10), value: 42)];
+    return SensorDataSeries(
+      sensorType: sensorType,
+      unit: '',
+      points: [
+        SensorDataPoint(timestamp: DateTime(2026, 11, 24, 10), value: 42),
+      ],
+    );
   }
 }
 

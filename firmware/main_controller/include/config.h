@@ -97,7 +97,7 @@
 // Over-the-Air firmware updates (pulled over HTTPS from the public site).
 // Each board pulls its own binary + manifest (per-device_type files).
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "1.4.4"
+#define FIRMWARE_VERSION "1.4.5"
 #endif
 #ifndef OTA_FW_HOST
 #define OTA_FW_HOST "spe4naz.online"
@@ -191,6 +191,14 @@
 // ESP32-S3 overrides via build_flags: CS 10 (SPI default SCK12/MISO11/MOSI13).
 #ifndef SD_CS
 #define SD_CS 10
+#endif
+
+// SPI clock for the card. 10 MHz is still conservative for typical boards but
+// roughly 2.5x faster than the 4 MHz Arduino default, which matters when a
+// month of history has to be scanned on demand. sdInit() falls back to 4 MHz
+// if the card refuses to mount.
+#ifndef SD_SPI_FREQUENCY
+#define SD_SPI_FREQUENCY 10000000
 #endif
 
 // Relay / actuator output. ESP32-C3 default: GPIO3, active HIGH.

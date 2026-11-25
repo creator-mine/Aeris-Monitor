@@ -217,18 +217,39 @@ void mqttPublishRelay() {
 // them by request_id. The topic lives under sensors/ so the existing app ACL
 // (iot/+/sensors/#) already covers it.
 void mqttPublishHistory(const String& requestId, const String& sensor,
-                        uint64_t since, uint16_t limit) {
+                        uint64_t since, uint16_t limit, uint16_t maxPoints) {
     if (!mqttReady()) return;
     if (limit == 0 || limit > 500) limit = 500;
+    if (maxPoints > 500) maxPoints = 500;
 
-    String json = WebServer::buildHistoryJsonFor(sensor, since, limit, true);
-    const String prefix = "{\"points\":[";
+    String json =
+        WebServer::buildHistoryJsonFor(sensor, since, limit, true, maxPoints);
+
+    // Aggregated replies now carry metadata after the array, so locate the
+    // points array explicitly instead of assuming the whole document is one.
     String inner;
-    if (json.startsWith(prefix) && json.endsWith("]}")) {
-        inner = json.substring(prefix.length(), json.length() - 2);
+    const int pStart = json.indexOf("\"points\":[");
+    if (pStart >= 0) {
+        const int begin = pStart + 10;  // length of "points":[
+        const int pEnd = json.indexOf(']', begin);
+        if (pEnd > begin) inner = json.substring(begin, pEnd);
     }
 
     const char* error = sdMounted ? "" : "no_card";
+
+    // Coverage metadata produced by the aggregated scanner; repeat it on every
+    // chunk so the app can show a "data from ..." notice over MQTT too.
+    uint64_t coveredSince = 0;
+    bool partial = false;
+    const int csPos = json.indexOf("\"covered_since\":");
+    if (csPos >= 0) {
+        coveredSince = strtoull(json.c_str() + csPos + 16, nullptr, 10);
+    }
+    const int pfPos = json.indexOf("\"partial\":");
+    if (pfPos >= 0) {
+        partial = json.substring(pfPos + 10, pfPos + 14) == "true";
+    }
+
     auto publishChunk = [&](const String& body, bool last, uint16_t chunk) {
         String payload = "{";
         payload += "\"device_id\":\"" + deviceId + "\",";
@@ -237,6 +258,10 @@ void mqttPublishHistory(const String& requestId, const String& sensor,
         payload += "\"chunk\":" + String(chunk) + ",";
         payload += "\"last\":" + String(last ? "true" : "false") + ",";
         if (error[0] != '\0') payload += "\"error\":\"" + String(error) + "\",";
+        payload += "\"covered_since\":" + String(coveredSince) + ",";
+        payload += "\"partial\":";
+        payload += partial ? "true" : "false";
+        payload += ",";
         payload += "\"points\":[" + body + "]}";
         if (!mqtt.publish(mqttTopic("sensors/history").c_str(), payload.c_str())) {
             Serial.println("[MQTT] History chunk publish failed");
@@ -277,8 +302,9 @@ void mqttPublishHistory(const String& requestId, const String& sensor,
     }
     if (!buffer.isEmpty()) publishChunk(buffer, false, chunk++);
     publishChunk("", true, chunk);
-    Serial.printf("[MQTT] History %s: %u chunk(s), limit %u\n",
-                  sensor.c_str(), (unsigned)chunk + 1, (unsigned)limit);
+    Serial.printf("[MQTT] History %s: %u chunk(s), limit %u, max_points %u\n",
+                  sensor.c_str(), (unsigned)chunk + 1, (unsigned)limit,
+                  (unsigned)maxPoints);
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -372,7 +398,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
                 String sensor = String((const char*)(doc["sensor"] | ""));
                 uint64_t since = (uint64_t)(doc["since"] | 0ULL);
                 uint16_t limit = (uint16_t)(doc["limit"] | 500);
-                mqttPublishHistory(requestId, sensor, since, limit);
+                uint16_t maxPoints = (uint16_t)(doc["max_points"] | 0);
+                mqttPublishHistory(requestId, sensor, since, limit, maxPoints);
                 return;
             }
         }
@@ -797,19 +824,34 @@ void sdRotateCleanup() {
 }
 
 bool sdInit() {
-    if (!SD.begin(SD_CS)) {
-        Serial.println("[SD] Mount failed");
-        LOG_INFO("SD", "Mount failed");
-        return false;
+    // A card that dropped out or failed its first init often recovers after a
+    // fresh CMD0/SD.end() cycle. Try the preferred clock first, then fall back
+    // to the conservative 4 MHz default so a flaky card still mounts.
+    static const uint32_t kFrequencies[] = {SD_SPI_FREQUENCY, 4000000};
+    for (int attempt = 1; attempt <= 3; attempt++) {
+        const uint32_t freq = kFrequencies[(attempt - 1) % 2];
+        if (SD.begin(SD_CS, SPI, freq)) {
+            Serial.print("[SD] Type: ");
+            Serial.print(SD.cardType() == CARD_SDHC ? "SDHC" : SD.cardType() == CARD_SD ? "SD" : "Unknown");
+            Serial.print(" Size: ");
+            Serial.print(SD.totalBytes() / (1024 * 1024));
+            Serial.print(" MB @ ");
+            Serial.print(freq / 1000000);
+            Serial.println(" MHz");
+            sdMounted = true;
+            LOG_INFO("SD", "Mounted, %llu MB total at %lu MHz",
+                     SD.totalBytes() / (1024 * 1024),
+                     (unsigned long)(freq / 1000000));
+            return true;
+        }
+        Serial.printf("[SD] Mount attempt %d failed (%lu MHz)\n", attempt,
+                      (unsigned long)(freq / 1000000));
+        SD.end();
+        delay(500);
     }
-    Serial.print("[SD] Type: ");
-    Serial.print(SD.cardType() == CARD_SDHC ? "SDHC" : SD.cardType() == CARD_SD ? "SD" : "Unknown");
-    Serial.print(" Size: ");
-    Serial.print(SD.totalBytes() / (1024 * 1024));
-    Serial.println(" MB");
-    sdMounted = true;
-    LOG_INFO("SD", "Mounted, %llu MB total", SD.totalBytes() / (1024 * 1024));
-    return true;
+    Serial.println("[SD] Mount failed");
+    LOG_INFO("SD", "Mount failed");
+    return false;
 }
 
 void sdSave(const char* sensorType, float value, const char* unit) {
@@ -1044,6 +1086,13 @@ void loop() {
             mqttPublishStatus();
         }
         WebServer::instance().broadcastStatus();
+    }
+
+    // Recover a card that failed to mount at boot or dropped out at runtime.
+    static unsigned long lastSdRetry = 0;
+    if (!sdMounted && millis() - lastSdRetry > 60000) {
+        lastSdRetry = millis();
+        sdInit();
     }
 
     StatusLed::update();

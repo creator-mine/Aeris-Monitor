@@ -256,6 +256,11 @@
               <td class="mono">1000</td>
               <td data-ru="Сколько точек вернуть" data-en="How many points to return">Сколько точек</td>
             </tr>
+            <tr>
+              <td class="mono">max_points</td>
+              <td class="mono">0</td>
+              <td data-ru="Прореживание: разбить весь период since…сейчас на столько временных корзин и вернуть среднее в каждой. 0 — выключено" data-en="Downsampling: split the whole since…now period into this many time buckets and return the average of each. 0 disables it">Прореживание по времени</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -265,7 +270,7 @@
       <div class="callout info">
         <div class="co-ic">🔢</div>
         <div class="co-body">
-          <p data-ru="Чтение с карты ограничено по времени: просматривается не больше 4096 строк за запрос. На медленной карте это заметно ограничивает глубину выборки, поэтому для больших периодов надёжнее MQTT или экспорт CSV." data-en="Reading is time-bounded: at most 4096 lines are scanned per request. On a slow card that noticeably caps how deep a query can go, so for long periods MQTT or a CSV export is more reliable.">За просмотр не больше 4096 строк.</p>
+          <p data-ru-html="С <code>max_points</code> ответ покрывает весь выбранный интервал, а не только последние точки: прошивка читает карту порциями и усредняет выборку в корзины. Ответ содержит <code>points</code>, а также <code>covered_since</code> (самая старая реально найденная точка) и <code>partial</code> (true, если данных за начало периода на карте уже нет). График строит ось X по меткам времени, поэтому редкие точки не выглядят как сплошная линия." data-en-html="With <code>max_points</code> the reply covers the whole selected interval instead of only the newest points: the firmware scans the card in blocks and averages samples into buckets. The reply contains <code>points</code> plus <code>covered_since</code> (the oldest point actually found) and <code>partial</code> (true when the card no longer has data for the start of the period). The chart uses timestamp positions on the X axis, so sparse points are not drawn as a continuous line.">Прореживание покрывает весь период.</p>
         </div>
       </div>
 
@@ -282,7 +287,7 @@
   "limit": 500
 }</code></pre>
 
-      <p data-ru-html="Ответ приходит в <code>iot/&lt;id&gt;/sensors/history</code> несколькими чанками до 1,2 КБ. В каждом есть <code>request_id</code>, <code>sensor</code>, <code>chunk</code>, <code>last</code> и <code>points</code>. Последний чанк имеет <code>last: true</code>, в нём может быть пустой массив. Если карта не смонтирована, приходит <code>error: "no_card"</code>. Один запрос отдаёт не больше 500 точек." data-en-html="The reply arrives on <code>iot/&lt;id&gt;/sensors/history</code> in chunks of up to 1.2 KB. Each has <code>request_id</code>, <code>sensor</code>, <code>chunk</code>, <code>last</code> and <code>points</code>. The final chunk has <code>last: true</code> and may contain an empty array. If the card is not mounted, <code>error: "no_card"</code> is included. One request returns at most 500 points.">Ответ приходит чанками.</p>
+      <p data-ru-html="Ответ приходит в <code>iot/&lt;id&gt;/sensors/history</code> несколькими чанками до 1,2 КБ. В каждом есть <code>request_id</code>, <code>sensor</code>, <code>chunk</code>, <code>last</code>, <code>covered_since</code>, <code>partial</code> и <code>points</code>. Последний чанк имеет <code>last: true</code>, в нём может быть пустой массив. Если карта не смонтирована, приходит <code>error: "no_card"</code>. Один запрос отдаёт не больше 500 точек; <code>max_points</code> включает прореживание так же, как по HTTP." data-en-html="The reply arrives on <code>iot/&lt;id&gt;/sensors/history</code> in chunks of up to 1.2 KB. Each has <code>request_id</code>, <code>sensor</code>, <code>chunk</code>, <code>last</code>, <code>covered_since</code>, <code>partial</code> and <code>points</code>. The final chunk has <code>last: true</code> and may contain an empty array. If the card is not mounted, <code>error: "no_card"</code> is included. One request returns at most 500 points; <code>max_points</code> enables the same downsampling as over HTTP.">Ответ приходит чанками.</p>
 
       <h3 id="wifi-http" data-ru="Wi-Fi" data-en="Wi-Fi">Wi-Fi</h3>
 

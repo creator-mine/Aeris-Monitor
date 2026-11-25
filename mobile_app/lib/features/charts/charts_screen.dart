@@ -350,6 +350,15 @@ class _ChartsScreenState extends State<ChartsScreen> {
     return _convertsPressure(provider) ? unit.axisDecimals : 1;
   }
 
+  String _formatAxisTime(double milliseconds, Duration span) {
+    final value = DateTime.fromMillisecondsSinceEpoch(milliseconds.round());
+    String two(int v) => v.toString().padLeft(2, '0');
+    if (span.inHours < 24) {
+      return '${two(value.hour)}:${two(value.minute)}';
+    }
+    return '${two(value.day)}.${two(value.month)}';
+  }
+
   int _decimalsForStep(double step) {
     if (step >= 1) return 0;
     if (step >= 0.1) return 1;
@@ -480,6 +489,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildStatsRow(context, provider, series, pressureUnit),
+          if (series.partial) ...[
+            const SizedBox(height: 12),
+            _buildCoverageNotice(context, series),
+          ],
           const SizedBox(height: 14),
           Expanded(
             child: AppSurface(
@@ -499,6 +512,42 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCoverageNotice(
+    BuildContext context,
+    SensorDataSeries series,
+  ) {
+    final palette = AppPalette.of(context);
+    String two(int v) => v.toString().padLeft(2, '0');
+    final since = series.coveredSince?.toLocal();
+    final label = since == null
+        ? 'На устройстве нет данных за весь выбранный период.'
+        : 'Данные на карте начинаются с '
+            '${two(since.day)}.${two(since.month)} '
+            '${two(since.hour)}:${two(since.minute)} — '
+            'более старые точки уже удалены.';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.border),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 16, color: palette.muted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TrText(
+              label,
+              style: TextStyle(fontSize: 12, color: palette.muted),
             ),
           ),
         ],
@@ -661,8 +710,16 @@ class _ChartsScreenState extends State<ChartsScreen> {
   ) {
     final displayMin = _displayValue(provider, pressureUnit, series.minValue);
     final displayMax = _displayValue(provider, pressureUnit, series.maxValue);
-    final pointCount = series.points.length;
-    final safePointCount = pointCount == 0 ? 1.0 : pointCount.toDouble();
+    final firstTs = series.points.isEmpty
+        ? 0.0
+        : series.points.first.timestamp.millisecondsSinceEpoch.toDouble();
+    final lastTs = series.points.isEmpty
+        ? 0.0
+        : series.points.last.timestamp.millisecondsSinceEpoch.toDouble();
+    final spanMs = lastTs - firstTs;
+    final safeSpan = spanMs > 0 ? spanMs : 1.0;
+    final xInterval = safeSpan / 5;
+    final span = Duration(milliseconds: safeSpan.round());
     final unit = _displayUnit(context, provider, pressureUnit);
     final axisDecimals = _axisDecimals(provider, pressureUnit);
     final axis = _niceAxis(displayMin, displayMax);
@@ -678,7 +735,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           show: true,
           drawVerticalLine: true,
           horizontalInterval: axis.step,
-          verticalInterval: safePointCount / 5,
+          verticalInterval: xInterval,
           getDrawingHorizontalLine: (value) {
             return FlLine(
               color: palette.border.withValues(alpha: 0.7),
@@ -704,16 +761,15 @@ class _ChartsScreenState extends State<ChartsScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 30,
-              interval: safePointCount / 5,
+              interval: xInterval,
               getTitlesWidget: (value, meta) {
-                if (value.toInt() >= series.points.length) {
+                if (value < firstTs || value > lastTs) {
                   return const TrText('');
                 }
-                final point = series.points[value.toInt()];
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: TrText(
-                    '${point.timestamp.hour}:${point.timestamp.minute.toString().padLeft(2, '0')}',
+                    _formatAxisTime(value, span),
                     style: TextStyle(fontSize: 11, color: palette.muted),
                   ),
                 );
@@ -743,16 +799,16 @@ class _ChartsScreenState extends State<ChartsScreen> {
             getTooltipItems: _tooltipItems(unit, labelDecimals),
           ),
         ),
-        minX: 0,
-        maxX: pointCount > 0 ? pointCount.toDouble() - 1 : 1,
+        minX: firstTs,
+        maxX: lastTs > firstTs ? lastTs : firstTs + 1,
         minY: axis.min,
         maxY: axis.max,
         lineBarsData: [
           LineChartBarData(
-            spots: series.points.asMap().entries.map<FlSpot>((entry) {
+            spots: series.points.map<FlSpot>((point) {
               return FlSpot(
-                entry.key.toDouble(),
-                _displayValue(provider, pressureUnit, entry.value.value),
+                point.timestamp.millisecondsSinceEpoch.toDouble(),
+                _displayValue(provider, pressureUnit, point.value),
               );
             }).toList(),
             isCurved: true,
@@ -846,11 +902,17 @@ class _ChartsScreenState extends State<ChartsScreen> {
     final entries = provider.compareSeries.entries.toList();
     var minValue = 0.0;
     var maxValue = 1.0;
-    var maxLength = 0;
+    var minTs = double.infinity;
+    var maxTs = double.negativeInfinity;
     for (final entry in entries) {
       final series = entry.value;
       if (series.points.isEmpty) continue;
-      if (series.points.length > maxLength) maxLength = series.points.length;
+      final firstTs =
+          series.points.first.timestamp.millisecondsSinceEpoch.toDouble();
+      final lastTs =
+          series.points.last.timestamp.millisecondsSinceEpoch.toDouble();
+      if (firstTs < minTs) minTs = firstTs;
+      if (lastTs > maxTs) maxTs = lastTs;
       final seriesMin = _displayValue(provider, pressureUnit, series.minValue);
       final seriesMax = _displayValue(provider, pressureUnit, series.maxValue);
       minValue = minValue == 0
@@ -864,7 +926,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
               ? maxValue
               : seriesMax;
     }
-    final safeLength = maxLength == 0 ? 1.0 : maxLength.toDouble();
+    if (!minTs.isFinite) minTs = 0;
+    if (!maxTs.isFinite) maxTs = 1;
+    final spanMs = maxTs - minTs;
+    final safeSpan = spanMs > 0 ? spanMs : 1.0;
+    final xInterval = safeSpan / 5;
+    final span = Duration(milliseconds: safeSpan.round());
     final unit = _displayUnit(context, provider, pressureUnit);
     final axisDecimals = _axisDecimals(provider, pressureUnit);
     final axis = _niceAxis(minValue, maxValue);
@@ -879,7 +946,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           show: true,
           drawVerticalLine: true,
           horizontalInterval: axis.step,
-          verticalInterval: safeLength / 5,
+          verticalInterval: xInterval,
           getDrawingHorizontalLine: (value) => FlLine(
             color: palette.border.withValues(alpha: 0.7),
             strokeWidth: 1,
@@ -901,17 +968,15 @@ class _ChartsScreenState extends State<ChartsScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 30,
-              interval: safeLength / 5,
+              interval: xInterval,
               getTitlesWidget: (value, meta) {
-                final longest = _longestSeries(entries);
-                if (longest == null || value.toInt() >= longest.points.length) {
+                if (value < minTs || value > maxTs) {
                   return const TrText('');
                 }
-                final point = longest.points[value.toInt()];
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: TrText(
-                    '${point.timestamp.hour}:${point.timestamp.minute.toString().padLeft(2, '0')}',
+                    _formatAxisTime(value, span),
                     style: TextStyle(fontSize: 11, color: palette.muted),
                   ),
                 );
@@ -939,8 +1004,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
             getTooltipItems: _tooltipItems(unit, labelDecimals),
           ),
         ),
-        minX: 0,
-        maxX: safeLength - 1,
+        minX: minTs,
+        maxX: maxTs > minTs ? maxTs : minTs + 1,
         minY: axis.min,
         maxY: axis.max,
         lineBarsData: [
@@ -949,12 +1014,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
               spots: entries[i]
                   .value
                   .points
-                  .asMap()
-                  .entries
                   .map(
-                    (entry) => FlSpot(
-                      entry.key.toDouble(),
-                      _displayValue(provider, pressureUnit, entry.value.value),
+                    (point) => FlSpot(
+                      point.timestamp.millisecondsSinceEpoch.toDouble(),
+                      _displayValue(provider, pressureUnit, point.value),
                     ),
                   )
                   .toList(),
@@ -967,19 +1030,6 @@ class _ChartsScreenState extends State<ChartsScreen> {
         ],
       ),
     );
-  }
-
-  SensorDataSeries? _longestSeries(
-    List<MapEntry<String, SensorDataSeries>> entries,
-  ) {
-    SensorDataSeries? longest;
-    for (final entry in entries) {
-      if (longest == null ||
-          entry.value.points.length > longest.points.length) {
-        longest = entry.value;
-      }
-    }
-    return longest;
   }
 
   Future<void> _openCompareDialog(BuildContext context) async {

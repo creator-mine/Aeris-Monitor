@@ -73,16 +73,23 @@ class DirectDeviceClient {
     String? unit,
     DateTime? since,
     int limit = 1000,
+    int maxPoints = 0,
   }) async {
     final query = <String, dynamic>{
       'type': sensorType,
       'limit': limit,
     };
     if (since != null) query['since'] = since.millisecondsSinceEpoch;
+    if (maxPoints > 0) query['max_points'] = maxPoints;
 
     final response = await _dio.get(
       '/api/v1/sensors/history',
       queryParameters: query,
+      // A full-range aggregated scan can take several seconds on a slow SD
+      // card, so history gets a much longer budget than status calls.
+      options: Options(
+        receiveTimeout: const Duration(seconds: 30),
+      ),
     );
 
     final data = response.data as Map<String, dynamic>;
@@ -95,10 +102,17 @@ class DirectDeviceClient {
       );
     }).toList();
 
+    final coveredRaw = data['covered_since'];
+    final coveredSince = (coveredRaw is num && coveredRaw > 0)
+        ? DateTime.fromMillisecondsSinceEpoch(coveredRaw.toInt())
+        : null;
+
     return SensorDataSeries(
       sensorType: sensorType,
       unit: unit ?? '',
       points: points,
+      partial: data['partial'] == true,
+      coveredSince: coveredSince,
     );
   }
 

@@ -90,16 +90,36 @@ class SensorDataSeries extends Equatable {
   final String unit;
   final List<SensorDataPoint> points;
 
+  /// True when the device could not reach back to the requested start (older
+  /// data was rotated away or the scan budget ran out). [coveredSince] is the
+  /// timestamp of the oldest point actually returned.
+  final bool partial;
+  final DateTime? coveredSince;
+
   const SensorDataSeries({
     required this.sensorType,
     required this.unit,
     required this.points,
+    this.partial = false,
+    this.coveredSince,
   });
 
-  double get minValue => points.isEmpty ? 0 : points.map((p) => p.value).reduce((a, b) => a < b ? a : b);
-  double get maxValue => points.isEmpty ? 0 : points.map((p) => p.value).reduce((a, b) => a > b ? a : b);
-  double get avgValue => points.isEmpty ? 0 : points.map((p) => p.value).reduce((a, b) => a + b) / points.length;
+  double get minValue => points.isEmpty
+      ? 0
+      : points.map((p) => p.value).reduce((a, b) => a < b ? a : b);
+  double get maxValue => points.isEmpty
+      ? 0
+      : points.map((p) => p.value).reduce((a, b) => a > b ? a : b);
+  double get avgValue => points.isEmpty
+      ? 0
+      : points.map((p) => p.value).reduce((a, b) => a + b) / points.length;
 
   @override
-  List<Object?> get props => [sensorType, unit, points];
+  List<Object?> get props => [
+        sensorType,
+        unit,
+        points,
+        partial,
+        coveredSince,
+      ];
 }

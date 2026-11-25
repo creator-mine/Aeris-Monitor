@@ -21,7 +21,8 @@ public:
     /// when called from the main loop (the MQTT callback), so a long scan does
     /// not trip the task watchdog; HTTP runs on async_tcp and yields instead.
     static String buildHistoryJsonFor(const String& filterType, uint64_t since,
-                                      uint16_t limit, bool resetWatchdog = false);
+                                      uint16_t limit, bool resetWatchdog = false,
+                                      uint16_t maxPoints = 0);
 
 private:
     WebServer() = default;
