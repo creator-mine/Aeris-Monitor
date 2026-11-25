@@ -26,7 +26,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "online.spe4naz.aeris"
+        // Preview branch: installs next to the stable Aeris Monitor build.
+        applicationId = "online.spe4naz.aeris.preview"
         minSdk = flutter.minSdkVersion
         targetSdk = 35
         versionCode = flutter.versionCode

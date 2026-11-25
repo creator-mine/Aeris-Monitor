@@ -281,8 +281,24 @@ void Win32Window::UpdateTheme(HWND const window) {
                                &light_mode_size);
 
   if (result == ERROR_SUCCESS) {
-    BOOL enable_dark_mode = light_mode == 0;
+    // The preview build uses the dark Aeris chrome even when Windows apps are
+    // configured for light mode.
+    BOOL enable_dark_mode = TRUE;
+    (void)light_mode;
     DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE,
                           &enable_dark_mode, sizeof(enable_dark_mode));
+
+#ifndef DWMWA_CAPTION_COLOR
+#define DWMWA_CAPTION_COLOR 35
+#endif
+#ifndef DWMWA_TEXT_COLOR
+#define DWMWA_TEXT_COLOR 36
+#endif
+    const COLORREF caption = RGB(11, 18, 32);
+    const COLORREF caption_text = RGB(243, 246, 251);
+    DwmSetWindowAttribute(window, DWMWA_CAPTION_COLOR, &caption,
+                          sizeof(caption));
+    DwmSetWindowAttribute(window, DWMWA_TEXT_COLOR, &caption_text,
+                          sizeof(caption_text));
   }
 }
