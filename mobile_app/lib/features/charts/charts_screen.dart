@@ -278,21 +278,35 @@ class _ChartsScreenState extends State<ChartsScreen> {
       ('30д', Duration(days: 30)),
     ];
 
-    return Row(
-      children: [
-        Icon(Icons.schedule, size: 16, color: palette.muted),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final (label, duration) in ranges)
-                _buildTimeRangeChip(context, provider, label, duration),
-            ],
+    return SizedBox(
+      height: 42,
+      child: Row(
+        children: [
+          Icon(Icons.schedule, size: 16, color: palette.muted),
+          const SizedBox(width: 10),
+          Expanded(
+            // Horizontal scroll like the sensor chips: the periods stay on a
+            // single row instead of wrapping onto a second one, leaving more
+            // vertical room for the chart itself.
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: ranges.length,
+              itemBuilder: (context, index) {
+                final (label, duration) = ranges[index];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _buildTimeRangeChip(
+                    context,
+                    provider,
+                    label,
+                    duration,
+                  ),
+                );
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -626,28 +640,33 @@ class _ChartsScreenState extends State<ChartsScreen> {
     String format(double value) =>
         '${_displayValue(provider, pressureUnit, value).toStringAsFixed(decimals)} $unit';
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.center,
+    return Row(
       children: [
-        _buildStatCard(
-          context,
-          'Минимум',
-          format(series.minValue),
-          AppTheme.infoColor,
+        Expanded(
+          child: _buildStatCard(
+            context,
+            'Минимум',
+            format(series.minValue),
+            AppTheme.infoColor,
+          ),
         ),
-        _buildStatCard(
-          context,
-          'Среднее',
-          format(series.avgValue),
-          AppTheme.successColor,
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildStatCard(
+            context,
+            'Среднее',
+            format(series.avgValue),
+            AppTheme.successColor,
+          ),
         ),
-        _buildStatCard(
-          context,
-          'Максимум',
-          format(series.maxValue),
-          AppTheme.warningColor,
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildStatCard(
+            context,
+            'Максимум',
+            format(series.maxValue),
+            AppTheme.warningColor,
+          ),
         ),
       ],
     );
@@ -661,14 +680,13 @@ class _ChartsScreenState extends State<ChartsScreen> {
   ) {
     final palette = AppPalette.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: palette.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: palette.border),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 7,
@@ -676,26 +694,37 @@ class _ChartsScreenState extends State<ChartsScreen> {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TrText(
-                label,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: palette.muted),
-              ),
-              const SizedBox(height: 2),
-              TrText(
-                value,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: palette.text,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TrText(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(color: palette.muted),
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                // The three cards share the row width, so scale a long value
+                // down instead of letting it overflow on narrow phones.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: TrText(
+                    value,
+                    maxLines: 1,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: palette.text,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
