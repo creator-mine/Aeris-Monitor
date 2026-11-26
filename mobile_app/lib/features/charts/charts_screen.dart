@@ -731,20 +731,31 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
+  /// History is expected chronological, but a clock sync or MQTT chunk
+  /// reassembly can leave it slightly out of order. A single out-of-order
+  /// point makes the line fold back over itself, so sort defensively.
+  List<SensorDataPoint> _sortedPoints(List<SensorDataPoint> points) {
+    if (points.length < 2) return points;
+    final sorted = List<SensorDataPoint>.of(points)
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return sorted;
+  }
+
   Widget _buildLineChart(
     BuildContext context,
     ChartsProvider provider,
     SensorDataSeries series,
     PressureUnit pressureUnit,
   ) {
+    final points = _sortedPoints(series.points);
     final displayMin = _displayValue(provider, pressureUnit, series.minValue);
     final displayMax = _displayValue(provider, pressureUnit, series.maxValue);
-    final firstTs = series.points.isEmpty
+    final firstTs = points.isEmpty
         ? 0.0
-        : series.points.first.timestamp.millisecondsSinceEpoch.toDouble();
-    final lastTs = series.points.isEmpty
+        : points.first.timestamp.millisecondsSinceEpoch.toDouble();
+    final lastTs = points.isEmpty
         ? 0.0
-        : series.points.last.timestamp.millisecondsSinceEpoch.toDouble();
+        : points.last.timestamp.millisecondsSinceEpoch.toDouble();
     final spanMs = lastTs - firstTs;
     final safeSpan = spanMs > 0 ? spanMs : 1.0;
     final xInterval = safeSpan / 5;
@@ -834,13 +845,16 @@ class _ChartsScreenState extends State<ChartsScreen> {
         maxY: axis.max,
         lineBarsData: [
           LineChartBarData(
-            spots: series.points.map<FlSpot>((point) {
+            spots: points.map<FlSpot>((point) {
               return FlSpot(
                 point.timestamp.millisecondsSinceEpoch.toDouble(),
                 _displayValue(provider, pressureUnit, point.value),
               );
             }).toList(),
-            isCurved: true,
+            // Straight segments: with irregular sampling gaps the smooth
+            // Catmull-Rom approximation overshoots horizontally and the line
+            // visually loops back on itself.
+            isCurved: false,
             gradient: LinearGradient(
               colors: [
                 primary.withValues(alpha: 0.55),
@@ -849,7 +863,16 @@ class _ChartsScreenState extends State<ChartsScreen> {
             ),
             barWidth: 3,
             isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
+            dotData: FlDotData(
+              show: points.length <= 80,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 2.2,
+                  color: primary,
+                  strokeWidth: 0,
+                );
+              },
+            ),
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(
@@ -936,10 +959,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
     for (final entry in entries) {
       final series = entry.value;
       if (series.points.isEmpty) continue;
-      final firstTs =
-          series.points.first.timestamp.millisecondsSinceEpoch.toDouble();
-      final lastTs =
-          series.points.last.timestamp.millisecondsSinceEpoch.toDouble();
+      final points = _sortedPoints(series.points);
+      final firstTs = points.first.timestamp.millisecondsSinceEpoch.toDouble();
+      final lastTs = points.last.timestamp.millisecondsSinceEpoch.toDouble();
       if (firstTs < minTs) minTs = firstTs;
       if (lastTs > maxTs) maxTs = lastTs;
       final seriesMin = _displayValue(provider, pressureUnit, series.minValue);
@@ -1040,9 +1062,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
         lineBarsData: [
           for (var i = 0; i < entries.length; i++)
             LineChartBarData(
-              spots: entries[i]
-                  .value
-                  .points
+              spots: _sortedPoints(entries[i].value.points)
                   .map(
                     (point) => FlSpot(
                       point.timestamp.millisecondsSinceEpoch.toDouble(),
@@ -1050,7 +1070,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                     ),
                   )
                   .toList(),
-              isCurved: true,
+              isCurved: false,
               color: _comparePalette[i % _comparePalette.length],
               barWidth: 2.5,
               isStrokeCapRound: true,

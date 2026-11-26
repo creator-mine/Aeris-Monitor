@@ -41,8 +41,13 @@ class IoTApp extends StatelessWidget {
                 settings.darkMode ? Brightness.light : Brightness.dark,
             statusBarBrightness:
                 settings.darkMode ? Brightness.dark : Brightness.light,
+            // Android 15+ ignores the navigation bar colour under enforced
+            // edge-to-edge, so also disable the contrast scrim: otherwise a
+            // light system strip shows below the dark app.
+            systemStatusBarContrastEnforced: false,
             systemNavigationBarColor: palette.background,
-            systemNavigationBarDividerColor: palette.border,
+            systemNavigationBarDividerColor: Colors.transparent,
+            systemNavigationBarContrastEnforced: false,
             systemNavigationBarIconBrightness:
                 settings.darkMode ? Brightness.light : Brightness.dark,
           ),
