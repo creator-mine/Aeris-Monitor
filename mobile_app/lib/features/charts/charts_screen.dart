@@ -503,10 +503,6 @@ class _ChartsScreenState extends State<ChartsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildStatsRow(context, provider, series, pressureUnit),
-          if (series.partial) ...[
-            const SizedBox(height: 12),
-            _buildCoverageNotice(context, series),
-          ],
           const SizedBox(height: 14),
           Expanded(
             child: AppSurface(
@@ -526,42 +522,6 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   ),
                 ],
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCoverageNotice(
-    BuildContext context,
-    SensorDataSeries series,
-  ) {
-    final palette = AppPalette.of(context);
-    String two(int v) => v.toString().padLeft(2, '0');
-    final since = series.coveredSince?.toLocal();
-    final label = since == null
-        ? 'На устройстве нет данных за весь выбранный период.'
-        : 'Данные на карте начинаются с '
-            '${two(since.day)}.${two(since.month)} '
-            '${two(since.hour)}:${two(since.minute)} — '
-            'более старые точки уже удалены.';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: palette.surfaceAlt,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: palette.border),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline, size: 16, color: palette.muted),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TrText(
-              label,
-              style: TextStyle(fontSize: 12, color: palette.muted),
             ),
           ),
         ],
