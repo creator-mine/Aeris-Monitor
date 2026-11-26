@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import 'auth_header.dart';
 import '../../models/device.dart';
@@ -11,11 +12,20 @@ class ApiClient {
   String _baseUrl;
   String _username;
   String _password;
+  final bool _enableLogging;
 
-  ApiClient({String? baseUrl, String username = '', String password = ''})
-      : _baseUrl = baseUrl ?? '${AppConfig.apiBaseUrl}${AppConfig.apiVersion}',
+  /// [enableLogging] defaults to debug builds only. Release builds must never
+  /// install a request logger: its headers include `Authorization: Basic ...`
+  /// with the MQTT/API credentials in base64.
+  ApiClient({
+    String? baseUrl,
+    String username = '',
+    String password = '',
+    bool? enableLogging,
+  })  : _baseUrl = baseUrl ?? '${AppConfig.apiBaseUrl}${AppConfig.apiVersion}',
         _username = username,
-        _password = password {
+        _password = password,
+        _enableLogging = enableLogging ?? kDebugMode {
     _initDio();
   }
 
@@ -32,11 +42,20 @@ class ApiClient {
       },
     ));
 
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: false,
-      responseBody: false,
-    ));
+    if (_enableLogging) {
+      _dio.interceptors.add(LogInterceptor(
+        // Headers carry the Basic credentials; bodies are not needed to debug.
+        requestHeader: false,
+        responseHeader: false,
+        requestBody: false,
+        responseBody: false,
+      ));
+    }
   }
+
+  /// Exposed so tests can assert the release build installs no logger.
+  @visibleForTesting
+  List<Interceptor> get debugInterceptors => _dio.interceptors;
 
   void setBaseUrl(String url) {
     _baseUrl = url;
