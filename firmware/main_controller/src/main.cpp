@@ -14,6 +14,7 @@
 #include "wifi_config.h"
 #include "wifi_profiles.h"
 #include "wifi_manager.h"
+#include "network_state.h"
 #include "provisioning.h"
 #include "mqtt_config.h"
 #include "device_secrets.h"
@@ -62,7 +63,7 @@ void statusLedSync() {
         return;
     }
 
-    if (WiFi.status() != WL_CONNECTED) {
+    if (!NetworkState::connected()) {
         if (wifiDownSince == 0) wifiDownSince = millis();
         // Blue while the first attempt is still inside its timeout, red once
         // the link has been down long enough to be a real failure.
@@ -84,29 +85,30 @@ void statusLedSync() {
 
 // ===================== WIFI =====================
 
-// Enters SoftAP provisioning only when the device has no saved networks.
-// Existing profiles are never erased on a transient connection failure.
-void wifiConnect() {
-    if (WifiManager::begin()) return;
+// Enters SoftAP provisioning only when the device has neither a wired uplink
+// nor saved Wi-Fi networks. Existing profiles are never erased on a transient
+// connection failure.
+void networkConnect() {
+    if (NetworkState::begin()) return;
 
     if (WifiProfiles::count() == 0) {
 #if PROVISION_ENABLED
-        Serial.println("[WiFi] No saved networks, starting config mode");
+        Serial.println("[NET] No network and no saved Wi-Fi, starting config mode");
         Provisioning::startAndWait();
-        Serial.println("[WiFi] Provisioning session ended, rebooting");
+        Serial.println("[NET] Provisioning session ended, rebooting");
         RingLogger::save();
         delay(300);
         ESP.restart();
 #else
-        Serial.println("[WiFi] Provisioning disabled, continuing without Wi-Fi");
+        Serial.println("[NET] No network, provisioning disabled, continuing offline");
 #endif
     } else {
-        Serial.println("[WiFi] Saved networks unavailable, retrying in background");
+        Serial.println("[NET] Saved Wi-Fi unavailable, retrying in background");
     }
 }
 
-void wifiUpdate() {
-    WifiManager::update();
+void networkUpdate() {
+    NetworkState::update();
 }
 
 void wifiReconfigure() {
@@ -180,9 +182,12 @@ void mqttPublishStatus() {
     payload += "\"status\":\"online\",";
     payload += "\"uptime\":" + String(millis() / 1000) + ",";
     payload += "\"free_heap\":" + String(ESP.getFreeHeap()) + ",";
-    payload += "\"wifi_ssid\":\"" + WiFi.SSID() + "\",";
+    payload += "\"network\":\"" + NetworkState::type() + "\",";
+    payload += "\"wifi_ssid\":\"" + NetworkState::ssid() + "\",";
     payload += "\"wifi_profiles\":" + String((unsigned)WifiProfiles::count()) + ",";
-    payload += "\"rssi\":" + String(WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0) + ",";
+    payload += "\"rssi\":" + String(NetworkState::rssi()) + ",";
+    payload += "\"eth_link\":" + String(NetworkState::ethernetLink() ? "true" : "false") + ",";
+    payload += "\"eth_speed\":" + String((unsigned)NetworkState::ethernetSpeed()) + ",";
     float chipTemp = chipTemperatureCelsius();
     if (!std::isnan(chipTemp)) {
         payload += "\"chip_temp\":" + String(chipTemp, 1) + ",";
@@ -439,8 +444,8 @@ void mqttConnect() {
         Serial.println("[MQTT] Disabled by config");
         return;
     }
-    if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("[MQTT] Skipped (no Wi-Fi)");  // lwIP not usable without a link
+    if (!NetworkState::connected()) {
+        Serial.println("[MQTT] Skipped (no network)");  // lwIP not usable without a link
         return;
     }
 
@@ -951,10 +956,10 @@ void sensorsRead() {
 
 static bool g_webStarted = false;
 
-// The device may boot without Wi-Fi and connect later. Start the HTTP server
-// and LAN discovery as soon as a link is available.
+// The device may boot without a network and connect later (Wi-Fi or Ethernet).
+// Start the HTTP server and LAN discovery as soon as a link is available.
 void startWebIfConnected() {
-    if (g_webStarted || WiFi.status() != WL_CONNECTED) return;
+    if (g_webStarted || !NetworkState::connected()) return;
     WebServer::instance().begin(HTTP_PORT, WEBSOCKET_PORT);
     LanDiscovery::begin();
     g_webStarted = true;
@@ -987,7 +992,7 @@ void setup() {
              FIRMWARE_VERSION, ESP.getCpuFreqMHz(), ESP.getFlashChipSize() / (1024 * 1024));
 
     StatusLed::setState(StatusLedState::WifiConnecting);
-    wifiConnect();
+    networkConnect();
     ntpInit();
 
     if (MqttConfig::enabled()) {
@@ -1034,7 +1039,7 @@ void loop() {
     }
 
     statusLedSync();
-    wifiUpdate();
+    networkUpdate();
     startWebIfConnected();
     LanDiscovery::update();
     mqttUpdate();

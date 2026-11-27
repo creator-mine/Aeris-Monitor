@@ -1,12 +1,12 @@
 #include "time_util.h"
-#include <WiFi.h>
 #include "config.h"
+#include "network_state.h"
 #include "ring_logger.h"
 
 static bool synced = false;
 
 void ntpInit() {
-    if (WiFi.status() != WL_CONNECTED) return;
+    if (!NetworkState::connected()) return;
 
     configTime(NTP_OFFSET_SEC, 0, NTP_SERVER);
 
@@ -44,7 +44,7 @@ uint64_t epochMillis() {
 // was unreachable at boot) — otherwise timestamps stay 0 and SD logs never
 // rotate to daily files.
 void ntpEnsureSynced() {
-    if (synced || WiFi.status() != WL_CONNECTED) return;
+    if (synced || !NetworkState::connected()) return;
     static unsigned long lastTry = 0;
     unsigned long now = millis();
     if (now - lastTry < 30000) return;

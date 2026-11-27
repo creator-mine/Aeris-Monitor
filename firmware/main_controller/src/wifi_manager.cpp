@@ -1,4 +1,4 @@
-﻿#include "wifi_manager.h"
+#include "wifi_manager.h"
 
 #include <ArduinoJson.h>
 #include <WiFi.h>
@@ -294,13 +294,24 @@ void failCurrent(const char* reason) {
 
 namespace WifiManager {
 
-bool begin() {
+void prepare() {
     WifiProfiles::init();
 
     WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
     WiFi.setHostname(DEVICE_ID);
     WiFi.setAutoReconnect(false);
+
+    if (g_state == STATE_IDLE) {
+        g_state = STATE_WAIT;
+        // Give the caller time to decide whether Ethernet is enough; the
+        // first update() after a link loss will start the first attempt.
+        g_nextTry = millis() + 3000;
+    }
+}
+
+bool begin() {
+    prepare();
 
     std::vector<WifiProfile> profiles = enabledSorted();
     if (profiles.empty()) {
@@ -353,7 +364,7 @@ bool begin() {
     return false;
 }
 
-void update() {
+void update(bool allowConnect) {
     uint32_t now = millis();
 
     bool runQueued = false;
@@ -415,6 +426,15 @@ void update() {
     // The WiFi API must only be used from the loop task; async HTTP handlers
     // set a flag and poll the result.
     serviceScan();
+    const bool explicitAttempt = runQueued || g_state == STATE_CONNECTING;
+    if (!allowConnect && !explicitAttempt) {
+        // Wired uplink: let scans finish for the Wi-Fi screen, but do not
+        // start automatic reconnect/weak-signal switching. An explicit manual
+        // switch is still allowed to run to completion.
+        g_scanJustFinished = false;
+        g_scanForWeak = false;
+        return;
+    }
     if (g_scanJustFinished) {
         g_scanJustFinished = false;
         if (g_scanForWeak && WiFi.status() == WL_CONNECTED) {

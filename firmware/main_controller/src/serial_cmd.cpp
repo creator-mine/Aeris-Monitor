@@ -4,6 +4,7 @@
 #include "wifi_config.h"
 #include "wifi_profiles.h"
 #include "wifi_manager.h"
+#include "network_state.h"
 #include "mqtt_config.h"
 #include "device_secrets.h"
 #include "ota_updater.h"
@@ -53,10 +54,15 @@ static void cmdStatus() {
     json += "\"device_type\":\"" + String(DEVICE_TYPE) + "\",";
     json += "\"uptime\":" + String(millis() / 1000) + ",";
     json += "\"free_heap\":" + String(ESP.getFreeHeap()) + ",";
-    json += "\"wifi_connected\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";
-    json += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
+    json += "\"wifi_connected\":" + String(NetworkState::wifiUp() ? "true" : "false") + ",";
+    json += "\"network\":\"" + NetworkState::type() + "\",";
+    json += "\"network_connected\":" + String(NetworkState::connected() ? "true" : "false") + ",";
+    json += "\"ethernet_link\":" + String(NetworkState::ethernetLink() ? "true" : "false") + ",";
+    json += "\"ethernet_speed\":" + String((unsigned)NetworkState::ethernetSpeed()) + ",";
+    json += "\"ethernet_ip\":\"" + NetworkState::ethernetIp() + "\",";
+    json += "\"ip\":\"" + NetworkState::localIP() + "\",";
     json += "\"time_synced\":" + String(timeSynced() ? "true" : "false") + ",";
-    json += "\"rssi\":" + String(WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0) + ",";
+    json += "\"rssi\":" + String(NetworkState::rssi()) + ",";
     float chipTemp = chipTemperatureCelsius();
     if (!std::isnan(chipTemp)) {
         json += "\"chip_temp\":" + String(chipTemp, 1) + ",";
@@ -105,7 +111,7 @@ static void cmdInfo() {
     json += "\"flash_size\":" + String(ESP.getFlashChipSize()) + ",";
     json += "\"sketch_size\":" + String(ESP.getSketchSize()) + ",";
     json += "\"reset_reason\":\"" + String(resetReasonStr()) + "\",";
-    json += "\"wifi_ssid\":\"" + String(WiFi.SSID()) + "\",";
+    json += "\"wifi_ssid\":\"" + NetworkState::ssid() + "\",";
     json += "\"mqtt_enabled\":" + String(MqttConfig::enabled() ? "true" : "false") + ",";
     // Whether credentials are present in NVS (values themselves are never sent).
     json += "\"mqtt_user_set\":" + String(DeviceSecrets::mqttUser().isEmpty() ? "false" : "true") + ",";

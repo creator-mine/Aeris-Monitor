@@ -166,9 +166,14 @@
   "uptime": 128374,
   "free_heap": 214000,
   "wifi_connected": true,
-  "ip": "192.168.1.50",
+  "network": "ethernet",
+  "network_connected": true,
+  "ethernet_link": true,
+  "ethernet_speed": 100,
+  "ethernet_ip": "192.168.1.51",
+  "ip": "192.168.1.51",
   "time_synced": true,
-  "rssi": -58,
+  "rssi": 0,
   "chip_temp": 42.3,
   "firmware": "1.4.1",
   "led": "online",
@@ -185,6 +190,8 @@
 }</code></pre>
 
       <p data-ru-html="Поле <code>led</code> появилось в прошивке 1.3.5 и показывает состояние встроенного светодиода: <code>boot</code>, <code>wifi_connecting</code>, <code>provisioning</code>, <code>mqtt_connecting</code>, <code>online</code>, <code>error</code> или <code>ota</code>." data-en-html="The <code>led</code> field was added in firmware 1.3.5 and reports the onboard LED state: <code>boot</code>, <code>wifi_connecting</code>, <code>provisioning</code>, <code>mqtt_connecting</code>, <code>online</code>, <code>error</code> or <code>ota</code>.">Поле led показывает состояние индикатора.</p>
+
+      <p data-ru-html="Прошивка 1.5.0 добавила Ethernet (W5500): <code>network</code> принимает <code>ethernet</code>, <code>wifi</code> или <code>none</code>; <code>network_connected</code> — общий признак наличия сети; <code>ethernet_link</code>, <code>ethernet_speed</code> и <code>ethernet_ip</code> описывают проводной интерфейс. Поле <code>ip</code> всегда содержит адрес активного интерфейса, поэтому старые клиенты продолжают работать без изменений." data-en-html="Firmware 1.5.0 adds Ethernet (W5500): <code>network</code> is <code>ethernet</code>, <code>wifi</code> or <code>none</code>; <code>network_connected</code> is the generic connectivity flag; <code>ethernet_link</code>, <code>ethernet_speed</code> and <code>ethernet_ip</code> describe the wired interface. The <code>ip</code> field always holds the active interface address, so older clients keep working unchanged.">Новые поля Ethernet и общий признак сети.</p>
 
 
       <h3 data-ru="Карта памяти" data-en="SD card">Карта памяти</h3>

@@ -1,4 +1,4 @@
-﻿#include "web_server.h"
+#include "web_server.h"
 #include "config.h"
 #include "mqtt_config.h"
 #include "relay_control.h"
@@ -7,6 +7,7 @@
 #include "wifi_config.h"
 #include "wifi_profiles.h"
 #include "wifi_manager.h"
+#include "network_state.h"
 #include "sensor_registry.h"
 #include "time_util.h"
 #include "sys_info.h"
@@ -212,17 +213,22 @@ String WebServer::buildStatusJson() {
     json += "\"device_type\":\"" + String(DEVICE_TYPE) + "\",";
     json += "\"uptime\":" + String(millis() / 1000) + ",";
     json += "\"free_heap\":" + String(ESP.getFreeHeap()) + ",";
-    json += "\"wifi_connected\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";
-    json += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
+    json += "\"wifi_connected\":" + String(NetworkState::wifiUp() ? "true" : "false") + ",";
+    json += "\"network\":\"" + NetworkState::type() + "\",";
+    json += "\"network_connected\":" + String(NetworkState::connected() ? "true" : "false") + ",";
+    json += "\"ethernet_link\":" + String(NetworkState::ethernetLink() ? "true" : "false") + ",";
+    json += "\"ethernet_speed\":" + String((unsigned)NetworkState::ethernetSpeed()) + ",";
+    json += "\"ethernet_ip\":\"" + NetworkState::ethernetIp() + "\",";
+    json += "\"ip\":\"" + NetworkState::localIP() + "\",";
     json += "\"time_synced\":" + String(timeSynced() ? "true" : "false") + ",";
-    json += "\"rssi\":" + String(WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0) + ",";
+    json += "\"rssi\":" + String(NetworkState::rssi()) + ",";
     float chipTemp = chipTemperatureCelsius();
     if (!std::isnan(chipTemp)) {
         json += "\"chip_temp\":" + String(chipTemp, 1) + ",";
     }
     json += "\"firmware\":\"" + String(FIRMWARE_VERSION) + "\",";
     json += "\"led\":\"" + String(StatusLed::stateName()) + "\",";
-    json += "\"wifi_ssid\":\"" + WiFi.SSID() + "\",";
+    json += "\"wifi_ssid\":\"" + NetworkState::ssid() + "\",";
     json += "\"wifi_profiles\":" + String((unsigned)WifiProfiles::count()) + ",";
     json += "\"sd\":" + buildSdInfoJson();
     json += "}";
@@ -358,7 +364,7 @@ String WebServer::buildHistoryJsonFor(const String& filterType, uint64_t since,
         uint64_t ts;
         float value;
     };
-    static Point points[1024];  // ~16KB вЂ” keep off the task stack (BSS)
+    static Point points[1024];  // ~16KB — keep off the task stack (BSS)
     uint16_t count = 0;
     uint16_t parseOps = 0;
     bool stopAll = false;

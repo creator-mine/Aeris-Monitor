@@ -268,6 +268,16 @@ class _DeviceConfigScreenState extends State<DeviceConfigScreen> {
             children: [
               _infoRow(context, Icons.memory, 'Прошивка',
                   (info?['firmware'] as String?) ?? '—'),
+              if (status?['network'] != null)
+                _infoRow(
+                    context,
+                    Icons.settings_ethernet,
+                    'Сеть',
+                    status?['network'] == 'ethernet'
+                        ? 'Ethernet ${(status?['ethernet_speed'] as num?)?.toInt() ?? 0} Mbps'
+                        : status?['network'] == 'wifi'
+                            ? 'Wi-Fi'
+                            : 'нет'),
               _infoRow(
                   context,
                   Icons.wifi,

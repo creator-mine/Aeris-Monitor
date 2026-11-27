@@ -1,7 +1,7 @@
 #include "lan_discovery.h"
 #include "config.h"
+#include "network_state.h"
 #include "ring_logger.h"
-#include <WiFi.h>
 #include <WiFiUdp.h>
 #include <ESPmDNS.h>
 
@@ -22,7 +22,7 @@ void buildHostName() {
 }
 
 void replyToDiscovery() {
-    String ip = WiFi.localIP().toString();
+    String ip = NetworkState::localIP();
     char reply[256];
     snprintf(reply, sizeof(reply),
              "{\"id\":\"%s\",\"name\":\"%s\",\"type\":\"%s\",\"fw\":\"%s\","
@@ -40,7 +40,7 @@ void replyToDiscovery() {
 namespace LanDiscovery {
 
 void begin() {
-    if (started || WiFi.status() != WL_CONNECTED) return;
+    if (started || !NetworkState::connected()) return;
 
     buildHostName();
     if (MDNS.begin(mdnsHost)) {
@@ -65,7 +65,7 @@ void end() {
 }
 
 void update() {
-    if (WiFi.status() != WL_CONNECTED) {
+    if (!NetworkState::connected()) {
         if (started) end();
         return;
     }

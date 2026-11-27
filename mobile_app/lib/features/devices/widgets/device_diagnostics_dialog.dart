@@ -231,10 +231,21 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
     final uptime = status['uptime'] is num
         ? _formatUptime((status['uptime'] as num).toInt())
         : null;
+    final network = status['network'];
+    final ethSpeed = (status['ethernet_speed'] as num?)?.toInt() ?? 0;
 
     final rows = <(String, String)>[
       ('ID', _device.id),
       ('IP', status['ip'] as String? ?? _device.ip),
+      if (network != null)
+        (
+          'Сеть',
+          network == 'ethernet'
+              ? 'Ethernet · $ethSpeed Mbps'
+              : network == 'wifi'
+                  ? 'Wi-Fi'
+                  : 'нет'
+        ),
       ('Wi-Fi', status['wifi_connected'] == true ? 'подключено' : 'нет'),
       ('Питание', _device.isOnline ? 'онлайн' : 'офлайн'),
       ('Uptime', uptime ?? '—'),
@@ -244,7 +255,7 @@ class _DiagnosticsSheetState extends State<_DiagnosticsSheet> {
             ? _formatBytes((status['free_heap'] as num).toInt())
             : '—'
       ),
-      if (status['rssi'] is num)
+      if (status['rssi'] is num && (status['rssi'] as num) > 0)
         ('RSSI', '${(status['rssi'] as num).toInt()} dBm'),
       if (status['chip_temp'] is num)
         (

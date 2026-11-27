@@ -4,16 +4,17 @@
 #include "root_ca.h"
 #include "ring_logger.h"
 #include "sensor_registry.h"
-#include <WiFi.h>
+#include "network_state.h"
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
 static bool registered = false;
 static unsigned long lastTry = 0;
+static String registeredIp;
 
 static bool signalingPost(const char* path, const char* body) {
-    if (WiFi.status() != WL_CONNECTED) return false;
+    if (!NetworkState::connected()) return false;
 
     HTTPClient http;
     String url = String(SIGNALING_URL) + path;
@@ -37,13 +38,14 @@ static bool signalingPost(const char* path, const char* body) {
 }
 
 void signalingInit() {
-    if (WiFi.status() != WL_CONNECTED) return;
+    if (!NetworkState::connected()) return;
 
     JsonDocument doc;
     doc["id"] = DEVICE_ID;
     doc["name"] = DEVICE_NAME;
     doc["type"] = DEVICE_TYPE;
-    doc["ip"] = WiFi.localIP().toString();
+    doc["ip"] = NetworkState::localIP();
+    doc["network"] = NetworkState::type();
     doc["port"] = HTTP_PORT;
     doc["firmwareVersion"] = FIRMWARE_VERSION;
 
@@ -60,6 +62,7 @@ void signalingInit() {
 
     if (signalingPost("/api/v1/devices/register", buf)) {
         registered = true;
+        registeredIp = NetworkState::localIP();
         Serial.println("[Signaling] Registered with server");
         LOG_INFO("Signaling", "Registered with server");
     } else {
@@ -72,15 +75,24 @@ void signalingUpdate() {
     if (millis() - lastTry < SIGNALING_HEARTBEAT_MS) return;
     lastTry = millis();
 
-    if (WiFi.status() != WL_CONNECTED) {
+    if (!NetworkState::connected()) {
         if (registered) {
-            LOG_INFO("Signaling", "WiFi lost, device offline");
+            LOG_INFO("Signaling", "Network lost, device offline");
         }
         registered = false;
         return;
     }
 
     if (!registered) {
+        signalingInit();
+        return;
+    }
+
+    // Ethernet <-> Wi-Fi failover changes the LAN address; re-register so the
+    // app and server do not keep trying the old one.
+    if (NetworkState::localIP() != registeredIp) {
+        LOG_INFO("Signaling", "LAN address changed, re-registering");
+        registered = false;
         signalingInit();
         return;
     }

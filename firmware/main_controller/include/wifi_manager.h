@@ -9,8 +9,15 @@ namespace WifiManager {
 // station connection was established.
 bool begin();
 
-// Runtime state machine; call from loop().
-void update();
+// Initialises profiles and station mode without attempting a connection.
+// Used when Ethernet already provides the uplink; update() can start Wi-Fi
+// later if the cable disappears.
+void prepare();
+
+// Runtime state machine; call from loop(). When allowConnect is false (for
+// example while Ethernet is the active uplink) scans and explicit manual
+// switches still run, but no automatic connection attempts are made.
+void update(bool allowConnect = true);
 
 bool connected();
 String statusJson();

@@ -133,6 +133,18 @@
               <td class="mono">GPIO10 (контроллер)</td>
             </tr>
             <tr>
+              <td data-ru="W5500: SCK / MOSI / MISO" data-en="W5500: SCK / MOSI / MISO">W5500: SCK / MOSI / MISO</td>
+              <td data-ru="не поддерживается" data-en="not supported">не поддерживается</td>
+              <td class="mono">GPIO14 / 15 / 16</td>
+              <td class="mono">GPIO21 / 19 / 20 (общая шина с SD)</td>
+            </tr>
+            <tr>
+              <td data-ru="W5500: CS / RST / IRQ" data-en="W5500: CS / RST / IRQ">W5500: CS / RST / IRQ</td>
+              <td data-ru="не поддерживается" data-en="not supported">не поддерживается</td>
+              <td class="mono">GPIO17 / 18 / 21</td>
+              <td class="mono">GPIO17 / 16 / 14</td>
+            </tr>
+            <tr>
               <td data-ru="Реле (активный уровень HIGH)" data-en="Relay (active HIGH)">Реле (активный HIGH)</td>
               <td class="mono">GPIO3</td>
               <td data-ru="не используется" data-en="not used">не используется</td>
@@ -383,6 +395,41 @@
         </table>
       </div>
 
+      <h2 id="ethernet" data-ru="Ethernet: модуль W5500" data-en="Ethernet: W5500 module">Ethernet: модуль W5500</h2>
+
+      <p data-ru-html="Платы S3 и C6 поддерживают проводной Ethernet на микросхеме <b>W5500</b> по SPI. Прошивка сама определяет кабель: пока он подключён, устройство работает через Ethernet, а при обрыве автоматически возвращается на сохранённый Wi-Fi. C3 в этой конфигурации не поддерживается — у неё не хватает свободных GPIO." data-en-html="The S3 and C6 boards support wired Ethernet with the <b>W5500</b> over SPI. The firmware detects the cable automatically: while it is connected the device uses Ethernet, and when the link drops it falls back to the saved Wi-Fi. The C3 is not supported in this configuration because it has too few free GPIOs.">S3 и C6 поддерживают W5500 по SPI; C3 — нет.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-ru="Вывод W5500" data-en="W5500 pin">Вывод W5500</th>
+              <th data-ru="ESP32-S3" data-en="ESP32-S3">ESP32-S3</th>
+              <th data-ru="ESP32-C6" data-en="ESP32-C6">ESP32-C6</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">VCC</td><td class="mono">3V3</td><td class="mono">3V3</td></tr>
+            <tr><td class="mono">GND</td><td class="mono">GND</td><td class="mono">GND</td></tr>
+            <tr><td class="mono">CS / SCS</td><td class="mono">GPIO17</td><td class="mono">GPIO17</td></tr>
+            <tr><td class="mono">SCLK</td><td class="mono">GPIO14</td><td class="mono">GPIO21 (общая с SD)</td></tr>
+            <tr><td class="mono">MOSI</td><td class="mono">GPIO15</td><td class="mono">GPIO19 (общая с SD)</td></tr>
+            <tr><td class="mono">MISO</td><td class="mono">GPIO16</td><td class="mono">GPIO20 (общая с SD)</td></tr>
+            <tr><td class="mono">RST</td><td class="mono">GPIO18</td><td class="mono">GPIO16</td></tr>
+            <tr><td class="mono">INT / IRQ</td><td class="mono">GPIO21</td><td class="mono">GPIO14</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn">
+        <div class="co-ic">⚠️</div>
+        <div class="co-body">
+          <p data-ru-html="W5500 питается только от <b>3,3 В</b> и потребляет до ~130 мА. Не подавайте 5 В на логику и соедините земли платы и модуля. На C6 шина SPI общая с SD-картой: отличаться должен только CS, иначе карта и Ethernet будут мешать друг другу." data-en-html="The W5500 runs from <b>3.3 V only</b> and draws up to ~130 mA. Do not feed 5 V into its logic, and connect the board and module grounds. On the C6 the SPI bus is shared with the SD card: only CS must differ, otherwise the card and Ethernet will interfere.">W5500 — только 3,3 В, до ~130 мА; на C6 шина общая с SD.</p>
+        </div>
+      </div>
+
+      <p data-ru-html="Поддержка включается флагами сборки: на S3 — <code>AERIS_ETH_ENABLED=1</code> и отдельная шина <code>SPI3_HOST</code>, на C6 — <code>AERIS_ETH_ENABLED=1</code> и <code>AERIS_ETH_SHARE_SPI=1</code>. В <code>/api/v1/status</code> появляются поля <code>network</code>, <code>network_connected</code>, <code>ethernet_link</code>, <code>ethernet_speed</code> и <code>ethernet_ip</code>; поле <code>ip</code> всегда содержит адрес активного интерфейса." data-en-html="Support is enabled with build flags: on the S3 use <code>AERIS_ETH_ENABLED=1</code> and a dedicated <code>SPI3_HOST</code> bus; on the C6 use <code>AERIS_ETH_ENABLED=1</code> and <code>AERIS_ETH_SHARE_SPI=1</code>. <code>/api/v1/status</code> gains <code>network</code>, <code>network_connected</code>, <code>ethernet_link</code>, <code>ethernet_speed</code> and <code>ethernet_ip</code>; the existing <code>ip</code> field always carries the active interface address.">Флаги сборки и новые поля статуса.</p>
+
       <h2 id="bom" data-ru="Bill of materials" data-en="Bill of materials">Bill of materials</h2>
 
       <div class="table-wrap">
@@ -407,6 +454,12 @@
               <td class="mono">ESP32-C6 DevKitC-1</td>
               <td class="center">0–N</td>
               <td data-ru="по числу удалённых точек" data-en="one per remote location">по числу удалённых точек</td>
+            </tr>
+            <tr>
+              <td data-ru="Проводной Ethernet" data-en="Wired Ethernet">Проводной Ethernet</td>
+              <td class="mono">W5500 (SPI)</td>
+              <td class="center">0–1</td>
+              <td data-ru="опционально, только 3,3 В" data-en="optional, 3.3 V only">опционально, только 3,3 В</td>
             </tr>
             <tr>
               <td data-ru="Датчик температуры и влажности" data-en="Temperature and humidity sensor">Датчик температуры и влажности</td>

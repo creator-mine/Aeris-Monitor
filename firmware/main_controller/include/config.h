@@ -97,7 +97,7 @@
 // Over-the-Air firmware updates (pulled over HTTPS from the public site).
 // Each board pulls its own binary + manifest (per-device_type files).
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "1.4.5"
+#define FIRMWARE_VERSION "1.5.0"
 #endif
 #ifndef OTA_FW_HOST
 #define OTA_FW_HOST "spe4naz.online"
@@ -191,6 +191,44 @@
 // ESP32-S3 overrides via build_flags: CS 10 (SPI default SCK12/MISO11/MOSI13).
 #ifndef SD_CS
 #define SD_CS 10
+#endif
+
+// Optional wired Ethernet (W5500 over SPI). Disabled by default; the S3 and C6
+// environments enable it in platformio.ini. The C6 has only one general SPI
+// host, so there the W5500 shares the SD card bus (AERIS_ETH_SHARE_SPI=1) and
+// only CS/RST/IRQ are dedicated. The S3 gets a dedicated SPI3 bus.
+#ifndef AERIS_ETH_ENABLED
+#define AERIS_ETH_ENABLED 0
+#endif
+#ifndef AERIS_ETH_SHARE_SPI
+#define AERIS_ETH_SHARE_SPI 0
+#endif
+#ifndef ETH_PHY_ADDR
+#define ETH_PHY_ADDR 1
+#endif
+#ifndef ETH_CS_PIN
+#define ETH_CS_PIN 17
+#endif
+#ifndef ETH_IRQ_PIN
+#define ETH_IRQ_PIN 21
+#endif
+#ifndef ETH_RST_PIN
+#define ETH_RST_PIN 18
+#endif
+#ifndef ETH_SCK_PIN
+#define ETH_SCK_PIN 14
+#endif
+#ifndef ETH_MISO_PIN
+#define ETH_MISO_PIN 16
+#endif
+#ifndef ETH_MOSI_PIN
+#define ETH_MOSI_PIN 15
+#endif
+#ifndef ETH_SPI_HOST
+#define ETH_SPI_HOST SPI2_HOST
+#endif
+#ifndef ETH_SPI_FREQ_MHZ
+#define ETH_SPI_FREQ_MHZ 20
 #endif
 
 // SPI clock for the card. 10 MHz is still conservative for typical boards but
