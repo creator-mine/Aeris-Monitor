@@ -61,5 +61,8 @@ Desktop.ini
 # --- Installer build output (APK/DEB/EXE, firmware staging) ---
 deploy/installer/output/
 
+# --- Local release bundles (APK/firmware artifacts) ---
+release/
+
 # --- Misc junk ---
 4
