@@ -196,6 +196,8 @@ docker compose up -d --build
 - Исходники: <https://github.com/creator-mine/Aeris-Monitor>
 - Приложение (Windows/Android): <https://github.com/creator-mine/Aeris-App/releases>
 - Прошивки (ESP32-C3/C6/S3): <https://github.com/creator-mine/Aeris-firmware/releases>
+- Локальные сборки для проверки: `release/<версия>/` — APK, установщик Windows,
+  OTA- и factory-образы прошивки, `SHA256SUMS` и инструкция в `README.md`.
 
 ## Текущий статус и планы
 
