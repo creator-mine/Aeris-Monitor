@@ -203,7 +203,7 @@ class DeviceConfigProvider extends ChangeNotifier {
       case 'info':
         _info = data;
         notifyListeners();
-        // The device type (C3/C6/S3) is only known now, so re-check the
+        // The device type (ESP32/C3/C6/S3) is only known now, so re-check the
         // manifest against the right published artifact.
         checkManifest();
         break;

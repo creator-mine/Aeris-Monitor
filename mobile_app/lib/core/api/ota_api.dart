@@ -6,6 +6,7 @@ import '../../models/firmware_manifest.dart';
 ///
 /// The site hosts per-device_type artifacts (see deploy/fw.ps1):
 ///   esp32-c3 -> /fw/version.json + /fw/main.bin          (legacy layout)
+///   esp32    -> /fw/version-esp32.json + /fw/main_esp32.bin
 ///   esp32-c6 -> /fw/version-esp32-c6.json + /fw/main_esp32-c6.bin
 ///   esp32-s3 -> /fw/version-esp32-s3.json + /fw/main_esp32-s3.bin
 /// Unknown/other types fall back to the legacy esp32-c3 files.
@@ -34,6 +35,8 @@ class OtaApi {
         return '/fw/version-esp32-s3.json';
       case 'esp32-c6':
         return '/fw/version-esp32-c6.json';
+      case 'esp32':
+        return '/fw/version-esp32.json';
       default:
         return '/fw/version.json';
     }
@@ -46,18 +49,29 @@ class OtaApi {
         return '/fw/main_esp32-s3.bin';
       case 'esp32-c6':
         return '/fw/main_esp32-c6.bin';
+      case 'esp32':
+        return '/fw/main_esp32.bin';
       default:
         return '/fw/main.bin';
     }
   }
 
   /// Coerces any device-type spelling to the app's canonical selectors
-  /// ("esp32-c3" / "esp32-s3"). Unknown input is passed through unchanged.
+  /// ("esp32", "esp32-c3", "esp32-c6", "esp32-s3"). Unknown input is passed
+  /// through unchanged.
   static String normalizeDeviceType(String? deviceType) {
     final t = deviceType?.trim().toLowerCase() ?? '';
     if (t.contains('s3')) return 'esp32-s3';
     if (t.contains('c6')) return 'esp32-c6';
     if (t.contains('c3')) return 'esp32-c3';
+    // Must come after c3/c6/s3: their names also start with "esp32".
+    if (t == 'esp32' ||
+        t == 'esp32dev' ||
+        t == 'esp32devkit' ||
+        t == 'esp32-classic' ||
+        t == 'esp32 classic') {
+      return 'esp32';
+    }
     return t.isEmpty ? 'esp32-c3' : t;
   }
 

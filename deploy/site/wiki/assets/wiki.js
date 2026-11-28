@@ -89,8 +89,8 @@
     {
       file: 'wiring.html', ic: '🧩',
       ru: 'Подключение датчиков', en: 'Sensor wiring',
-      ruDesc: 'Распиновка BME680, BMP280, BH1750, SCD30 и INA219, выбор адреса I²C и свободные GPIO плат C3/C6/S3.',
-      enDesc: 'Pin-by-pin wiring for BME680, BMP280, BH1750, SCD30 and INA219, I²C address selection and free GPIOs on C3/C6/S3.',
+      ruDesc: 'Распиновка BME680, BMP280, BH1750, SCD30 и INA219, выбор адреса I²C и свободные GPIO плат ESP32/C3/C6/S3.',
+      enDesc: 'Pin-by-pin wiring for BME680, BMP280, BH1750, SCD30 and INA219, I²C address selection and free GPIOs on ESP32/C3/C6/S3.',
       kw: 'подключение распиновка пины gpio проводка bme680 bmp280 bh1750 scd30 ina219 адрес i2c sda scl питание 3.3v свободные пины unused wiring pinout',
       sec: [
         ['obshchaya-skhema', "Общая схема: четыре провода", "The common wiring: four wires"],
@@ -104,6 +104,7 @@
         ['mux', "Если адреса совпадают: TCA9548A", "When addresses clash: TCA9548A"],
         ['platy', "Пины плат: что занято", "Board pins: what is used"],
         ['plata-c3', "ESP32-C3", "ESP32-C3"],
+        ['plata-esp32', "ESP32-WROOM-32", "ESP32-WROOM-32"],
         ['plata-c6', "ESP32-C6", "ESP32-C6"],
         ['plata-s3', "ESP32-S3", "ESP32-S3"],
         ['plata-modul', "Сенсорный модуль C6", "C6 sensor module"],

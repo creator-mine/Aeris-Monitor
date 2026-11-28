@@ -24,7 +24,7 @@ class DevicesProvider extends ChangeNotifier {
   String? _error;
   bool _disposed = false;
 
-  /// Published manifests keyed by canonical device type ("esp32-c3",
+  /// Published manifests keyed by canonical device type ("esp32", "esp32-c3",
   /// "esp32-c6", "esp32-s3"), each fetched from its own /fw/version*.json.
   final Map<String, FirmwareManifest> _manifests = {};
   bool _isLoadingManifest = false;
@@ -70,7 +70,7 @@ class DevicesProvider extends ChangeNotifier {
     final type = OtaApi.normalizeDeviceType(device.type);
     final exact = _manifests[type];
     if (exact != null) return exact;
-    const known = {'esp32-c3', 'esp32-c6', 'esp32-s3'};
+    const known = {'esp32', 'esp32-c3', 'esp32-c6', 'esp32-s3'};
     if (known.contains(type)) return null;
     return _manifests['esp32-c3'];
   }
@@ -234,7 +234,7 @@ class DevicesProvider extends ChangeNotifier {
       return;
     }
 
-    final types = <String>{'esp32-c3', 'esp32-c6', 'esp32-s3'};
+    final types = <String>{'esp32', 'esp32-c3', 'esp32-c6', 'esp32-s3'};
     for (final device in _devices) {
       types.add(OtaApi.normalizeDeviceType(device.type));
     }

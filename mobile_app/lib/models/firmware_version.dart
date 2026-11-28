@@ -60,6 +60,8 @@ class FirmwareVersion extends HiveObject {
 
   String get deviceLabel {
     switch (deviceType) {
+      case 'esp32':
+        return 'ESP32 Main Controller';
       case 'esp32-c3':
         return 'ESP32-C3 Main Controller';
       case 'esp32-c6':
@@ -73,6 +75,8 @@ class FirmwareVersion extends HiveObject {
 
   String get pioEnvironment {
     switch (deviceType) {
+      case 'esp32':
+        return 'esp32';
       case 'esp32-c3':
         return 'esp32-c3';
       case 'esp32-c6':

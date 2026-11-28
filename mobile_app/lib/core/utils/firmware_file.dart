@@ -13,10 +13,10 @@ String? firmwareVersionFromName(String name) {
 
 /// Detects the board type from a firmware artifact name.
 ///
-/// Only the ESP32 controller images are supported: C3 (`esp32c3`,
-/// `esp32-c3`), C6 (`esp32c6`, `esp32-c6`) and S3 (`esp32s3`, `esp32-s3`).
-/// Generic names such as `main.bin`/`firmware.bin` return null so the caller's
-/// selected board is used.
+/// Only the ESP32 controller images are supported: classic (`esp32`,
+/// `esp32dev`), C3 (`esp32c3`, `esp32-c3`), C6 (`esp32c6`, `esp32-c6`) and
+/// S3 (`esp32s3`, `esp32-s3`). Generic names such as `main.bin`/`firmware.bin`
+/// return null so the caller's selected board is used.
 String? firmwareDeviceTypeFromName(String name) {
   final lower = name.toLowerCase();
 
@@ -40,6 +40,13 @@ String? firmwareDeviceTypeFromName(String name) {
       lower.contains('esp32-c3') ||
       RegExp(r'(^|[^a-z0-9])c3([^a-z0-9]|$)').hasMatch(lower)) {
     return 'esp32-c3';
+  }
+  // Classic ESP32: "esp32dev", "esp32-classic", or a standalone "esp32"
+  // token in names like "aeris-1.6.0-esp32.bin" / "main_esp32.bin".
+  if (lower.contains('esp32dev') ||
+      lower.contains('esp32-classic') ||
+      RegExp(r'(^|[^a-z0-9])esp32([^a-z0-9]|$)').hasMatch(lower)) {
+    return 'esp32';
   }
   return null;
 }

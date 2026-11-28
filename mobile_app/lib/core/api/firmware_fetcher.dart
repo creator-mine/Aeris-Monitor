@@ -322,6 +322,16 @@ class FirmwareFetcher {
         return const ['esp32s3', 'esp32-s3', 's3'];
       case 'esp32-c6':
         return const ['esp32c6', 'esp32-c6', 'c6'];
+      case 'esp32':
+        // Exact classic-ESP32 markers; a bare "esp32" token would also match
+        // esp32c3/c6/s3 asset names.
+        return const [
+          'esp32-classic',
+          'esp32classic',
+          'esp32dev',
+          '-esp32.',
+          '_esp32.',
+        ];
       default:
         return const ['esp32c3', 'esp32-c3', 'c3', 'main.bin'];
     }

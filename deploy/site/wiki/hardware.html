@@ -73,7 +73,7 @@
         <div class="card">
           <span class="c-ic">🧠</span>
           <h3 data-ru="Главный контроллер" data-en="Main controller">Главный контроллер</h3>
-          <p data-ru-html="ESP32-C3 на плате LOLIN C3 mini, ESP32-C6 DevKitC-1 (16 МБ) или ESP32-S3 N16R8 (16 МБ флеша, 8 МБ PSRAM). Все три варианта собираются из одного кода контроллера: отличаются только флаги сборки." data-en-html="An ESP32-C3 on a LOLIN C3 mini board, an ESP32-C6 DevKitC-1 (16 MB) or an ESP32-S3 N16R8 (16 MB flash, 8 MB PSRAM). All three build from the same controller code — only the build flags differ.">ESP32-C3, ESP32-C6 или ESP32-S3 N16R8.</p>
+          <p data-ru-html="ESP32-C3 на плате LOLIN C3 mini, ESP32-WROOM-32 (4 МБ, только Wi-Fi), ESP32-C6 DevKitC-1 (16 МБ) или ESP32-S3 N16R8 (16 МБ флеша, 8 МБ PSRAM). Все варианты собираются из одного кода контроллера: отличаются только флаги сборки." data-en-html="An ESP32-C3 on a LOLIN C3 mini board, an ESP32-WROOM-32 (4 MB, Wi-Fi only), an ESP32-C6 DevKitC-1 (16 MB) or an ESP32-S3 N16R8 (16 MB flash, 8 MB PSRAM). All variants build from the same controller code — only the build flags differ.">ESP32-C3, ESP32-WROOM-32, ESP32-C6 или ESP32-S3 N16R8.</p>
         </div>
         <div class="card">
           <span class="c-ic">🌡️</span>
@@ -97,6 +97,7 @@
             <tr>
               <th data-ru="Назначение" data-en="Purpose">Назначение</th>
               <th data-ru="ESP32-C3 (контроллер)" data-en="ESP32-C3 (controller)">ESP32-C3 (контроллер)</th>
+              <th data-ru="ESP32 classic (контроллер)" data-en="ESP32 classic (controller)">ESP32 classic (контроллер)</th>
               <th data-ru="ESP32-S3 (контроллер)" data-en="ESP32-S3 (controller)">ESP32-S3 (контроллер)</th>
               <th data-ru="ESP32-C6 (модуль / контроллер)" data-en="ESP32-C6 (module / controller)">ESP32-C6 (модуль / контроллер)</th>
             </tr>
@@ -105,35 +106,41 @@
             <tr>
               <td data-ru="I²C SDA" data-en="I²C SDA">I²C SDA</td>
               <td class="mono">GPIO6</td>
+              <td class="mono">GPIO21</td>
               <td class="mono">GPIO8</td>
               <td class="mono">GPIO6</td>
             </tr>
             <tr>
               <td data-ru="I²C SCL" data-en="I²C SCL">I²C SCL</td>
               <td class="mono">GPIO7</td>
+              <td class="mono">GPIO22</td>
               <td class="mono">GPIO9</td>
               <td class="mono">GPIO7</td>
             </tr>
             <tr>
               <td data-ru="UART RX (приём от модуля)" data-en="UART RX (from module)">UART RX (приём от модуля)</td>
               <td class="mono">GPIO4</td>
+              <td class="mono">GPIO16</td>
               <td class="mono">GPIO4</td>
               <td class="mono">GPIO4</td>
             </tr>
             <tr>
               <td data-ru="UART TX (отправка в модуль)" data-en="UART TX (to module)">UART TX (отправка в модуль)</td>
               <td class="mono">GPIO5</td>
+              <td class="mono">GPIO17</td>
               <td class="mono">GPIO5</td>
               <td class="mono">GPIO5</td>
             </tr>
             <tr>
               <td data-ru="SD card CS" data-en="SD card CS">SD card CS</td>
               <td class="mono" data-ru="GPIO10 (SPI конфликтует с реле/UART)" data-en="GPIO10 (SPI clashes with relay/UART)">GPIO10</td>
+              <td class="mono">GPIO27</td>
               <td class="mono">GPIO10</td>
               <td class="mono">GPIO10 (контроллер)</td>
             </tr>
             <tr>
               <td data-ru="W5500: SCK / MOSI / MISO" data-en="W5500: SCK / MOSI / MISO">W5500: SCK / MOSI / MISO</td>
+              <td data-ru="не поддерживается" data-en="not supported">не поддерживается</td>
               <td data-ru="не поддерживается" data-en="not supported">не поддерживается</td>
               <td class="mono">GPIO14 / 15 / 16</td>
               <td class="mono">GPIO21 / 19 / 20 (общая шина с SD)</td>
@@ -141,18 +148,21 @@
             <tr>
               <td data-ru="W5500: CS / RST / IRQ" data-en="W5500: CS / RST / IRQ">W5500: CS / RST / IRQ</td>
               <td data-ru="не поддерживается" data-en="not supported">не поддерживается</td>
+              <td data-ru="не поддерживается" data-en="not supported">не поддерживается</td>
               <td class="mono">GPIO17 / 18 / 21</td>
               <td class="mono">GPIO17 / 16 / 14</td>
             </tr>
             <tr>
               <td data-ru="Реле (активный уровень HIGH)" data-en="Relay (active HIGH)">Реле (активный HIGH)</td>
               <td class="mono">GPIO3</td>
+              <td class="mono">GPIO26</td>
               <td data-ru="не используется" data-en="not used">не используется</td>
               <td class="mono">GPIO3 (контроллер)</td>
             </tr>
             <tr>
               <td data-ru="Встроенный RGB-светодиод состояния" data-en="Onboard RGB status LED">Встроенный RGB-светодиод</td>
               <td data-ru="GPIO7 (делит линию SCL)" data-en="GPIO7 (shares the SCL line)">GPIO7 (делит SCL)</td>
+              <td data-ru="нет" data-en="none">нет</td>
               <td data-ru="GPIO48 (индикатор состояния)" data-en="GPIO48 (status indicator)">GPIO48</td>
               <td data-ru="GPIO8" data-en="GPIO8">GPIO8</td>
             </tr>
@@ -161,9 +171,11 @@
               <td class="mono">100 кГц</td>
               <td class="mono">100 кГц</td>
               <td class="mono">100 кГц</td>
+              <td class="mono">100 кГц</td>
             </tr>
             <tr>
               <td data-ru="Скорость UART" data-en="UART speed">Скорость UART</td>
+              <td class="mono">115200</td>
               <td class="mono">115200</td>
               <td class="mono">115200</td>
               <td class="mono">115200</td>
@@ -397,7 +409,7 @@
 
       <h2 id="ethernet" data-ru="Ethernet: модуль W5500" data-en="Ethernet: W5500 module">Ethernet: модуль W5500</h2>
 
-      <p data-ru-html="Платы S3 и C6 поддерживают проводной Ethernet на микросхеме <b>W5500</b> по SPI. Прошивка сама определяет кабель: пока он подключён, устройство работает через Ethernet, а при обрыве автоматически возвращается на сохранённый Wi-Fi. C3 в этой конфигурации не поддерживается — у неё не хватает свободных GPIO." data-en-html="The S3 and C6 boards support wired Ethernet with the <b>W5500</b> over SPI. The firmware detects the cable automatically: while it is connected the device uses Ethernet, and when the link drops it falls back to the saved Wi-Fi. The C3 is not supported in this configuration because it has too few free GPIOs.">S3 и C6 поддерживают W5500 по SPI; C3 — нет.</p>
+      <p data-ru-html="Платы S3 и C6 поддерживают проводной Ethernet на микросхеме <b>W5500</b> по SPI. Прошивка сама определяет кабель: пока он подключён, устройство работает через Ethernet, а при обрыве автоматически возвращается на сохранённый Wi-Fi. C3 и classic ESP32 в этой конфигурации не поддерживаются: C3 не хватает свободных GPIO, а classic ESP32 выбран как Wi-Fi-only." data-en-html="The S3 and C6 boards support wired Ethernet with the <b>W5500</b> over SPI. The firmware detects the cable automatically: while it is connected the device uses Ethernet, and when the link drops it falls back to the saved Wi-Fi. The C3 and classic ESP32 are not supported in this configuration: the C3 has too few free GPIOs, and the classic ESP32 is Wi-Fi-only.">S3 и C6 поддерживают W5500 по SPI; C3 и classic ESP32 — нет.</p>
 
       <div class="table-wrap">
         <table>
@@ -447,7 +459,7 @@
               <td data-ru="Главный контроллер" data-en="Main controller">Главный контроллер</td>
               <td class="mono">LOLIN C3 mini</td>
               <td class="center">1</td>
-              <td data-ru="либо ESP32-S3 N16R8" data-en="or ESP32-S3 N16R8">либо ESP32-S3 N16R8</td>
+              <td data-ru="либо ESP32-WROOM-32 / ESP32-S3 N16R8" data-en="or ESP32-WROOM-32 / ESP32-S3 N16R8">либо ESP32-WROOM-32 / ESP32-S3 N16R8</td>
             </tr>
             <tr>
               <td data-ru="Сенсорный модуль" data-en="Sensor module">Сенсорный модуль</td>

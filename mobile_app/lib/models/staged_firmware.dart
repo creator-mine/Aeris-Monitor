@@ -27,6 +27,7 @@ class StagedFirmware {
   });
 
   String get deviceLabel => switch (deviceType) {
+        'esp32' => 'ESP32',
         'esp32-c3' => 'ESP32-C3',
         'esp32-c6' => 'ESP32-C6',
         'esp32-s3' => 'ESP32-S3',

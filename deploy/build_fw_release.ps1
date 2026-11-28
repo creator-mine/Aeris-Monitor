@@ -1,9 +1,13 @@
 param(
     [switch]$Publish,
-    # Boards to build and (with -Publish) push to the OTA server. C3 is only
-    # listed explicitly when its binary is part of the release: leaving it out
-    # keeps the existing main.bin / version.json untouched.
-    [string[]]$Environments = @("esp32-c3", "esp32-s3", "esp32-c6")
+    # Boards to build and (with -Publish) push to the OTA server. C3 stays in
+    # the default list so its 1.3.11 image can still be rebuilt, but fw.ps1
+    # refuses to overwrite the published C3 manifest with another version.
+    [string[]]$Environments = @("esp32-c3", "esp32-s3", "esp32-c6", "esp32"),
+    # C3 stays in the default build list, but its published /fw files are only
+    # touched when this switch is supplied. fw.ps1 still refuses a version
+    # other than 1.3.11 unless -AllowLegacyC3Overwrite is used directly.
+    [switch]$IncludeLegacyC3
 )
 
 # Builds firmware for public OTA with NO compiled credentials:
@@ -68,6 +72,10 @@ foreach ($envName in $envs) {
 if ($Publish) {
     Write-Host "=== publishing to /fw ==="
     foreach ($envName in $envs) {
+        if ($envName -eq "esp32-c3" -and -not $IncludeLegacyC3) {
+            Write-Host "Skipping C3 publish (stable 1.3.11 stays live; use -IncludeLegacyC3 to opt in)"
+            continue
+        }
         & (Join-Path $PSScriptRoot "fw.ps1") -Environment $envName
         if ($LASTEXITCODE -ne 0) { throw "publish $envName failed" }
     }

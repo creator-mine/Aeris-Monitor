@@ -1,5 +1,12 @@
 #include "sys_info.h"
 #include <cmath>
+
+#if defined(CONFIG_IDF_TARGET_ESP32)
+// The original ESP32 has no temperature-sensor driver in the Arduino core 3.x
+// build (no libesp_driver_tsens.a). Return "unavailable" so callers omit the
+// optional chip_temp field instead of failing to link.
+float chipTemperatureCelsius() { return NAN; }
+#else
 #include <driver/temperature_sensor.h>
 
 namespace {
@@ -28,3 +35,4 @@ float chipTemperatureCelsius() {
     }
     return celsius;
 }
+#endif  // CONFIG_IDF_TARGET_ESP32

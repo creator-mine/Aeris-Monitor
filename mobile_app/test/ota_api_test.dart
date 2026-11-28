@@ -37,6 +37,14 @@ void main() {
       expect(OtaApi.normalizeDeviceType('esp32-c6'), 'esp32-c6');
       expect(OtaApi.normalizeDeviceType('custom'), 'custom');
     });
+    test('maps classic ESP32 without swallowing c3/c6/s3', () {
+      expect(OtaApi.normalizeDeviceType('esp32'), 'esp32');
+      expect(OtaApi.normalizeDeviceType('esp32dev'), 'esp32');
+      expect(OtaApi.normalizeDeviceType('ESP32-CLASSIC'), 'esp32');
+      expect(OtaApi.normalizeDeviceType('esp32c3'), 'esp32-c3');
+      expect(OtaApi.normalizeDeviceType('esp32c6'), 'esp32-c6');
+      expect(OtaApi.normalizeDeviceType('esp32s3'), 'esp32-s3');
+    });
     test('falls back to esp32-c3 when empty', () {
       expect(OtaApi.normalizeDeviceType(null), 'esp32-c3');
       expect(OtaApi.normalizeDeviceType(''), 'esp32-c3');
@@ -59,6 +67,12 @@ void main() {
       expect(OtaApi.manifestPathFor('esp32c6'), '/fw/version-esp32-c6.json');
       expect(OtaApi.binaryPathFor('esp32-c6'), '/fw/main_esp32-c6.bin');
       expect(OtaApi.binaryPathFor('esp32c6'), '/fw/main_esp32-c6.bin');
+    });
+    test('classic ESP32 has its own files', () {
+      expect(OtaApi.manifestPathFor('esp32'), '/fw/version-esp32.json');
+      expect(OtaApi.manifestPathFor('esp32dev'), '/fw/version-esp32.json');
+      expect(OtaApi.binaryPathFor('esp32'), '/fw/main_esp32.bin');
+      expect(OtaApi.binaryPathFor('esp32dev'), '/fw/main_esp32.bin');
     });
     test('unknown types fall back to legacy files', () {
       expect(OtaApi.manifestPathFor('custom'), '/fw/version.json');

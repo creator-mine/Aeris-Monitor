@@ -22,6 +22,14 @@ void main() {
       expect(expectedChipNameFor('esp32s3'), 'ESP32-S3');
       expect(expectedChipNameFor('ESP32-S3'), 'ESP32-S3');
     });
+    test('maps classic ESP32 without swallowing c3/c6/s3', () {
+      expect(expectedChipNameFor('esp32'), 'ESP32');
+      expect(expectedChipNameFor('esp32dev'), 'ESP32');
+      expect(expectedChipNameFor('ESP32-CLASSIC'), 'ESP32');
+      expect(expectedChipNameFor('esp32c3'), 'ESP32-C3');
+      expect(expectedChipNameFor('esp32c6'), 'ESP32-C6');
+      expect(expectedChipNameFor('esp32s3'), 'ESP32-S3');
+    });
     test('defaults unknown to ESP32-C3', () {
       expect(expectedChipNameFor('arduino'), 'ESP32-C3');
     });
@@ -59,6 +67,8 @@ void main() {
       expect(p.expectedChipName, 'ESP32-C6');
       p.selectDeviceType('esp32-s3');
       expect(p.expectedChipName, 'ESP32-S3');
+      p.selectDeviceType('esp32');
+      expect(p.expectedChipName, 'ESP32');
     });
   });
 

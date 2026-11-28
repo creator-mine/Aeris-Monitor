@@ -3,13 +3,17 @@
 #
 # Per-device-type artifacts:
 #   esp32-c3 -> /fw/main.bin + /fw/version.json               (legacy layout)
+#   esp32    -> /fw/main_esp32.bin + /fw/version-esp32.json
 #   esp32-c6 -> /fw/main_esp32-c6.bin + /fw/version-esp32-c6.json
 #   esp32-s3 -> /fw/main_esp32-s3.bin + /fw/version-esp32-s3.json
 #
 # Usage: powershell -File fw.ps1 [-Project main_controller] [-Environment esp32-c3]
 param(
     [string]$Project = "main_controller",
-    [string]$Environment = "esp32-c3"
+    [string]$Environment = "esp32-c3",
+    # C3 is the legacy Wi-Fi-only controller and stays on the published 1.3.11.
+    # Overwriting it with a newer shared version needs an explicit opt-in.
+    [switch]$AllowLegacyC3Overwrite
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,6 +40,13 @@ $version = "0.0.0"
 $match = Select-String -LiteralPath $configHeader -Pattern '#define\s+FIRMWARE_VERSION\s+"([^"]+)"'
 if ($match -and $match.Matches.Count -gt 0) {
     $version = $match.Matches[0].Groups[1].Value
+}
+
+# C3 devices in the field run 1.3.11 and use the legacy /fw/main.bin paths.
+# A shared source version (1.6.0) must not silently replace them.
+if ($legacy -and $version -ne "1.3.11" -and -not $AllowLegacyC3Overwrite) {
+    throw "Refusing to publish C3 firmware v$version over the stable 1.3.11. " +
+          "Use -AllowLegacyC3Overwrite only when you really mean to replace it."
 }
 
 $bytes = [System.IO.File]::ReadAllBytes($srcBin)

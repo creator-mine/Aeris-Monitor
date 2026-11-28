@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("esp32-c3", "esp32-c6", "esp32-s3")]
+    [ValidateSet("esp32", "esp32-c3", "esp32-c6", "esp32-s3")]
     [string]$Environment = "esp32-c3",
     [string]$Port = "",
     [switch]$EraseAll
@@ -18,6 +18,7 @@ param(
 # truly blank device (new board, forgotten credentials, layout change).
 #
 # Usage:
+#   powershell -File deploy/flash_device.ps1 -Environment esp32 -Port COM5
 #   powershell -File deploy/flash_device.ps1 -Environment esp32-c6 -Port COM7
 #   powershell -File deploy/flash_device.ps1 -Environment esp32-c3 -EraseAll
 
@@ -26,16 +27,21 @@ $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root "firmware\main_controller"
 
 $chip = @{
+    "esp32"    = "esp32"
     "esp32-c3" = "esp32c3"
     "esp32-c6" = "esp32c6"
     "esp32-s3" = "esp32s3"
 }[$Environment]
 
 $flashSize = @{
+    "esp32"    = "4MB"
     "esp32-c3" = "4MB"
     "esp32-c6" = "16MB"
     "esp32-s3" = "16MB"
 }[$Environment]
+
+# Classic ESP32 keeps the bootloader at 0x1000; C3/C6/S3 place it at 0x0.
+$bootloaderOffset = if ($Environment -eq "esp32") { "0x1000" } else { "0x0" }
 
 $factory = Join-Path $project ".pio\build\$Environment\firmware.factory.bin"
 
@@ -113,9 +119,9 @@ $flashSizeArg = if ($esptoolMajor -ge 5) { "--flash-size" } else { "--flash_size
 # factory image is only used together with --erase-all, where the wipe is the
 # point.
 $segments = @(
-    @{ Offset = "0x0";     Path = Join-Path $project ".pio\build\$Environment\bootloader.bin" },
-    @{ Offset = "0x8000";  Path = Join-Path $project ".pio\build\$Environment\partitions.bin" },
-    @{ Offset = "0x10000"; Path = Join-Path $project ".pio\build\$Environment\firmware.bin" }
+    @{ Offset = $bootloaderOffset; Path = Join-Path $project ".pio\build\$Environment\bootloader.bin" },
+    @{ Offset = "0x8000";          Path = Join-Path $project ".pio\build\$Environment\partitions.bin" },
+    @{ Offset = "0x10000";         Path = Join-Path $project ".pio\build\$Environment\firmware.bin" }
 )
 
 if ($EraseAll -or $esptoolMajor -lt 5) {

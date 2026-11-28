@@ -146,7 +146,7 @@
       <details class="faq">
         <summary data-ru="Не вижу свою сеть 5 ГГц при сканировании" data-en="My 5 GHz network does not appear in the scan">Не вижу сеть 5 ГГц</summary>
         <div class="faq-body">
-          <p data-ru="Сканирует сама плата, а ESP32-C3 и ESP32-C6 работают только в диапазоне 2,4 ГГц. Сеть 5 ГГц они не увидят никогда; используйте SSID 2,4 ГГц или включите на роутере оба диапазона с разными именами." data-en="The board scans itself, and the ESP32-C3 and ESP32-C6 are 2.4 GHz only. They will never see a 5 GHz network; use a 2.4 GHz SSID or enable both bands on the router with different names.">C3/C6 — только 2,4 ГГц.</p>
+          <p data-ru="Сканирует сама плата, а ESP32, ESP32-C3 и ESP32-C6 работают только в диапазоне 2,4 ГГц. Сеть 5 ГГц они не увидят никогда; используйте SSID 2,4 ГГц или включите на роутере оба диапазона с разными именами." data-en="The board scans itself, and the ESP32, ESP32-C3 and ESP32-C6 are 2.4 GHz only. They will never see a 5 GHz network; use a 2.4 GHz SSID or enable both bands on the router with different names.">ESP32/C3/C6 — только 2,4 ГГц.</p>
           <p data-ru="Если сеть 2,4 ГГц тоже не появляется, подойдите ближе к роутеру: список обновляется по запросу и может быть пустым сразу после включения." data-en="If a 2.4 GHz network is missing too, move closer to the router: the list refreshes on request and may be empty right after boot.">Подойдите ближе и повторите скан.</p>
         </div>
       </details>
@@ -247,7 +247,7 @@
       <details class="faq">
         <summary data-ru="Что проверяется автоматически?" data-en="What is verified automatically?">Что проверяется автоматически</summary>
         <div class="faq-body">
-          <p data-ru="У сервера 158 автотестов: реестр, лимиты, аварии, правила, MQTT-клиент, хранилище метрик, SSE и обработчики HTTP. У приложения 94 теста. Прошивка проверяется сборкой под все три платы и поведением на реальном железе — автотестов у неё нет." data-en="The server has 158 automated tests: registry, limits, alerts, rules, the MQTT client, metric storage, SSE and the HTTP handlers. The app has 94 tests. Firmware is verified by building for all three boards and by behaviour on real hardware — it has no automated tests.">Тесты есть у сервера и приложения.</p>
+          <p data-ru="У сервера 158 автотестов: реестр, лимиты, аварии, правила, MQTT-клиент, хранилище метрик, SSE и обработчики HTTP. У приложения 94 теста. Прошивка проверяется сборкой под все четыре платы и поведением на реальном железе — автотестов у неё нет." data-en="The server has 158 automated tests: registry, limits, alerts, rules, the MQTT client, metric storage, SSE and the HTTP handlers. The app has 94 tests. Firmware is verified by building for all four boards and by behaviour on real hardware — it has no automated tests.">Тесты есть у сервера и приложения.</p>
         </div>
       </details>
 
@@ -276,7 +276,7 @@
       <details class="faq">
         <summary data-ru="С чего начать сборку прошивки?" data-en="Where do I start building the firmware?">С чего начать сборку</summary>
         <div class="faq-body">
-          <p data-ru="Создайте виртуальное окружение, поставьте PlatformIO и соберите нужную плату — проекта настроены под три: ESP32-C3, ESP32-C6 и ESP32-S3." data-en="Create a virtual environment, install PlatformIO and build the board you need — the project is configured for three: ESP32-C3, ESP32-C6 and ESP32-S3.">Три среды сборки.</p>
+          <p data-ru="Создайте виртуальное окружение, поставьте PlatformIO и соберите нужную плату — проекта настроены под четыре: ESP32, ESP32-C3, ESP32-C6 и ESP32-S3." data-en="Create a virtual environment, install PlatformIO and build the board you need — the project is configured for four: ESP32, ESP32-C3, ESP32-C6 and ESP32-S3.">Четыре среды сборки.</p>
           <pre style="margin-top:8px"><code>python -m venv .venv
 .venv\Scripts\activate
 pip install platformio

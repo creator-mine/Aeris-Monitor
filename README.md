@@ -9,7 +9,7 @@
 ```
 ┌──────────────────┐     UART (бинарный протокол)     ┌──────────────────┐
 │  Sensor Module   │ ◄──────────────────────────────► │  Main Controller │
-│  ESP32-C6        │    0xAA 0x55 + CRC-16            │  ESP32-C3        │
+│  ESP32-C6        │    0xAA 0x55 + CRC-16            │  C3 / classic    │
 │  BME680 + BH1750 │                                   │  BME680 + BH1750 │
 └──────────────────┘                                   │  + SD-карта      │
                                                        └────────┬─────────┘
@@ -47,7 +47,7 @@
 ## Компоненты системы
 
 ### 1. Главный контроллер (`firmware/main_controller/`)
-**Платформа:** ESP32-C3 (Lolin C3 Mini) + Arduino Framework
+**Платформа:** ESP32-C3 (Lolin C3 Mini), ESP32-WROOM-32, ESP32-C6 или ESP32-S3 + Arduino Framework
 
 - **Подключение:** WiFi станцией, MQTT-клиент к брокеру
 - **Локальные датчики (I2C):** BME680 (температура, влажность, давление, газ) и BH1750 (освещённость)
@@ -195,13 +195,14 @@ docker compose up -d --build
 
 - Исходники: <https://github.com/creator-mine/Aeris-Monitor>
 - Приложение (Windows/Android): <https://github.com/creator-mine/Aeris-App/releases>
-- Прошивки (ESP32-C3/C6/S3): <https://github.com/creator-mine/Aeris-firmware/releases>
+- Прошивки (ESP32/C3/C6/S3): <https://github.com/creator-mine/Aeris-firmware/releases>
 - Локальные сборки для проверки: `release/<версия>/` — APK, установщик Windows,
   OTA- и factory-образы прошивки, `SHA256SUMS` и инструкция в `README.md`.
 
 ## Текущий статус и планы
 
 - [x] Главный контроллер ESP32-C3: WiFi, MQTT, UART, SD, локальные датчики
+- [x] Контроллер ESP32-WROOM-32 (classic, 4 МБ): WiFi, MQTT, UART, SD, локальные датчики
 - [x] Сенсорный модуль ESP32-C6: датчики, UART-протокол
 - [x] Мобильное приложение: дашборд, графики, управление устройствами, прошивка, настройки
 - [x] REST API сервера (базовый CRUD)

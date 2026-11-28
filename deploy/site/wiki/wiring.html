@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Подключение датчиков · Aeris Monitor</title>
-<meta name="description" content="Распиновка каждого датчика: BME680, BMP280, BH1750, SCD30 и INA219. Какие выводы куда подключать, как выбрать адрес I²C и какие GPIO плат C3/C6/S3 остаются свободными.">
+<meta name="description" content="Распиновка каждого датчика: BME680, BMP280, BH1750, SCD30 и INA219. Какие выводы куда подключать, как выбрать адрес I²C и какие GPIO плат ESP32/C3/C6/S3 остаются свободными.">
 <link rel="canonical" href="https://spe4naz.online/wiki/wiring.html">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Aeris Monitor">
 <meta property="og:locale" content="ru_RU">
 <meta property="og:url" content="https://spe4naz.online/wiki/wiring.html">
 <meta property="og:title" content="Подключение датчиков">
-<meta property="og:description" content="Распиновка BME680, BMP280, BH1750, SCD30 и INA219, выбор адреса I²C и свободные GPIO плат C3/C6/S3.">
+<meta property="og:description" content="Распиновка BME680, BMP280, BH1750, SCD30 и INA219, выбор адреса I²C и свободные GPIO плат ESP32/C3/C6/S3.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -60,7 +60,7 @@
     <div class="page-head">
       <div class="eyebrow"><span>🧩</span> <span data-ru="Раздел 3 · практика" data-en="Section 3 · practice">Раздел 3 · практика</span></div>
       <h1 data-ru="Подключение датчиков" data-en="Sensor wiring">Подключение датчиков</h1>
-      <p class="lede" data-ru="Пошаговая распиновка всех поддерживаемых датчиков: какой вывод модуля куда идёт, как выставить адрес I²C и какие GPIO остаются свободными на C3, C6, S3 и сенсорном модуле." data-en="Pin-by-pin wiring for every supported sensor: which module pin goes where, how to set the I²C address, and which GPIOs stay free on C3, C6, S3 and the sensor module.">Распиновка всех датчиков и свободные пины плат.</p>
+      <p class="lede" data-ru="Пошаговая распиновка всех поддерживаемых датчиков: какой вывод модуля куда идёт, как выставить адрес I²C и какие GPIO остаются свободными на C3, classic ESP32, C6, S3 и сенсорном модуле." data-en="Pin-by-pin wiring for every supported sensor: which module pin goes where, how to set the I²C address, and which GPIOs stay free on C3, classic ESP32, C6, S3 and the sensor module.">Распиновка всех датчиков и свободные пины плат.</p>
     </div>
 
     <div class="prose">
@@ -84,6 +84,12 @@
               <td data-ru="ESP32-C3 (LOLIN C3 mini), контроллер" data-en="ESP32-C3 (LOLIN C3 mini), controller">ESP32-C3, контроллер</td>
               <td class="mono">GPIO6</td>
               <td class="mono">GPIO7</td>
+              <td class="mono">3,3 В</td>
+            </tr>
+            <tr>
+              <td data-ru="ESP32-WROOM-32 (classic), контроллер" data-en="ESP32-WROOM-32 (classic), controller">ESP32-WROOM-32, контроллер</td>
+              <td class="mono">GPIO21</td>
+              <td class="mono">GPIO22</td>
               <td class="mono">3,3 В</td>
             </tr>
             <tr>
@@ -528,6 +534,35 @@
         <li data-ru-html="Свободны <code>GPIO0</code> и <code>GPIO1</code>. Выводы <code>GPIO2</code>, <code>GPIO8</code> и <code>GPIO9</code> — стриппинги: <code>GPIO9</code> совпадает с кнопкой BOOT, а <code>GPIO8</code> при старте должен быть высоким. Занимать их можно, но следите за уровнем в момент включения." data-en-html="<code>GPIO0</code> and <code>GPIO1</code> are free. <code>GPIO2</code>, <code>GPIO8</code> and <code>GPIO9</code> are strapping pins: <code>GPIO9</code> is the BOOT button and <code>GPIO8</code> must be high at boot. They can be used, but mind the level at power-up.">Свободны GPIO0 и GPIO1; 2, 8, 9 — стриппинги.</li>
         <li data-ru-html="<code>GPIO7</code> — не просто SCL: на него заведён встроенный WS2812. Прошивка контроллера им не управляет, но и использовать светодиод отдельно не получится — он делит линию с шиной." data-en-html="<code>GPIO7</code> is not just SCL: the onboard WS2812 is wired to it. The controller firmware does not drive it, and the LED cannot be used separately — it shares the line with the bus.">GPIO7 делит линию со встроенным светодиодом.</li>
         <li data-ru-html="SD-карта на C3 конфликтует с остальными линиями: SPI по умолчанию занимает <code>GPIO2</code> (SCK), <code>GPIO3</code> (MISO) и <code>GPIO4</code> (MOSI), а <code>GPIO3</code> и <code>GPIO4</code> уже заняты реле и UART. Одновременно с реле и модулем карта на C3 не работает; историю на SD используйте на C6 или S3." data-en-html="An SD card on the C3 conflicts with the other lines: the default SPI bus uses <code>GPIO2</code> (SCK), <code>GPIO3</code> (MISO) and <code>GPIO4</code> (MOSI), while <code>GPIO3</code> and <code>GPIO4</code> are already the relay and UART. The card cannot work together with the relay and the module on a C3; use C6 or S3 for SD history.">SD на C3 конфликтует с реле и UART.</li>
+      </ul>
+
+      <h3 id="plata-esp32" data-ru="ESP32-WROOM-32 (classic)" data-en="ESP32-WROOM-32 (classic)">ESP32-WROOM-32 (classic)</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>GPIO</th>
+              <th data-ru="Назначение" data-en="Purpose">Назначение</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">16</td><td data-ru="UART1 RX — приём от сенсорного модуля" data-en="UART1 RX — from the sensor module">UART1 RX</td></tr>
+            <tr><td class="mono">17</td><td data-ru="UART1 TX — передача в сенсорный модуль" data-en="UART1 TX — to the sensor module">UART1 TX</td></tr>
+            <tr><td class="mono">18 / 19 / 23</td><td data-ru="SPI: SCK / MISO / MOSI для SD-карты" data-en="SPI: SCK / MISO / MOSI for the SD card">SPI для SD</td></tr>
+            <tr><td class="mono">21 / 22</td><td data-ru="I²C SDA / SCL" data-en="I²C SDA / SCL">I²C</td></tr>
+            <tr><td class="mono">26</td><td data-ru="Реле, активный HIGH" data-en="Relay, active HIGH">Реле</td></tr>
+            <tr><td class="mono">27</td><td data-ru="SD card CS" data-en="SD card CS">SD CS</td></tr>
+            <tr><td class="mono">6–11</td><td data-ru="Флеш-память, недоступны" data-en="Flash memory, unavailable">Флеш</td></tr>
+            <tr><td class="mono">1 / 3</td><td data-ru="UART0, консоль и USB-сериал" data-en="UART0, console and USB serial">UART0</td></tr>
+            <tr><td class="mono">34–39</td><td data-ru="Только вход; IRQ/W5500 здесь не используется" data-en="Input only; no W5500 on this board">Только вход</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ul>
+        <li data-ru-html="Свободны <code>GPIO4</code>, <code>13</code>, <code>14</code>, <code>25</code>, <code>32</code>, <code>33</code> и <code>34</code>–<code>39</code> (последние — только вход). <code>GPIO0</code>, <code>2</code>, <code>5</code>, <code>12</code> и <code>15</code> — стриппинги: не занимайте их без необходимости." data-en-html="<code>GPIO4</code>, <code>13</code>, <code>14</code>, <code>25</code>, <code>32</code>, <code>33</code> and <code>34</code>–<code>39</code> are free (the last group is input-only). <code>GPIO0</code>, <code>2</code>, <code>5</code>, <code>12</code> and <code>15</code> are strapping pins: avoid them unless necessary.">Свободны 4, 13, 14, 25, 32, 33, 34–39; 0/2/5/12/15 — стриппинги.</li>
+        <li data-ru-html="W5500 на classic ESP32 не поддерживается: контроллер работает только через Wi-Fi. На плате WROVER с PSRAM нельзя использовать <code>GPIO16</code> и <code>GPIO17</code> — для неё нужна другая распиновка UART." data-en-html="W5500 is not supported on the classic ESP32: this controller is Wi-Fi-only. On a WROVER board with PSRAM, <code>GPIO16</code> and <code>GPIO17</code> are unavailable, so the UART pins would need to change.">Wi-Fi-only; на WROVER GPIO16/17 заняты PSRAM.</li>
       </ul>
 
       <h3 id="plata-c6" data-ru="ESP32-C6 DevKitC-1" data-en="ESP32-C6 DevKitC-1">ESP32-C6 DevKitC-1</h3>

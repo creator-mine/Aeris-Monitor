@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Прошивка и протокол · Aeris Monitor</title>
-<meta name="description" content="Сборка прошивок PlatformIO для ESP32-C3, C6 и S3, первичная прошивка и настройка Wi-Fi, OTA, структура кода и бинарный UART-протокол с CRC-16.">
+<meta name="description" content="Сборка прошивок PlatformIO для ESP32, ESP32-C3, C6 и S3, первичная прошивка и настройка Wi-Fi, OTA, структура кода и бинарный UART-протокол с CRC-16.">
 <link rel="canonical" href="https://spe4naz.online/wiki/firmware.html">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Aeris Monitor">
 <meta property="og:locale" content="ru_RU">
 <meta property="og:url" content="https://spe4naz.online/wiki/firmware.html">
 <meta property="og:title" content="Прошивка и протокол">
-<meta property="og:description" content="Сборка прошивок PlatformIO для ESP32-C3, C6 и S3, первичная прошивка и настройка Wi-Fi, OTA, структура кода и бинарный UART-протокол с CRC-16.">
+<meta property="og:description" content="Сборка прошивок PlatformIO для ESP32, ESP32-C3, C6 и S3, первичная прошивка и настройка Wi-Fi, OTA, структура кода и бинарный UART-протокол с CRC-16.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -71,7 +71,7 @@
 ├── main_controller/        прошивка главного контроллера
 │   ├── include/            config.h, uart_protocol.h, web_server.h, ota_updater.h
 │   ├── src/                main.cpp и остальные модули
-│   └── platformio.ini      среды esp32-c3, esp32-c6 и esp32-s3
+│   └── platformio.ini      среды esp32, esp32-c3, esp32-c6 и esp32-s3
 ├── sensor_module/          прошивка сенсорного модуля
 │   ├── include/            config.h, uart_protocol.h
 │   ├── src/main.cpp
@@ -79,11 +79,11 @@
 ├── shared/
 │   └── sensor_modules/     общие драйверы датчиков и реестр
 ├── test_simple/            минимальный проверочный проект
-└── partitions_c3_ota.csv   разметка C3: два OTA-слота</code></pre>
+└── partitions_c3_ota.csv   разметка 4 МБ: два OTA-слота (C3 / classic ESP32)</code></pre>
 
       <h2 id="sborka" data-ru="Сборка прошивок" data-en="Building the firmware">Сборка прошивок</h2>
 
-      <p data-ru="Сборка идёт через PlatformIO. Проектов два, но контроллер собирается под три платы: ESP32-C3, ESP32-C6 и ESP32-S3. Один и тот же чип C6 может быть и контроллером, и сенсорным модулем — это две разные прошивки, и собирать нужно ту, которая нужна на конкретной плате." data-en="Builds go through PlatformIO. There are two projects, but the controller builds for three boards: ESP32-C3, ESP32-C6 and ESP32-S3. The same C6 chip can be either a controller or a sensor module — these are two different firmwares, so build the one the board is meant to run.">Сборка идёт через PlatformIO, прошивок две.</p>
+      <p data-ru="Сборка идёт через PlatformIO. Проектов два, но контроллер собирается под четыре платы: classic ESP32 (WROOM-32), ESP32-C3, ESP32-C6 и ESP32-S3. Один и тот же чип C6 может быть и контроллером, и сенсорным модулем — это две разные прошивки, и собирать нужно ту, которая нужна на конкретной плате." data-en="Builds go through PlatformIO. There are two projects, but the controller builds for four boards: classic ESP32 (WROOM-32), ESP32-C3, ESP32-C6 and ESP32-S3. The same C6 chip can be either a controller or a sensor module — these are two different firmwares, so build the one the board is meant to run.">Сборка идёт через PlatformIO, прошивок две.</p>
 
       <div class="steps">
         <div class="step">
@@ -96,6 +96,7 @@ pip install -U platformio</code></pre>
           <h3 data-ru="Соберите главный контроллер" data-en="Build the main controller">Соберите главный контроллер</h3>
           <pre style="margin-top:4px"><code>cd firmware/main_controller
 pio run -e esp32-c3</code></pre>
+          <p data-ru="Для classic ESP32 (ESP32-WROOM-32, 4 МБ) собирается среда esp32. Это Wi-Fi-only контроллер: W5500 на нём не поддерживается, но Wi-Fi, MQTT, веб-сервер, SD и OTA работают." data-en="For a classic ESP32 (ESP32-WROOM-32, 4 MB) build the esp32 environment. It is a Wi-Fi-only controller: W5500 is not supported, but Wi-Fi, MQTT, the web server, SD and OTA work.">Для classic ESP32 — среда esp32 (Wi-Fi-only).</p>
           <p data-ru="Для платы ESP32-S3 N16R8 вместо этого собирается среда esp32-s3: она объявляет 16 МБ флеша и восьмиканальную PSRAM." data-en="For an ESP32-S3 N16R8 board build the esp32-s3 environment instead: it declares 16 MB of flash and octal PSRAM.">Для платы ESP32-S3 — среда esp32-s3.</p>
           <p data-ru="Для ESP32-C6 в этом же проекте есть среда esp32-c6 — это полноценный контроллер с Wi-Fi, MQTT, веб-сервером и OTA, а не сенсорный модуль. Она рассчитана на 16 МБ флеша и штатную разметку с двумя OTA-слотами по 6,25 МБ." data-en="For an ESP32-C6 the same project has an esp32-c6 environment — a full controller with Wi-Fi, MQTT, web server and OTA, not the sensor module. It targets 16 MB of flash and the stock layout with two 6.25 MB OTA slots.">Для ESP32-C6 — среда esp32-c6 (контроллер, 16 МБ).</p>
         </div>
@@ -278,6 +279,11 @@ pio run -e esp32-c6 -t upload</code></pre>
               <td class="mono">esp32c3</td>
               <td class="mono">/fw/main.bin</td>
               <td class="mono">/fw/version.json</td>
+            </tr>
+            <tr>
+              <td class="mono">esp32</td>
+              <td class="mono">/fw/main_esp32.bin</td>
+              <td class="mono">/fw/version-esp32.json</td>
             </tr>
             <tr>
               <td class="mono">esp32s3</td>

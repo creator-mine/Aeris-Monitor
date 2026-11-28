@@ -98,6 +98,18 @@ void main() {
         firmwareDeviceTypeFromName('iot-modular-esp32s3-v1.2.2.bin'),
         'esp32-s3',
       );
+      expect(
+        firmwareDeviceTypeFromName('aeris-1.6.0-esp32.bin'),
+        'esp32',
+      );
+      expect(
+        firmwareDeviceTypeFromName('aeris-1.6.0-esp32dev.bin'),
+        'esp32',
+      );
+      expect(firmwareDeviceTypeFromName('main_esp32.bin'), 'esp32');
+      expect(firmwareDeviceTypeFromName('main_esp32-c3.bin'), 'esp32-c3');
+      expect(firmwareDeviceTypeFromName('main_esp32-c6.bin'), 'esp32-c6');
+      expect(firmwareDeviceTypeFromName('main_esp32-s3.bin'), 'esp32-s3');
       expect(firmwareDeviceTypeFromName('main.bin'), isNull);
       expect(firmwareDeviceTypeFromName('firmware.bin'), isNull);
       expect(firmwareDeviceTypeFromName('mystery.bin'), isNull);

@@ -293,7 +293,7 @@ class FirmwareProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('firmware_last_device', type);
 
-    // The published manifest is per device type (C3/C6/S3 have their own
+    // The published manifest is per device type (ESP32/C3/C6/S3 have their own
     // files), so refresh it immediately instead of showing the old one.
     await fetchServerManifest();
 

@@ -322,8 +322,9 @@ String WebServer::buildHistoryJson(AsyncWebServerRequest* request) {
 String WebServer::buildHistoryJsonFor(const String& filterType, uint64_t since,
                                       uint16_t limit, bool resetWatchdog,
                                       uint16_t maxPoints) {
-    if (limit == 0) limit = 1000;
-    if (maxPoints > 1000) maxPoints = 1000;
+    if (limit == 0) limit = HISTORY_MAX_POINTS;
+    if (limit > HISTORY_MAX_POINTS) limit = HISTORY_MAX_POINTS;
+    if (maxPoints > HISTORY_MAX_BUCKETS) maxPoints = HISTORY_MAX_BUCKETS;
     if (maxPoints > 0 && maxPoints < 2) maxPoints = 2;
     (void)resetWatchdog;  // the async_tcp task is TWDT-subscribed itself
 
@@ -335,7 +336,7 @@ String WebServer::buildHistoryJsonFor(const String& filterType, uint64_t since,
         double sum;
         uint16_t count;
     };
-    static Bucket buckets[1000];
+    static Bucket buckets[HISTORY_MAX_BUCKETS];
     uint16_t bucketCount = 0;
     uint64_t bucketSpan = 0;
     uint64_t nowTs = (uint64_t)time(nullptr) * 1000ULL;
@@ -364,7 +365,7 @@ String WebServer::buildHistoryJsonFor(const String& filterType, uint64_t since,
         uint64_t ts;
         float value;
     };
-    static Point points[1024];  // ~16KB — keep off the task stack (BSS)
+    static Point points[HISTORY_MAX_POINTS];  // keep off the task stack (BSS)
     uint16_t count = 0;
     uint16_t parseOps = 0;
     bool stopAll = false;
@@ -472,6 +473,7 @@ String WebServer::buildHistoryJsonFor(const String& filterType, uint64_t since,
             buckets[idx].count++;
             return;
         }
+        if (count >= HISTORY_MAX_POINTS) return;
         points[count].ts = ts;
         points[count].value = value;
         count++;
@@ -479,7 +481,7 @@ String WebServer::buildHistoryJsonFor(const String& filterType, uint64_t since,
 
     // Larger reads drastically reduce SD seek/read overhead for month-long
     // aggregated ranges. The static buffer lives in BSS, not on the stack.
-    const size_t CHUNK = 16384;
+    const size_t CHUNK = HISTORY_READ_CHUNK;
     // Standard (non-aggregated) requests only need the newest samples: ~384 KB
     // is enough for >1000 points even with several metrics per timestamp.
     const int maxChunks = 24;

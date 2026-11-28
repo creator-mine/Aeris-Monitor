@@ -36,6 +36,8 @@
 //
 // Supported boards:
 //   [env:esp32-c3]  ESP32-C3 (LOLIN C3 mini) main controller
+//   [env:esp32]     ESP32-WROOM-32 classic (4 MB flash, Wi-Fi only)
+//   [env:esp32-c6]  ESP32-C6 DevKitC-1 (16 MB flash) controller
 //   [env:esp32-s3]  ESP32-S3 N16R8 (16 MB flash / 8 MB PSRAM) controller
 // ============================================================
 
@@ -97,7 +99,7 @@
 // Over-the-Air firmware updates (pulled over HTTPS from the public site).
 // Each board pulls its own binary + manifest (per-device_type files).
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "1.5.0"
+#define FIRMWARE_VERSION "1.6.0"
 #endif
 #ifndef OTA_FW_HOST
 #define OTA_FW_HOST "spe4naz.online"
@@ -156,6 +158,7 @@
 
 // I2C Configuration (ESP32-C3: SDA 6 / SCL 7)
 // ESP32-S3 overrides via build_flags: SDA 8 / SCL 9.
+// Classic ESP32 overrides via build_flags: SDA 21 / SCL 22.
 #ifndef I2C_SDA
 #define I2C_SDA 6
 #endif
@@ -174,6 +177,7 @@
 
 // UART Configuration (for ESP32-C6 sensor modules)
 // ESP32-S3 overrides via build_flags: RX 4 / TX 5.
+// Classic ESP32 overrides via build_flags: RX 16 / TX 17.
 #ifndef UART_RX
 #define UART_RX 4
 #endif
@@ -189,6 +193,7 @@
 
 // SD Card Configuration (chip select pin)
 // ESP32-S3 overrides via build_flags: CS 10 (SPI default SCK12/MISO11/MOSI13).
+// Classic ESP32 overrides via build_flags: CS 27 (VSPI SCK18/MISO19/MOSI23).
 #ifndef SD_CS
 #define SD_CS 10
 #endif
@@ -196,7 +201,8 @@
 // Optional wired Ethernet (W5500 over SPI). Disabled by default; the S3 and C6
 // environments enable it in platformio.ini. The C6 has only one general SPI
 // host, so there the W5500 shares the SD card bus (AERIS_ETH_SHARE_SPI=1) and
-// only CS/RST/IRQ are dedicated. The S3 gets a dedicated SPI3 bus.
+// only CS/RST/IRQ are dedicated. The S3 gets a dedicated SPI3 bus. Classic
+// ESP32 boards stay Wi-Fi-only (AERIS_ETH_ENABLED=0).
 #ifndef AERIS_ETH_ENABLED
 #define AERIS_ETH_ENABLED 0
 #endif
@@ -298,6 +304,19 @@
 // In-memory ring buffer for device logs (exposed via /api/v1/logs)
 #ifndef LOG_MAX_ENTRIES
 #define LOG_MAX_ENTRIES 64
+#endif
+
+// History aggregation/parse buffers. The defaults target 16 MB boards; the
+// classic ESP32 has a much smaller DRAM window and overrides these in
+// platformio.ini.
+#ifndef HISTORY_MAX_BUCKETS
+#define HISTORY_MAX_BUCKETS 1000
+#endif
+#ifndef HISTORY_MAX_POINTS
+#define HISTORY_MAX_POINTS 1024
+#endif
+#ifndef HISTORY_READ_CHUNK
+#define HISTORY_READ_CHUNK 16384
 #endif
 
 #endif
